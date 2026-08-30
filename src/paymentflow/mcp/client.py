@@ -30,7 +30,12 @@ class RecoveryAgentClient:
 
     async def discover_tools(self) -> list[dict[str, Any]]:
         """Query MCP Server to discover available tools and their schemas."""
-        tools = await self.server.list_tools()
+        try:
+            tools = await self.server.list_tools()
+        except Exception as exc:
+            logger.error(f"MCP tool discovery failed: {exc}")
+            return []
+
         discovered = []
         for t in tools:
             schema = t.inputSchema if hasattr(t, "inputSchema") else getattr(t, "input_schema", {})
@@ -44,9 +49,13 @@ class RecoveryAgentClient:
     async def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> Any:
         """Invoke an MCP tool through the MCP protocol boundary and decode output."""
         args = arguments or {}
-        result: CallToolResult = await self.server.call_tool(tool_name, args)
+        try:
+            result: CallToolResult = await self.server.call_tool(tool_name, args)
+        except Exception as exc:
+            logger.error(f"MCP tool call '{tool_name}' failed with exception: {exc}")
+            return {"error": str(exc)}
 
-        if not result.content:
+        if not result or not result.content:
             return None
 
         # Parse text content blocks from CallToolResult

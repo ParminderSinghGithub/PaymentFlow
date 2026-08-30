@@ -654,3 +654,363 @@ async def test_delayed_execution_state_freshness_recheck(
         reloaded = await session.get(RecoveryCaseModel, case_id)
         assert reloaded.state == CaseState.RECOVERED.value
         assert reloaded.payment_link_id is None
+
+
+@pytest.mark.asyncio
+async def test_llm_http_500_server_error_safe_fallback(
+    test_settings: Settings,
+    mock_razorpay_adapter: RazorpayAdapter,
+):
+    """Verify HTTP 500 from LLM API safely falls back to P_NO_ACTION."""
+    settings = test_settings.model_copy(update={"llm_api_key": "valid_test_key"})
+    sessionmaker = get_sessionmaker()
+    case_id = "case_prod_500_001"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_prod_500_001",
+            amount=100000,
+            currency="INR",
+            payment_method="card",
+            failure_code="BAD_REQUEST_ERROR",
+            state=CaseState.FAILED_INGESTED.value,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    def server_error_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"error": "Internal Server Error"}, request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(server_error_handler)) as err_client:
+        llm_client = LLMClient(settings=settings, http_client=err_client)
+        agent_client = RecoveryAgentClient(settings=settings, llm_client=llm_client)
+        orchestrator = RecoveryOrchestrator(
+            sessionmaker=sessionmaker,
+            razorpay_adapter=mock_razorpay_adapter,
+            agent_client=agent_client,
+            settings=settings,
+        )
+
+        result = await orchestrator.orchestrate_recovery(case_id=case_id)
+        assert result["success"] is True
+        assert result["state"] == CaseState.TERMINAL_NO_ACTION.value
+        assert result["policy"] == RecoveryPolicy.P_NO_ACTION.value
+        assert result["action_executed"] is False
+
+
+@pytest.mark.asyncio
+async def test_llm_unconfigured_placeholder_key_fallback(
+    test_settings: Settings,
+    mock_razorpay_adapter: RazorpayAdapter,
+):
+    """Verify placeholder API key safely fails closed without external network calls."""
+    settings = test_settings.model_copy(update={"llm_api_key": "placeholder_secret"})
+    sessionmaker = get_sessionmaker()
+    case_id = "case_prod_placeholder_001"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_prod_placeholder_001",
+            amount=100000,
+            currency="INR",
+            payment_method="card",
+            failure_code="BAD_REQUEST_ERROR",
+            state=CaseState.FAILED_INGESTED.value,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    llm_client = LLMClient(settings=settings)
+    agent_client = RecoveryAgentClient(settings=settings, llm_client=llm_client)
+    orchestrator = RecoveryOrchestrator(
+        sessionmaker=sessionmaker,
+        razorpay_adapter=mock_razorpay_adapter,
+        agent_client=agent_client,
+        settings=settings,
+    )
+
+    result = await orchestrator.orchestrate_recovery(case_id=case_id)
+    assert result["success"] is True
+    assert result["state"] == CaseState.TERMINAL_NO_ACTION.value
+    assert result["policy"] == RecoveryPolicy.P_NO_ACTION.value
+    assert result["action_executed"] is False
+
+
+@pytest.mark.asyncio
+async def test_mcp_tool_discovery_and_read_tool_failure_safety(
+    test_settings: Settings,
+    mock_razorpay_adapter: RazorpayAdapter,
+):
+    """Verify agent fails closed when MCP tool calls fail unexpectedly."""
+    settings = test_settings.model_copy(update={"llm_api_key": "valid_test_key"})
+    sessionmaker = get_sessionmaker()
+    case_id = "case_prod_mcp_fail_001"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_prod_mcp_fail_001",
+            amount=100000,
+            currency="INR",
+            payment_method="card",
+            failure_code="BAD_REQUEST_ERROR",
+            state=CaseState.FAILED_INGESTED.value,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    class BrokenMCPServer:
+        async def list_tools(self):
+            raise RuntimeError("MCP Daemon Disconnected")
+
+        async def call_tool(self, tool_name: str, args: dict[str, Any]):
+            raise RuntimeError(f"Tool {tool_name} unavailable")
+
+    broken_agent_client = RecoveryAgentClient(
+        settings=settings,
+        server=BrokenMCPServer(),  # type: ignore
+    )
+    # 1. Discover tools returns empty list on error
+    tools = await broken_agent_client.discover_tools()
+    assert tools == []
+
+    # 2. Orchestration handles MCP failure safely
+    orchestrator = RecoveryOrchestrator(
+        sessionmaker=sessionmaker,
+        razorpay_adapter=mock_razorpay_adapter,
+        agent_client=broken_agent_client,
+        settings=settings,
+    )
+    result = await orchestrator.orchestrate_recovery(case_id=case_id)
+    assert result["success"] is False
+    assert result["stage"] == "AGENT_TRIAGE"
+
+    # Verify zero links created
+    async with sessionmaker() as session:
+        reloaded = await session.get(RecoveryCaseModel, case_id)
+        assert reloaded.payment_link_id is None
+
+
+@pytest.mark.asyncio
+async def test_guardrail_amount_tampering_rejection(
+    test_settings: Settings,
+    mock_razorpay_adapter: RazorpayAdapter,
+):
+    """Verify malicious or mutated proposed amount is blocked by guardrails."""
+    settings = test_settings.model_copy(update={"llm_api_key": "valid_test_key"})
+    sessionmaker = get_sessionmaker()
+    case_id = "case_prod_tamper_amt_001"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_prod_tamper_amt_001",
+            amount=250000,
+            currency="INR",
+            payment_method="card",
+            failure_code="BAD_REQUEST_ERROR",
+            state=CaseState.FAILED_INGESTED.value,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    agent_client = RecoveryAgentClient(settings=settings)
+    # Manually invoke MCP action request with tampered amount (100 paise instead of 250000)
+    mcp_result = await agent_client.call_tool(
+        "request_recovery_action",
+        {
+            "case_id": case_id,
+            "proposed_policy": "P_CREATE_LINK_IMMEDIATE",
+            "proposed_amount": 100,  # Tampered amount!
+            "proposed_currency": "INR",
+            "explanation": "Discount attempt",
+        },
+    )
+
+    assert mcp_result["authorized"] is False
+    assert mcp_result["decision"] == "REJECT"
+    assert mcp_result["effective_policy"] == "P_NO_ACTION"
+    assert mcp_result["case_state"] == "TERMINAL_NO_ACTION"
+
+    async with sessionmaker() as session:
+        reloaded = await session.get(RecoveryCaseModel, case_id)
+        assert reloaded.state == CaseState.TERMINAL_NO_ACTION.value
+        assert reloaded.payment_link_id is None
+
+
+@pytest.mark.asyncio
+async def test_guardrail_currency_tampering_rejection(
+    test_settings: Settings,
+    mock_razorpay_adapter: RazorpayAdapter,
+):
+    """Verify malicious or mutated proposed currency is blocked by guardrails."""
+    settings = test_settings.model_copy(update={"llm_api_key": "valid_test_key"})
+    sessionmaker = get_sessionmaker()
+    case_id = "case_prod_tamper_curr_001"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_prod_tamper_curr_001",
+            amount=250000,
+            currency="INR",
+            payment_method="card",
+            failure_code="BAD_REQUEST_ERROR",
+            state=CaseState.FAILED_INGESTED.value,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    agent_client = RecoveryAgentClient(settings=settings)
+    # Manually invoke MCP action request with tampered currency (USD instead of INR)
+    mcp_result = await agent_client.call_tool(
+        "request_recovery_action",
+        {
+            "case_id": case_id,
+            "proposed_policy": "P_CREATE_LINK_IMMEDIATE",
+            "proposed_amount": 250000,
+            "proposed_currency": "USD",  # Tampered currency!
+            "explanation": "Foreign currency attempt",
+        },
+    )
+
+    assert mcp_result["authorized"] is False
+    assert mcp_result["decision"] == "REJECT"
+    assert mcp_result["effective_policy"] == "P_NO_ACTION"
+    assert mcp_result["case_state"] == "TERMINAL_NO_ACTION"
+
+    async with sessionmaker() as session:
+        reloaded = await session.get(RecoveryCaseModel, case_id)
+        assert reloaded.state == CaseState.TERMINAL_NO_ACTION.value
+        assert reloaded.payment_link_id is None
+
+
+@pytest.mark.asyncio
+async def test_webhook_idempotency_duplicate_payment_failed(
+    test_settings: Settings,
+    mock_razorpay_adapter: RazorpayAdapter,
+):
+    """Verify duplicate payment.failed webhooks are idempotent without creating multiple cases."""
+    sessionmaker = get_sessionmaker()
+    payment_id = "pay_prod_dup_failed_001"
+    raw_payload = {
+        "entity": "event",
+        "event": "payment.failed",
+        "payload": {
+            "payment": {
+                "entity": {
+                    "id": payment_id,
+                    "amount": 100000,
+                    "currency": "INR",
+                    "status": "failed",
+                    "method": "card",
+                    "error_code": "BAD_REQUEST_ERROR",
+                    "error_description": "Declined",
+                }
+            }
+        },
+    }
+    raw_bytes = json.dumps(raw_payload).encode()
+
+    async with sessionmaker() as session:
+        webhook_service = WebhookService(session, razorpay_adapter=mock_razorpay_adapter)
+        # Ingestion 1
+        res1 = await webhook_service.process_webhook(
+            raw_body=raw_bytes, payload=raw_payload, signature_verified=True
+        )
+        assert res1.status == "ok"
+        assert res1.case_id is not None
+
+        # Ingestion 2 (Duplicate replay)
+        res2 = await webhook_service.process_webhook(
+            raw_body=raw_bytes, payload=raw_payload, signature_verified=True
+        )
+        assert res2.status == "ok"
+        assert res2.is_duplicate is True
+
+
+@pytest.mark.asyncio
+async def test_webhook_captured_only_attribution_authorized_rejected(
+    test_settings: Settings,
+    mock_razorpay_adapter: RazorpayAdapter,
+):
+    """Verify authorized-only payment webhook yields ₹0 revenue and non-recovered state."""
+    sessionmaker = get_sessionmaker()
+    case_id = "case_prod_auth_reject_001"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_prod_auth_reject_001",
+            amount=300000,
+            currency="INR",
+            payment_method="card",
+            payment_link_id=f"plink_{case_id}",
+            state=CaseState.ACTION_EXECUTED.value,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    async with sessionmaker() as session:
+        # Gateway verification returns status: "authorized" (NOT captured)
+        async def mock_auth_payment(pid: str) -> dict[str, Any]:
+            return {
+                "id": pid,
+                "status": "authorized",
+                "amount": 300000,
+                "currency": "INR",
+            }
+
+        mock_razorpay_adapter.get_payment = mock_auth_payment  # type: ignore
+        webhook_service = WebhookService(session, razorpay_adapter=mock_razorpay_adapter)
+        paid_payload = {
+            "entity": "event",
+            "event": "payment_link.paid",
+            "payload": {
+                "payment_link": {
+                    "entity": {
+                        "id": f"plink_{case_id}",
+                        "reference_id": case_id,
+                        "amount": 300000,
+                        "currency": "INR",
+                        "status": "paid",
+                    }
+                },
+                "payment": {
+                    "entity": {
+                        "id": "pay_auth_only_001",
+                        "amount": 300000,
+                        "currency": "INR",
+                        "status": "authorized",
+                    }
+                },
+            },
+        }
+        res_paid = await webhook_service.process_webhook(
+            raw_body=json.dumps(paid_payload).encode(),
+            payload=paid_payload,
+            signature_verified=True,
+        )
+        assert res_paid.status == "ok"
+        # Not recovered because payment was only authorized!
+        assert res_paid.state != CaseState.RECOVERED.value
+
+    async with sessionmaker() as session:
+        reloaded = await session.get(RecoveryCaseModel, case_id)
+        assert reloaded.state != CaseState.RECOVERED.value
+        assert reloaded.recovered_amount is None
+
