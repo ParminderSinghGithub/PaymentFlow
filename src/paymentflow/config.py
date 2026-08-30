@@ -46,7 +46,7 @@ class Settings(BaseSettings):
         description="Razorpay Webhook Secret",
     )
 
-    # LLM Configuration Placeholders (Layer 0)
+    # LLM Configuration (Layer 0 & Layer 5D)
     llm_api_key: str = Field(
         default="placeholder_llm_api_key",
         description="LLM API Key",
@@ -54,6 +54,18 @@ class Settings(BaseSettings):
     llm_model: str = Field(
         default="gemini-1.5-flash",
         description="LLM Model Name",
+    )
+    llm_base_url: str | None = Field(
+        default=None,
+        description="Optional custom base URL for LLM provider API endpoint",
+    )
+    llm_provider_type: Literal["gemini", "openai", "mock"] = Field(
+        default="gemini",
+        description="LLM Provider protocol format ('gemini', 'openai', or 'mock')",
+    )
+    llm_timeout_seconds: float = Field(
+        default=10.0,
+        description="HTTP request timeout in seconds for LLM calls",
     )
 
 

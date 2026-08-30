@@ -14,6 +14,10 @@ from paymentflow.eval.baseline import (
     run_baseline_evaluation,
 )
 from paymentflow.eval.dataset import load_evaluation_dataset, validate_dataset
+from paymentflow.eval.llm_provider import (
+    LLMAgentDecisionProvider,
+    LLMTelemetry,
+)
 from paymentflow.eval.models import (
     AgentCaseAggregate,
     AgentCategoryAggregate,
@@ -55,6 +59,8 @@ __all__ = [
     "DecisionContext",
     "EvaluationCase",
     "EvaluationSafetyValidator",
+    "LLMAgentDecisionProvider",
+    "LLMTelemetry",
     "MockAgentDecisionProvider",
     "SimulatedOutcome",
     "SimulationGroundTruth",

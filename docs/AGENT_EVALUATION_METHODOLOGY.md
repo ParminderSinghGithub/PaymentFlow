@@ -130,3 +130,15 @@ The mock provider uses a hardcoded heuristic mapping. It does not measure:
 - Reasoning capability under nuanced, ambiguous failure descriptions.
 
 This layer's purpose is strictly to establish and verify the **evaluation contract, safety guardrails, and simulation reproducibility**.
+
+---
+
+## 11. Real Provider & MCP Boundary Integration (Layer 5D)
+In Layer 5D, [`LLMAgentDecisionProvider`](file:///c:/Projects/Razorpay/src/paymentflow/eval/llm_provider.py) connects real LLM reasoning to the evaluation framework:
+- Implements the exact same `AgentDecisionProvider` interface.
+- Accepts `DecisionContext` only (strictly no ground-truth leakage).
+- Enforces strict structured output parsing into `AgentDecision`.
+- Gathers telemetry on latency and token usage.
+- Integrates with Model Context Protocol (`MCPServer` & `RecoveryAgentClient`) for decoupled tool execution.
+- Evaluates against the identical 75 cases and 50 stochastic CRN draws per case.
+
