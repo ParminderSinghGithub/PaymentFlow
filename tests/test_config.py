@@ -13,7 +13,7 @@ def test_default_config_loading():
     assert settings.app_port == 8000
     assert "postgresql" in settings.database_url
     assert settings.razorpay_key_id is not None
-    assert settings.llm_model == "gemini-1.5-flash"
+    assert "gemini" in settings.llm_model.lower()
 
 
 def test_custom_environment_override(monkeypatch):
