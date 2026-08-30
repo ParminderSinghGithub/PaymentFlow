@@ -68,6 +68,12 @@ class Settings(BaseSettings):
         description="HTTP request timeout in seconds for LLM calls",
     )
 
+    # CORS Configuration for Frontend Service
+    cors_origins: list[str] = Field(
+        default=["*"],
+        description="Allowed CORS origins for external frontend service",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

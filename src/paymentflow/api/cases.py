@@ -95,6 +95,7 @@ async def list_cases(
             "failed_payment_id": c.failed_payment_id,
             "order_id": c.order_id,
             "customer_id": c.customer_id,
+            "amount_paise": c.amount,
             "amount_inr": c.amount / 100.0,
             "currency": c.currency,
             "payment_method": c.payment_method,
@@ -103,6 +104,7 @@ async def list_cases(
             "validated_policy_id": c.validated_policy_id,
             "payment_link_id": c.payment_link_id,
             "payment_link_short_url": c.payment_link_short_url,
+            "recovered_amount_paise": c.recovered_amount,
             "recovered_amount_inr": (c.recovered_amount / 100.0) if c.recovered_amount else 0.0,
             "created_at": c.created_at.isoformat() if c.created_at else None,
             "scheduled_at": c.scheduled_at.isoformat() if c.scheduled_at else None,
@@ -224,16 +226,20 @@ async def get_case_detail(
         "failure_category": case.failure_category,
         "failure_code": case.failure_code,
         "failure_description": case.failure_description,
+        "failure_context": case.failure_context,
         "eligibility_status": case.eligibility_status,
         "eligibility_reason": case.eligibility_reason,
+        "classification_evidence": case.classification_evidence,
         "ai_policy_id": case.ai_policy_id,
         "ai_explanation": case.ai_explanation,
         "validated_policy_id": case.validated_policy_id,
         "action_status": case.action_status,
         "payment_link_id": case.payment_link_id,
+        "payment_link_reference_id": case.payment_link_reference_id,
         "payment_link_short_url": case.payment_link_short_url,
         "payment_link_status": case.payment_link_status,
         "recovered_payment_id": case.recovered_payment_id,
+        "recovered_amount_paise": case.recovered_amount,
         "recovered_amount_inr": (case.recovered_amount / 100.0) if case.recovered_amount else 0.0,
         "state": case.state,
         "scheduled_at": case.scheduled_at.isoformat() if case.scheduled_at else None,
@@ -270,6 +276,11 @@ async def trigger_case_triage(
     """Manually trigger end-to-end recovery pipeline for a case."""
     orchestrator = RecoveryOrchestrator(sessionmaker=get_sessionmaker())
     result = await orchestrator.orchestrate_recovery(case_id=case_id)
+    if not result.get("success") and result.get("stage") == "NOT_FOUND":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=result.get("error", f"Recovery case '{case_id}' not found."),
+        )
     return result
 
 

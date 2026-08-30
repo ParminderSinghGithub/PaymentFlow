@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from paymentflow.api import api_router
 from paymentflow.config import get_settings
@@ -36,6 +37,14 @@ def create_app() -> FastAPI:
         description="Autonomous Revenue Recovery for Razorpay Failed Payments",
         version="0.1.0",
         lifespan=lifespan,
+    )
+
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     application.include_router(api_router)
