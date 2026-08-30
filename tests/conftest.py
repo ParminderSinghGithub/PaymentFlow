@@ -31,10 +31,20 @@ def test_settings() -> Settings:
 
 @pytest.fixture(autouse=True)
 async def cleanup_db_tables():
-    """Ensure database tables are truncated and connections disposed cleanly."""
+    """Ensure database tables are initialized, truncated, and connections disposed cleanly."""
     try:
         engine = get_engine()
+        import paymentflow.db.models  # noqa: F401
+        from paymentflow.db.base import Base
+
         async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            await conn.execute(
+                text(
+                    "ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS "
+                    "scheduled_at TIMESTAMP WITH TIME ZONE;"
+                )
+            )
             await conn.execute(
                 text(
                     "TRUNCATE TABLE audit_events, recovery_cases, webhook_events "

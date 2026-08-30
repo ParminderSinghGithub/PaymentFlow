@@ -1,6 +1,7 @@
 """Model Context Protocol (MCP) server for PaymentFlow Recovery Agent."""
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
@@ -206,18 +207,31 @@ async def request_recovery_action(
 
         # Transition state deterministically
         if validation_res.decision == PolicyDecision.APPROVE:
-            if current_state == CaseState.ELIGIBILITY_CHECKED:
-                case.state = CaseState.ACTION_APPROVED.value
-            elif current_state == CaseState.CONTEXT_RETRIEVED:
-                case.state = CaseState.ACTION_APPROVED.value
+            if validation_res.effective_policy == RecoveryPolicy.P_NO_ACTION:
+                case.state = CaseState.TERMINAL_NO_ACTION.value
+                case.action_status = "NO_ACTION"
+            elif validation_res.effective_policy == RecoveryPolicy.P_ESCALATE_ONLY:
+                case.state = CaseState.ESCALATED.value
+                case.action_status = "ESCALATED"
+            else:
+                if current_state in (CaseState.ELIGIBILITY_CHECKED, CaseState.CONTEXT_RETRIEVED):
+                    case.state = CaseState.ACTION_APPROVED.value
+                if validation_res.effective_policy == RecoveryPolicy.P_CREATE_LINK_DELAYED:
+                    case.action_status = "SCHEDULED_DELAYED"
+                    case.scheduled_at = utc_now() + timedelta(minutes=15)
+                elif validation_res.effective_policy == RecoveryPolicy.P_CREATE_LINK_IMMEDIATE:
+                    case.action_status = "APPROVED_IMMEDIATE"
         elif validation_res.decision == PolicyDecision.ESCALATE:
             case.state = CaseState.ESCALATED.value
+            case.action_status = "ESCALATED"
         else:
             # DOWNGRADE or REJECT to no action
             if validation_res.effective_policy == RecoveryPolicy.P_NO_ACTION:
                 case.state = CaseState.TERMINAL_NO_ACTION.value
+                case.action_status = "NO_ACTION"
             elif validation_res.effective_policy == RecoveryPolicy.P_ESCALATE_ONLY:
                 case.state = CaseState.ESCALATED.value
+                case.action_status = "ESCALATED"
 
         # Record immutable audit trail
         audit_event = AuditEventModel(

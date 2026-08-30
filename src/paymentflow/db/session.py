@@ -74,8 +74,23 @@ async def ping_db() -> bool:
 
 
 async def init_db() -> None:
-    """Initialize database engine at application startup."""
-    get_engine()
+    """Initialize database engine and ensure table schemas at application startup."""
+    engine = get_engine()
+    import paymentflow.db.models  # noqa: F401
+    from paymentflow.db.base import Base
+
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            await conn.execute(
+                text(
+                    "ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS "
+                    "scheduled_at TIMESTAMP WITH TIME ZONE;"
+                )
+            )
+    except Exception as exc:
+        logger.warning(f"Database schema init warning: {exc}")
+
     logger.info("Database engine initialized.")
 
 

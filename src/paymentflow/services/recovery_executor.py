@@ -41,7 +41,7 @@ class RecoveryExecutor:
         self.settings = settings or get_settings()
         self.razorpay_adapter = razorpay_adapter or RazorpayAdapter(settings=self.settings)
 
-    async def execute(self, case_id: str) -> RecoveryExecutionResult:
+    async def execute(self, case_id: str, is_delayed: bool = False) -> RecoveryExecutionResult:
         """Execute approved recovery action for the given case ID with safety."""
         async with self.sessionmaker() as session:
             # 1. Pessimistic Row Lock (Concurrency protection)
@@ -93,11 +93,19 @@ class RecoveryExecutor:
                     message=f"Case state is '{case.state}', expected ACTION_APPROVED.",
                 )
 
-            # 4. Policy Check: Must be P_CREATE_LINK_IMMEDIATE
-            if case.validated_policy_id != RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value:
+            # 4. Policy Check: Must be executable
+            allowed_policies = (
+                [
+                    RecoveryPolicy.P_CREATE_LINK_DELAYED.value,
+                    RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value,
+                ]
+                if is_delayed
+                else [RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value]
+            )
+            if case.validated_policy_id not in allowed_policies:
                 logger.info(
                     f"RecoveryExecutor: Case '{case_id}' policy is '{case.validated_policy_id}', "
-                    "not eligible for immediate link execution."
+                    "not eligible for execution."
                 )
                 return RecoveryExecutionResult(
                     success=False,
@@ -106,7 +114,7 @@ class RecoveryExecutor:
                     state=CaseState(case.state),
                     message=(
                         f"Policy '{case.validated_policy_id}' is not executable for "
-                        "immediate link creation."
+                        f"{'delayed' if is_delayed else 'immediate'} link creation."
                     ),
                 )
 
@@ -129,9 +137,14 @@ class RecoveryExecutor:
                 ),
             )
 
+            req_policy = (
+                RecoveryPolicy(case.validated_policy_id)
+                if case.validated_policy_id in RecoveryPolicy._value2member_map_
+                else RecoveryPolicy.P_CREATE_LINK_IMMEDIATE
+            )
             validation = PolicyGuardrailEngine.validate(
                 context=payment_context,
-                requested_policy=RecoveryPolicy.P_CREATE_LINK_IMMEDIATE,
+                requested_policy=req_policy,
                 proposed_amount=case.amount,
                 proposed_currency=case.currency,
             )

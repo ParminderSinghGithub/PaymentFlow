@@ -84,6 +84,9 @@ class RecoveryCaseModel(Base):
     state: Mapped[str] = mapped_column(
         String(32), nullable=False, default="FAILED_INGESTED", index=True
     )
+    scheduled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
