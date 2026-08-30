@@ -48,11 +48,16 @@ class RecoveryStateMachine:
         },
         CaseState.ACTION_EXECUTED: {
             CaseState.AWAITING_PAYMENT,
+            CaseState.VERIFICATION,
+            CaseState.RECOVERED,
+            CaseState.ESCALATED,
             CaseState.ERROR_TERMINAL,
         },
         CaseState.AWAITING_PAYMENT: {
             CaseState.VERIFICATION,
+            CaseState.RECOVERED,
             CaseState.EXPIRED,
+            CaseState.ESCALATED,
             CaseState.ERROR_TERMINAL,
         },
         CaseState.VERIFICATION: {

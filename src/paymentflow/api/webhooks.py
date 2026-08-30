@@ -6,7 +6,7 @@ import logging
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from paymentflow.adapters.razorpay_adapter import verify_webhook_signature
+from paymentflow.adapters.razorpay_adapter import RazorpayAdapter, verify_webhook_signature
 from paymentflow.config import Settings, get_settings
 from paymentflow.db.session import get_db_session
 from paymentflow.domain.exceptions import WebhookPayloadError
@@ -65,7 +65,8 @@ async def handle_razorpay_webhook(
 
     # 3. Process webhook idempotently
     try:
-        service = WebhookService(db)
+        adapter = RazorpayAdapter(settings=settings)
+        service = WebhookService(db, razorpay_adapter=adapter)
         return await service.process_webhook(
             raw_body=raw_body,
             payload=payload,

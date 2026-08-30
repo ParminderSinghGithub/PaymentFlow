@@ -1,14 +1,15 @@
-"""Webhook ingestion and processing service with strict idempotency."""
+"""Webhook ingestion and processing service with strict idempotency and revenue attribution."""
 
 import hashlib
 import logging
 from typing import Any
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from paymentflow.adapters.razorpay_adapter import RazorpayAdapter
 from paymentflow.db.models import (
     AuditEventModel,
     RecoveryCaseModel,
@@ -34,29 +35,33 @@ class WebhookProcessingResult(BaseModel):
 
 
 class WebhookService:
-    """Handles webhook ingestion, database-level idempotency, and recovery case creation."""
+    """Handles webhook ingestion, database-level idempotency, and recovery revenue attribution."""
 
-    def __init__(self, db_session: AsyncSession):
+    def __init__(
+        self,
+        db_session: AsyncSession,
+        razorpay_adapter: RazorpayAdapter | None = None,
+    ):
         self.session = db_session
+        self.razorpay_adapter = razorpay_adapter
 
     @staticmethod
     def extract_event_id(payload: dict[str, Any], raw_body: bytes) -> str:
         """Extract or generate a deterministic event identifier from the webhook payload."""
-        # Check standard Razorpay event identifiers
         if "id" in payload and payload["id"]:
             return str(payload["id"])
         if "event_id" in payload and payload["event_id"]:
             return str(payload["event_id"])
 
-        # If payload contains payment id and event type, derive a deterministic ID
         payment_id = payload.get("payload", {}).get("payment", {}).get("entity", {}).get("id")
+        plink_id = payload.get("payload", {}).get("payment_link", {}).get("entity", {}).get("id")
         event_type = payload.get("event", "unknown")
         created_at = payload.get("created_at", "")
 
-        if payment_id:
-            return f"evt_{payment_id}_{event_type}_{created_at}"
+        if payment_id or plink_id:
+            entity_id = payment_id or plink_id
+            return f"evt_{entity_id}_{event_type}_{created_at}"
 
-        # Fallback to SHA256 of raw body
         return f"evt_hash_{hashlib.sha256(raw_body).hexdigest()[:24]}"
 
     async def process_webhook(
@@ -105,18 +110,23 @@ class WebhookService:
         self.session.add(webhook_event)
 
         try:
-            # 3. Handle supported events
+            # 3. Route supported events
             if event_type == "payment.failed":
                 processing_res = await self._handle_payment_failed(event_id, payload)
                 webhook_event.status = WebhookStatus.PROCESSED.value
                 webhook_event.processed_at = utc_now()
                 await self.session.commit()
                 return processing_res
+
+            elif event_type in {"payment_link.paid", "payment.captured"}:
+                processing_res = await self._handle_payment_outcome(event_id, event_type, payload)
+                webhook_event.status = WebhookStatus.PROCESSED.value
+                webhook_event.processed_at = utc_now()
+                await self.session.commit()
+                return processing_res
+
             else:
-                # Unsupported event for recovery in Layer 1
-                logger.info(
-                    f"Valid Razorpay event '{event_type}' received but not processed in Layer 1."
-                )
+                logger.info(f"Razorpay event '{event_type}' received but not processed.")
                 webhook_event.status = WebhookStatus.IGNORED.value
                 webhook_event.processed_at = utc_now()
                 await self.session.commit()
@@ -125,10 +135,10 @@ class WebhookService:
                     event_id=event_id,
                     event_type=event_type,
                     is_duplicate=False,
-                    message=f"Event type '{event_type}' ignored in Layer 1.",
+                    message=f"Event type '{event_type}' ignored.",
                 )
+
         except IntegrityError as exc:
-            # Handle potential concurrency race condition on unique keys
             logger.warning(
                 f"Integrity conflict during webhook processing: {exc}. Rolling back."
             )
@@ -204,7 +214,6 @@ class WebhookService:
                 message="Case already exists for this failed payment.",
             )
 
-        # Generate deterministic Case ID
         case_id = f"case_{payment_id}"
 
         recovery_case = RecoveryCaseModel(
@@ -224,7 +233,6 @@ class WebhookService:
         )
         self.session.add(recovery_case)
 
-        # Record initial audit event
         audit_event = AuditEventModel(
             case_id=case_id,
             event_type="WEBHOOK_INGESTED",
@@ -256,4 +264,259 @@ class WebhookService:
             case_id=case_id,
             state=CaseState.FAILED_INGESTED.value,
             message="Recovery case created successfully.",
+        )
+
+    async def _handle_payment_outcome(
+        self, event_id: str, event_type: str, payload: dict[str, Any]
+    ) -> WebhookProcessingResult:
+        """Handle payment_link.paid / payment.captured with verification and revenue attribution."""
+        payload_container = payload.get("payload", {})
+        plink_entity = payload_container.get("payment_link", {}).get("entity") or {}
+        payment_entity = payload_container.get("payment", {}).get("entity") or {}
+
+        plink_id = plink_entity.get("id") or payment_entity.get("payment_link_id")
+        payment_id = payment_entity.get("id")
+
+        notes = plink_entity.get("notes") or payment_entity.get("notes") or {}
+        case_id_from_notes = notes.get("case_id")
+        failed_payment_id_from_notes = notes.get("failed_payment_id")
+
+        # 1. Correlate with Recovery Case using row-level lock
+        conditions = []
+        if plink_id:
+            conditions.append(RecoveryCaseModel.payment_link_id == plink_id)
+        if case_id_from_notes:
+            conditions.append(RecoveryCaseModel.case_id == case_id_from_notes)
+        if failed_payment_id_from_notes:
+            conditions.append(RecoveryCaseModel.failed_payment_id == failed_payment_id_from_notes)
+
+        if not conditions:
+            logger.warning(
+                f"Webhook {event_id} ({event_type}): No correlation identifiers found in payload."
+            )
+            return WebhookProcessingResult(
+                status="ok",
+                event_id=event_id,
+                event_type=event_type,
+                message="No correlation identifiers in payload.",
+            )
+
+        query = select(RecoveryCaseModel).where(or_(*conditions)).with_for_update()
+        result = await self.session.execute(query)
+        case = result.scalar_one_or_none()
+
+        if not case:
+            logger.warning(
+                f"Webhook {event_id} ({event_type}): No matching recovery case found for "
+                f"plink_id={plink_id}, case_id={case_id_from_notes}. Recording anomaly."
+            )
+            audit = AuditEventModel(
+                case_id=None,
+                event_type="UNMATCHED_RECOVERY_PAYMENT",
+                actor=ActorType.SYSTEM.value,
+                decision="ANOMALY",
+                outcome="UNMATCHED",
+                correlation_id=event_id,
+                timestamp=utc_now(),
+                details={
+                    "event_type": event_type,
+                    "payment_id": payment_id,
+                    "payment_link_id": plink_id,
+                    "notes": notes,
+                },
+            )
+            self.session.add(audit)
+            return WebhookProcessingResult(
+                status="ok",
+                event_id=event_id,
+                event_type=event_type,
+                message="Unmatched recovery payment.",
+            )
+
+        # 2. Single Attribution Invariant & Idempotency Check
+        if case.state == CaseState.RECOVERED.value or case.recovered_payment_id == payment_id:
+            logger.info(
+                f"Webhook {event_id}: Case '{case.case_id}' already has recovered payment "
+                f"'{case.recovered_payment_id}'. Suppressing duplicate attribution."
+            )
+            audit = AuditEventModel(
+                case_id=case.case_id,
+                event_type="PAYMENT_LINK_WEBHOOK_DUPLICATE",
+                actor=ActorType.SYSTEM.value,
+                decision="SUPPRESS_DUPLICATE",
+                correlation_id=event_id,
+                timestamp=utc_now(),
+                details={
+                    "existing_recovered_payment_id": case.recovered_payment_id,
+                    "incoming_payment_id": payment_id,
+                },
+            )
+            self.session.add(audit)
+            return WebhookProcessingResult(
+                status="ok",
+                event_id=event_id,
+                event_type=event_type,
+                is_duplicate=True,
+                case_id=case.case_id,
+                state=case.state,
+                message="Recovery case already attributed.",
+            )
+
+        # 3. Independent Payment Verification
+        payment_status = payment_entity.get("status")
+        payment_amount = payment_entity.get("amount")
+        payment_currency = payment_entity.get("currency", "INR")
+
+        if self.razorpay_adapter and payment_id:
+            try:
+                self.session.add(
+                    AuditEventModel(
+                        case_id=case.case_id,
+                        event_type="PAYMENT_VERIFICATION_REQUESTED",
+                        actor=ActorType.SYSTEM.value,
+                        action="verify_payment",
+                        correlation_id=event_id,
+                        timestamp=utc_now(),
+                        details={"payment_id": payment_id},
+                    )
+                )
+                verified_data = await self.razorpay_adapter.get_payment(payment_id)
+                payment_status = verified_data.get("status", payment_status)
+                payment_amount = verified_data.get("amount", payment_amount)
+                payment_currency = verified_data.get("currency", payment_currency)
+            except Exception as exc:
+                logger.warning(
+                    f"Payment verification API call failed for payment '{payment_id}': {exc}. "
+                    "Proceeding with webhook payload verification."
+                )
+
+        if payment_status not in {"captured", "authorized", "paid"}:
+            logger.warning(
+                f"Webhook {event_id}: Payment '{payment_id}' status is '{payment_status}', "
+                "expected captured/paid. Rejecting attribution."
+            )
+            audit = AuditEventModel(
+                case_id=case.case_id,
+                event_type="RECOVERY_ATTRIBUTION_REJECTED",
+                actor=ActorType.SYSTEM.value,
+                decision="REJECTED",
+                outcome="PAYMENT_NOT_CAPTURED",
+                correlation_id=event_id,
+                timestamp=utc_now(),
+                details={"status": payment_status, "payment_id": payment_id},
+            )
+            self.session.add(audit)
+            return WebhookProcessingResult(
+                status="ok",
+                event_id=event_id,
+                event_type=event_type,
+                case_id=case.case_id,
+                state=case.state,
+                message=f"Payment status '{payment_status}' not captured.",
+            )
+
+        # 4. Amount and Currency Integrity Verification
+        verified_amount = int(payment_amount) if payment_amount is not None else 0
+        if verified_amount != case.amount or payment_currency != case.currency:
+            logger.warning(
+                f"Webhook {event_id}: Amount/currency mismatch for case '{case.case_id}': "
+                f"expected {case.amount} {case.currency}, "
+                f"got {verified_amount} {payment_currency}. "
+                "Rejecting attribution and escalating."
+            )
+            case.state = CaseState.ESCALATED.value
+            case.updated_at = utc_now()
+
+            self.session.add(
+                AuditEventModel(
+                    case_id=case.case_id,
+                    event_type="RECOVERY_AMOUNT_MISMATCH",
+                    actor=ActorType.SYSTEM.value,
+                    decision="MISMATCH_DETECTED",
+                    outcome="AMOUNT_MISMATCH",
+                    correlation_id=event_id,
+                    timestamp=utc_now(),
+                    details={
+                        "expected_amount": case.amount,
+                        "actual_amount": verified_amount,
+                        "expected_currency": case.currency,
+                        "actual_currency": payment_currency,
+                        "payment_id": payment_id,
+                    },
+                )
+            )
+            self.session.add(
+                AuditEventModel(
+                    case_id=case.case_id,
+                    event_type="RECOVERY_ATTRIBUTION_REJECTED",
+                    actor=ActorType.SYSTEM.value,
+                    decision="REJECTED",
+                    outcome="AMOUNT_MISMATCH",
+                    correlation_id=event_id,
+                    timestamp=utc_now(),
+                    details={"reason": "AMOUNT_MISMATCH"},
+                )
+            )
+            return WebhookProcessingResult(
+                status="ok",
+                event_id=event_id,
+                event_type=event_type,
+                case_id=case.case_id,
+                state=case.state,
+                message="Amount/currency mismatch detected; attribution rejected.",
+            )
+
+        # 5. Persist Verified Attribution & Transition State to RECOVERED
+        case.recovered_payment_id = payment_id
+        case.recovered_amount = verified_amount
+        case.payment_link_status = "paid"
+        case.state = CaseState.RECOVERED.value
+        case.updated_at = utc_now()
+
+        self.session.add(
+            AuditEventModel(
+                case_id=case.case_id,
+                event_type="PAYMENT_VERIFIED",
+                actor=ActorType.SYSTEM.value,
+                decision="VERIFIED",
+                correlation_id=event_id,
+                timestamp=utc_now(),
+                details={
+                    "payment_id": payment_id,
+                    "amount_paise": verified_amount,
+                    "currency": payment_currency,
+                },
+            )
+        )
+        self.session.add(
+            AuditEventModel(
+                case_id=case.case_id,
+                event_type="RECOVERY_ATTRIBUTED",
+                actor=ActorType.SYSTEM.value,
+                decision="ATTRIBUTED",
+                action="ATTRIBUTE_REVENUE",
+                outcome="SUCCESS",
+                correlation_id=event_id,
+                timestamp=utc_now(),
+                details={
+                    "recovered_payment_id": payment_id,
+                    "recovered_amount_paise": verified_amount,
+                    "currency": payment_currency,
+                    "payment_link_id": plink_id or case.payment_link_id,
+                },
+            )
+        )
+
+        logger.info(
+            f"Recovery Attributed: Case '{case.case_id}' successfully recovered "
+            f"₹{verified_amount/100:.2f} via payment '{payment_id}'."
+        )
+
+        return WebhookProcessingResult(
+            status="ok",
+            event_id=event_id,
+            event_type=event_type,
+            case_id=case.case_id,
+            state=CaseState.RECOVERED.value,
+            message="Payment verified and recovered revenue attributed.",
         )
