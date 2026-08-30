@@ -20,6 +20,8 @@ class RecoveryStateMachine:
         },
         CaseState.CONTEXT_RETRIEVED: {
             CaseState.ELIGIBILITY_CHECKED,
+            CaseState.TERMINAL_NO_ACTION,
+            CaseState.ESCALATED,
             CaseState.ERROR_TERMINAL,
         },
         CaseState.ELIGIBILITY_CHECKED: {

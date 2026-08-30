@@ -3,10 +3,17 @@
 
 class PaymentFlowError(Exception):
     """Base exception for PaymentFlow application errors."""
+
     pass
 
 
-class InvalidStateTransitionError(PaymentFlowError):
+class DomainError(PaymentFlowError):
+    """Base exception for domain business logic errors."""
+
+    pass
+
+
+class InvalidStateTransitionError(DomainError):
     """Raised when an illegal state machine transition is attempted."""
 
     def __init__(self, current_state: str, target_state: str, reason: str | None = None):
@@ -19,33 +26,39 @@ class InvalidStateTransitionError(PaymentFlowError):
         super().__init__(message)
 
 
-class WebhookVerificationError(PaymentFlowError):
+class WebhookVerificationError(DomainError):
     """Raised when webhook signature verification fails or signature is missing."""
+
     pass
 
 
-class WebhookPayloadError(PaymentFlowError):
+class WebhookPayloadError(DomainError):
     """Raised when webhook payload is malformed or missing required event fields."""
+
     pass
 
 
 class RazorpayAdapterError(PaymentFlowError):
     """Base exception for Razorpay external adapter failures."""
+
     pass
 
 
 class RazorpayAuthError(RazorpayAdapterError):
     """Raised on authentication failure (HTTP 401)."""
+
     pass
 
 
 class RazorpayNotFoundError(RazorpayAdapterError):
     """Raised when requested entity is not found in Razorpay (HTTP 404)."""
+
     pass
 
 
 class RazorpayRateLimitError(RazorpayAdapterError):
     """Raised when Razorpay rate limits are exceeded (HTTP 429)."""
+
     pass
 
 

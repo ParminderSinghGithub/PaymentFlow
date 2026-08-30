@@ -1,9 +1,22 @@
-"""Domain models, enumerations, and state machine."""
+"""Domain layer components."""
 
-from paymentflow.domain.enums import ActorType, CaseState, WebhookStatus
+from paymentflow.domain.classifier import FailureClassifier
+from paymentflow.domain.eligibility import (
+    HIGH_VALUE_THRESHOLD_PAISE,
+    MAX_CUSTOMER_RECOVERY_ATTEMPTS_PER_DAY,
+    EligibilityEngine,
+)
+from paymentflow.domain.enums import (
+    ActorType,
+    CaseState,
+    EligibilityReasonCode,
+    EligibilityStatus,
+    FailureCategory,
+    WebhookStatus,
+)
 from paymentflow.domain.exceptions import (
+    DomainError,
     InvalidStateTransitionError,
-    PaymentFlowError,
     RazorpayAdapterError,
     RazorpayAPIError,
     RazorpayAuthError,
@@ -13,6 +26,8 @@ from paymentflow.domain.exceptions import (
     WebhookVerificationError,
 )
 from paymentflow.domain.models import (
+    ClassificationEvidence,
+    EligibilityDecision,
     PaymentContext,
     PaymentFailureDetails,
     RecoveryCaseView,
@@ -21,12 +36,21 @@ from paymentflow.domain.models import (
 from paymentflow.domain.state_machine import RecoveryStateMachine
 
 __all__ = [
+    "HIGH_VALUE_THRESHOLD_PAISE",
+    "MAX_CUSTOMER_RECOVERY_ATTEMPTS_PER_DAY",
     "ActorType",
     "CaseState",
+    "ClassificationEvidence",
+    "DomainError",
+    "EligibilityDecision",
+    "EligibilityEngine",
+    "EligibilityReasonCode",
+    "EligibilityStatus",
+    "FailureCategory",
+    "FailureClassifier",
     "InvalidStateTransitionError",
     "PaymentContext",
     "PaymentFailureDetails",
-    "PaymentFlowError",
     "RazorpayAPIError",
     "RazorpayAdapterError",
     "RazorpayAuthError",

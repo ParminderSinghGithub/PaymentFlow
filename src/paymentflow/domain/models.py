@@ -5,7 +5,12 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from paymentflow.domain.enums import CaseState
+from paymentflow.domain.enums import (
+    CaseState,
+    EligibilityReasonCode,
+    EligibilityStatus,
+    FailureCategory,
+)
 
 
 class PaymentFailureDetails(BaseModel):
@@ -52,6 +57,36 @@ class WebhookEventPayload(BaseModel):
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class ClassificationEvidence(BaseModel):
+    """Structured evidence for deterministic C1-C5 failure classification."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    category: FailureCategory
+    matched_rule: str
+    primary_code: str | None = None
+    source: str | None = None
+    step: str | None = None
+    reason: str | None = None
+    confidence: float = 1.0
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class EligibilityDecision(BaseModel):
+    """Structured decision object produced by the deterministic eligibility engine."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    eligible: bool
+    status: EligibilityStatus
+    reason_code: EligibilityReasonCode
+    reasons: list[str] = Field(default_factory=list)
+    failure_category: FailureCategory | None = None
+    evaluated_amount: int
+    currency: str = "INR"
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
 class RecoveryCaseView(BaseModel):
     """Read-only domain representation of a recovery case."""
 
@@ -65,7 +100,10 @@ class RecoveryCaseView(BaseModel):
     currency: str
     payment_method: str | None = None
     state: CaseState
+    failure_category: FailureCategory | None = None
     failure_code: str | None = None
     failure_description: str | None = None
+    eligibility_status: EligibilityStatus | None = None
+    eligibility_reason: EligibilityReasonCode | None = None
     created_at: datetime
     updated_at: datetime
