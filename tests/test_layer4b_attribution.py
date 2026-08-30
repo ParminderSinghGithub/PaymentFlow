@@ -10,6 +10,7 @@ from paymentflow.adapters.razorpay_adapter import RazorpayAdapter
 from paymentflow.db.models import AuditEventModel, RecoveryCaseModel, utc_now
 from paymentflow.db.session import get_sessionmaker
 from paymentflow.domain.enums import CaseState, FailureCategory, RecoveryPolicy
+from paymentflow.domain.exceptions import RazorpayAdapterError
 from paymentflow.services.webhook_service import WebhookService
 
 
@@ -113,6 +114,301 @@ async def test_layer4b_payment_link_paid_happy_path(mock_razorpay_adapter):
         attr_event = next(a for a in audits if a.event_type == "RECOVERY_ATTRIBUTED")
         assert attr_event.decision == "ATTRIBUTED"
         assert attr_event.details["recovered_amount_paise"] == 349900
+
+
+@pytest.mark.asyncio
+async def test_layer4b_authorized_payment_rejected_attribution(mock_razorpay_adapter):
+    """Test payment in 'authorized' status is rejected for attribution (captured-only rule)."""
+    sessionmaker = get_sessionmaker()
+    case_id = "case_l4b_auth_01"
+    plink_id = "plink_l4b_auth_01"
+    payment_id = "pay_l4b_auth_01"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_l4b_auth_orig_01",
+            amount=250000,
+            currency="INR",
+            state=CaseState.ACTION_EXECUTED.value,
+            payment_link_id=plink_id,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    mock_razorpay_adapter.get_payment.return_value = {
+        "id": payment_id,
+        "amount": 250000,
+        "currency": "INR",
+        "status": "authorized",  # Authorized, NOT captured
+    }
+
+    payload = {
+        "event": "payment_link.paid",
+        "id": "evt_l4b_auth_01",
+        "payload": {
+            "payment_link": {"entity": {"id": plink_id}},
+            "payment": {
+                "entity": {
+                    "id": payment_id,
+                    "amount": 250000,
+                    "currency": "INR",
+                    "status": "authorized",
+                }
+            },
+        },
+    }
+
+    async with sessionmaker() as session:
+        service = WebhookService(session, razorpay_adapter=mock_razorpay_adapter)
+        res = await service.process_webhook(
+            raw_body=json.dumps(payload).encode("utf-8"),
+            payload=payload,
+            signature_verified=True,
+        )
+
+    assert res.status == "ok"
+    assert res.state == CaseState.ACTION_EXECUTED.value
+
+    # Verify no revenue attributed
+    async with sessionmaker() as session:
+        db_case = await session.get(RecoveryCaseModel, case_id)
+        assert db_case.recovered_amount is None
+        assert db_case.recovered_payment_id is None
+        assert db_case.state == CaseState.ACTION_EXECUTED.value
+
+        audit_res = await session.execute(
+            select(AuditEventModel).where(AuditEventModel.case_id == case_id)
+        )
+        audits = audit_res.scalars().all()
+        assert any(a.event_type == "RECOVERY_ATTRIBUTION_REJECTED" for a in audits)
+
+
+@pytest.mark.asyncio
+async def test_layer4b_verification_api_unavailable_fails_safe(mock_razorpay_adapter):
+    """Test verification API failure halts attribution and moves to unresolved VERIFICATION."""
+    sessionmaker = get_sessionmaker()
+    case_id = "case_l4b_api_down_01"
+    plink_id = "plink_l4b_api_down_01"
+    payment_id = "pay_l4b_api_down_01"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_l4b_api_down_orig_01",
+            amount=400000,
+            currency="INR",
+            state=CaseState.ACTION_EXECUTED.value,
+            payment_link_id=plink_id,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    mock_razorpay_adapter.get_payment.side_effect = RazorpayAdapterError(
+        "Connection timeout to Razorpay API"
+    )
+
+    payload = {
+        "event": "payment_link.paid",
+        "id": "evt_l4b_api_down_01",
+        "payload": {
+            "payment_link": {"entity": {"id": plink_id}},
+            "payment": {
+                "entity": {
+                    "id": payment_id,
+                    "amount": 400000,
+                    "currency": "INR",
+                    "status": "captured",
+                }
+            },
+        },
+    }
+
+    async with sessionmaker() as session:
+        service = WebhookService(session, razorpay_adapter=mock_razorpay_adapter)
+        res = await service.process_webhook(
+            raw_body=json.dumps(payload).encode("utf-8"),
+            payload=payload,
+            signature_verified=True,
+        )
+
+    assert res.status == "ok"
+    assert res.state == CaseState.VERIFICATION.value
+
+    # Verify no revenue attributed and audit recorded
+    async with sessionmaker() as session:
+        db_case = await session.get(RecoveryCaseModel, case_id)
+        assert db_case.recovered_amount is None
+        assert db_case.recovered_payment_id is None
+        assert db_case.state == CaseState.VERIFICATION.value
+
+        audit_res = await session.execute(
+            select(AuditEventModel).where(AuditEventModel.case_id == case_id)
+        )
+        audits = audit_res.scalars().all()
+        assert any(a.event_type == "PAYMENT_VERIFICATION_FAILED" for a in audits)
+
+
+@pytest.mark.asyncio
+async def test_layer4b_webhook_says_captured_but_api_verification_fails(mock_razorpay_adapter):
+    """Prove unverified webhook payload data cannot be used when API verification fails."""
+    sessionmaker = get_sessionmaker()
+    case_id = "case_l4b_unverified_payload_01"
+    plink_id = "plink_l4b_unverified_payload_01"
+    payment_id = "pay_l4b_unverified_payload_01"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_l4b_unverified_orig_01",
+            amount=750000,
+            currency="INR",
+            state=CaseState.ACTION_EXECUTED.value,
+            payment_link_id=plink_id,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    mock_razorpay_adapter.get_payment.side_effect = Exception("500 Gateway Server Error")
+
+    # Webhook payload claims payment is captured and paid
+    payload = {
+        "event": "payment_link.paid",
+        "id": "evt_l4b_unverified_01",
+        "payload": {
+            "payment_link": {"entity": {"id": plink_id, "status": "paid", "amount_paid": 750000}},
+            "payment": {
+                "entity": {
+                    "id": payment_id,
+                    "amount": 750000,
+                    "currency": "INR",
+                    "status": "captured",
+                }
+            },
+        },
+    }
+
+    async with sessionmaker() as session:
+        service = WebhookService(session, razorpay_adapter=mock_razorpay_adapter)
+        res = await service.process_webhook(
+            raw_body=json.dumps(payload).encode("utf-8"),
+            payload=payload,
+            signature_verified=True,
+        )
+
+    # Must NOT be RECOVERED
+    assert res.state == CaseState.VERIFICATION.value
+
+    async with sessionmaker() as session:
+        db_case = await session.get(RecoveryCaseModel, case_id)
+        assert db_case.recovered_amount is None
+        assert db_case.recovered_payment_id is None
+        assert db_case.state == CaseState.VERIFICATION.value
+
+
+@pytest.mark.asyncio
+async def test_layer4b_retry_after_unresolved_verification_succeeds_once(mock_razorpay_adapter):
+    """Test retry after unresolved verification verifies and attributes revenue exactly once."""
+    sessionmaker = get_sessionmaker()
+    case_id = "case_l4b_retry_flow_01"
+    plink_id = "plink_l4b_retry_flow_01"
+    payment_id = "pay_l4b_retry_flow_01"
+
+    async with sessionmaker() as session:
+        case = RecoveryCaseModel(
+            case_id=case_id,
+            failed_payment_id="pay_l4b_retry_orig_01",
+            amount=600000,
+            currency="INR",
+            state=CaseState.ACTION_EXECUTED.value,
+            payment_link_id=plink_id,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(case)
+        await session.commit()
+
+    payload_attempt1 = {
+        "event": "payment_link.paid",
+        "id": "evt_l4b_attempt1_01",
+        "payload": {
+            "payment_link": {"entity": {"id": plink_id}},
+            "payment": {
+                "entity": {
+                    "id": payment_id,
+                    "amount": 600000,
+                    "currency": "INR",
+                    "status": "captured",
+                }
+            },
+        },
+    }
+
+    # First attempt: API fails
+    mock_razorpay_adapter.get_payment.side_effect = RazorpayAdapterError("Temporary failure")
+    async with sessionmaker() as session:
+        service = WebhookService(session, razorpay_adapter=mock_razorpay_adapter)
+        res1 = await service.process_webhook(
+            raw_body=json.dumps(payload_attempt1).encode("utf-8"),
+            payload=payload_attempt1,
+            signature_verified=True,
+        )
+        assert res1.state == CaseState.VERIFICATION.value
+
+    # Second attempt (retry event): API succeeds
+    mock_razorpay_adapter.get_payment.side_effect = None
+    mock_razorpay_adapter.get_payment.return_value = {
+        "id": payment_id,
+        "amount": 600000,
+        "currency": "INR",
+        "status": "captured",
+    }
+    payload_attempt2 = {
+        "event": "payment_link.paid",
+        "id": "evt_l4b_attempt2_02",
+        "payload": {
+            "payment_link": {"entity": {"id": plink_id}},
+            "payment": {
+                "entity": {
+                    "id": payment_id,
+                    "amount": 600000,
+                    "currency": "INR",
+                    "status": "captured",
+                }
+            },
+        },
+    }
+    async with sessionmaker() as session:
+        service = WebhookService(session, razorpay_adapter=mock_razorpay_adapter)
+        res2 = await service.process_webhook(
+            raw_body=json.dumps(payload_attempt2).encode("utf-8"),
+            payload=payload_attempt2,
+            signature_verified=True,
+        )
+        assert res2.state == CaseState.RECOVERED.value
+
+    # Third attempt (duplicate of attempt2): suppressed idempotently
+    async with sessionmaker() as session:
+        service = WebhookService(session, razorpay_adapter=mock_razorpay_adapter)
+        res3 = await service.process_webhook(
+            raw_body=json.dumps(payload_attempt2).encode("utf-8"),
+            payload=payload_attempt2,
+            signature_verified=True,
+        )
+        assert res3.is_duplicate is True
+
+    # Check database: exactly 1 attribution of 600000 paise
+    async with sessionmaker() as session:
+        db_case = await session.get(RecoveryCaseModel, case_id)
+        assert db_case.recovered_amount == 600000
+        assert db_case.recovered_payment_id == payment_id
+        assert db_case.state == CaseState.RECOVERED.value
 
 
 @pytest.mark.asyncio

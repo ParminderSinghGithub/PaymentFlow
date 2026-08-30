@@ -368,32 +368,60 @@ class WebhookService:
         payment_currency = payment_entity.get("currency", "INR")
 
         if self.razorpay_adapter and payment_id:
+            self.session.add(
+                AuditEventModel(
+                    case_id=case.case_id,
+                    event_type="PAYMENT_VERIFICATION_REQUESTED",
+                    actor=ActorType.SYSTEM.value,
+                    action="verify_payment",
+                    correlation_id=event_id,
+                    timestamp=utc_now(),
+                    details={"payment_id": payment_id},
+                )
+            )
             try:
+                verified_data = await self.razorpay_adapter.get_payment(payment_id)
+                payment_status = verified_data.get("status")
+                payment_amount = verified_data.get("amount")
+                payment_currency = verified_data.get("currency", "INR")
+            except Exception as exc:
+                logger.error(
+                    f"Payment verification API call failed for payment '{payment_id}': {exc}. "
+                    "Halting attribution; moving to unresolved VERIFICATION state."
+                )
+                case.state = CaseState.VERIFICATION.value
+                case.updated_at = utc_now()
+
                 self.session.add(
                     AuditEventModel(
                         case_id=case.case_id,
-                        event_type="PAYMENT_VERIFICATION_REQUESTED",
+                        event_type="PAYMENT_VERIFICATION_FAILED",
                         actor=ActorType.SYSTEM.value,
-                        action="verify_payment",
+                        decision="UNRESOLVED",
+                        outcome="VERIFICATION_API_UNAVAILABLE",
                         correlation_id=event_id,
                         timestamp=utc_now(),
-                        details={"payment_id": payment_id},
+                        details={
+                            "error": str(exc),
+                            "payment_id": payment_id,
+                            "requires_retry": True,
+                        },
                     )
                 )
-                verified_data = await self.razorpay_adapter.get_payment(payment_id)
-                payment_status = verified_data.get("status", payment_status)
-                payment_amount = verified_data.get("amount", payment_amount)
-                payment_currency = verified_data.get("currency", payment_currency)
-            except Exception as exc:
-                logger.warning(
-                    f"Payment verification API call failed for payment '{payment_id}': {exc}. "
-                    "Proceeding with webhook payload verification."
+                return WebhookProcessingResult(
+                    status="ok",
+                    event_id=event_id,
+                    event_type=event_type,
+                    case_id=case.case_id,
+                    state=case.state,
+                    message="Payment verification API unavailable; attribution unresolved.",
                 )
 
-        if payment_status not in {"captured", "authorized", "paid"}:
+        # 4. Strict Captured-Only Status Verification
+        if payment_status != "captured":
             logger.warning(
-                f"Webhook {event_id}: Payment '{payment_id}' status is '{payment_status}', "
-                "expected captured/paid. Rejecting attribution."
+                f"Webhook {event_id}: Payment '{payment_id}' status is '{payment_status}'. "
+                "Only 'captured' payments are eligible for recovery attribution."
             )
             audit = AuditEventModel(
                 case_id=case.case_id,
@@ -412,10 +440,10 @@ class WebhookService:
                 event_type=event_type,
                 case_id=case.case_id,
                 state=case.state,
-                message=f"Payment status '{payment_status}' not captured.",
+                message=f"Payment status '{payment_status}' is not captured.",
             )
 
-        # 4. Amount and Currency Integrity Verification
+        # 5. Amount and Currency Integrity Verification
         verified_amount = int(payment_amount) if payment_amount is not None else 0
         if verified_amount != case.amount or payment_currency != case.currency:
             logger.warning(
