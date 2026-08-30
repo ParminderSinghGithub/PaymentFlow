@@ -1,7 +1,7 @@
 """Add scheduled_at column to recovery_cases.
 
-Revision ID: 0002_add_scheduled_at
-Revises: 0001_initial
+Revision ID: 0005_add_scheduled_at
+Revises: 0004_layer4a_payment_link
 Create Date: 2026-08-30 18:00:00.000000
 
 """
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = "0002_add_scheduled_at"
-down_revision: Union[str, None] = "0001_initial"
+revision: str = "0005_add_scheduled_at"
+down_revision: Union[str, None] = "0004_layer4a_payment_link"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
