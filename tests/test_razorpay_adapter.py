@@ -167,3 +167,58 @@ async def test_razorpay_adapter_timeout():
         adapter = RazorpayAdapter(http_client=client)
         with pytest.raises(RazorpayAdapterError):
             await adapter.get_payment("pay_123")
+
+
+@pytest.mark.asyncio
+async def test_razorpay_adapter_create_payment_link_success():
+    """Verify create_payment_link parses successful response."""
+    mock_link = {
+        "id": "plink_test999",
+        "short_url": "https://rzp.io/i/test999",
+        "amount": 250000,
+        "currency": "INR",
+        "status": "created",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/payment_links"
+        assert request.method == "POST"
+        return httpx.Response(200, json=mock_link)
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        adapter = RazorpayAdapter(
+            settings=Settings(razorpay_key_id="k", razorpay_key_secret="s"),
+            http_client=client,
+        )
+        res = await adapter.create_payment_link(
+            amount=250000,
+            currency="INR",
+            reference_id="case_123",
+        )
+        assert res["id"] == "plink_test999"
+        assert res["short_url"] == "https://rzp.io/i/test999"
+
+
+@pytest.mark.asyncio
+async def test_razorpay_adapter_get_payment_link_success():
+    """Verify get_payment_link parses successful response."""
+    mock_link = {
+        "id": "plink_test999",
+        "status": "created",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/payment_links/plink_test999"
+        assert request.method == "GET"
+        return httpx.Response(200, json=mock_link)
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        adapter = RazorpayAdapter(
+            settings=Settings(razorpay_key_id="k", razorpay_key_secret="s"),
+            http_client=client,
+        )
+        res = await adapter.get_payment_link("plink_test999")
+        assert res["id"] == "plink_test999"
+

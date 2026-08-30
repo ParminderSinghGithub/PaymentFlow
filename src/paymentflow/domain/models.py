@@ -116,6 +116,37 @@ class PolicyValidationResult(BaseModel):
     details: dict[str, Any] = Field(default_factory=dict)
 
 
+class PaymentLinkResult(BaseModel):
+    """Structured response from Razorpay payment link creation."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    short_url: str
+    amount: int
+    currency: str
+    status: str
+    reference_id: str | None = None
+    created_at: int | None = None
+    raw_response: dict[str, Any] = Field(default_factory=dict)
+
+
+class RecoveryExecutionResult(BaseModel):
+    """Result of an executed recovery action."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    success: bool
+    case_id: str
+    decision: str  # EXECUTED, REJECTED, ESCALATED, ALREADY_EXECUTED, ERROR
+    state: CaseState
+    payment_link_id: str | None = None
+    payment_link_short_url: str | None = None
+    reason_code: str | None = None
+    message: str | None = None
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
 class RecoveryCaseView(BaseModel):
     """Read-only domain representation of a recovery case."""
 
@@ -137,5 +168,9 @@ class RecoveryCaseView(BaseModel):
     ai_policy_id: RecoveryPolicy | None = None
     ai_explanation: str | None = None
     validated_policy_id: RecoveryPolicy | None = None
+    payment_link_id: str | None = None
+    payment_link_short_url: str | None = None
+    payment_link_status: str | None = None
     created_at: datetime
     updated_at: datetime
+

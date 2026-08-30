@@ -114,3 +114,48 @@ class RazorpayAdapter:
             raise ValueError("order_id must not be empty.")
         logger.info(f"Fetching order details for: {order_id}")
         return await self._request("GET", f"orders/{order_id}")
+
+    async def create_payment_link(
+        self,
+        amount: int,
+        currency: str = "INR",
+        description: str | None = None,
+        customer: dict[str, Any] | None = None,
+        reference_id: str | None = None,
+        notes: dict[str, Any] | None = None,
+        expire_by: int | None = None,
+    ) -> dict[str, Any]:
+        """Create a standard Razorpay Payment Link."""
+        if amount <= 0:
+            raise ValueError("amount must be a positive integer in paise.")
+        if currency != "INR":
+            raise ValueError("Only INR currency is supported.")
+
+        payload: dict[str, Any] = {
+            "amount": amount,
+            "currency": currency,
+            "description": description or "Payment Recovery Link",
+            "reminder_enable": False,
+            "notify": {"sms": False, "email": False},
+        }
+        if reference_id:
+            payload["reference_id"] = reference_id
+        if customer:
+            payload["customer"] = customer
+        if notes:
+            payload["notes"] = notes
+        if expire_by:
+            payload["expire_by"] = expire_by
+
+        logger.info(
+            f"Creating Razorpay Payment Link: amount={amount}, reference_id={reference_id}"
+        )
+        return await self._request("POST", "payment_links", json=payload)
+
+    async def get_payment_link(self, payment_link_id: str) -> dict[str, Any]:
+        """Fetch payment link details by ID."""
+        if not payment_link_id:
+            raise ValueError("payment_link_id must not be empty.")
+        logger.info(f"Fetching payment link details for: {payment_link_id}")
+        return await self._request("GET", f"payment_links/{payment_link_id}")
+

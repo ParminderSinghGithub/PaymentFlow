@@ -77,6 +77,8 @@ class RecoveryCaseModel(Base):
     payment_link_reference_id: Mapped[str | None] = mapped_column(
         String(128), index=True, nullable=True
     )
+    payment_link_short_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    payment_link_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     recovered_payment_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     recovered_amount: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     state: Mapped[str] = mapped_column(
