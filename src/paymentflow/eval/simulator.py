@@ -1,5 +1,6 @@
 """Policy-independent customer response simulator for recovery evaluation."""
 
+import hashlib
 import logging
 import random
 
@@ -69,12 +70,11 @@ class CustomerResponseSimulator:
             case _:
                 raise ValueError(f"Unhandled policy: {validated_policy}")
 
-        # 3. Deterministic pseudo-random draw using seed
-        # Use a combination of seed and case_id to ensure independence across cases
+        # 3. Deterministic pseudo-random draw using stable SHA-256 seed
         if seed is not None:
-            # Combine case_id and seed for stable, independent draws per case
-            case_hash = hash((case.decision_context.case_id, seed)) & 0xFFFFFFFF
-            rng = random.Random(case_hash)
+            seed_key = f"{case.decision_context.case_id}:{seed}".encode("utf-8")
+            seed_int = int(hashlib.sha256(seed_key).hexdigest()[:16], 16)
+            rng = random.Random(seed_int)
             draw = rng.random()
         else:
             draw = random.random()

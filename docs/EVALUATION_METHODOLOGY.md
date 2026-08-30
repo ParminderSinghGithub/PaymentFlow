@@ -10,10 +10,12 @@ The dataset is constructed to reflect real-world failed payment dynamics across 
 - **C4 (11 cases, 15%)**: Business / Risk / Limit Rejection (e.g., `FRAUD_SUSPECTED`, `CARD_BLOCKED_RISK`, `AML_CHECK_FAILED`).
 - **C5 (10 cases, 13%)**: Technical Integration / Non-Recoverable Failure (e.g., `INVALID_MERCHANT_KEY`, `INVALID_REQUEST_PARAMETERS`, `UNSUPPORTED_CURRENCY`).
 
+The dataset includes **8 high-value cases** (> ₹50,000 / 5,000,000 paise) across categories C1, C2, C3, and C4, 3 multi-currency cases (USD, EUR), and active cooldown cases.
+
 ---
 
-## 2. Strict Ground-Truth Isolation & No-Leakage Guarantee
-The schema maintains a strict separation between what is visible at decision time vs. what the simulator uses:
+## 2. Strict Ground-Truth Isolation & No-Leakage Controls
+The schema maintains explicit separation between what is visible at decision time vs. what the simulator uses:
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │                       EvaluationCase                        │
@@ -34,8 +36,11 @@ The schema maintains a strict separation between what is visible at decision tim
 │ • last_attempt_at            │                              │
 └──────────────────────────────┴──────────────────────────────┘
 ```
-- **Policy Invariant**: `DecisionContext` sets `extra="forbid"` and cannot contain ground-truth probabilities or customer willingness scores.
-- **Verification**: Dedicated tests verify that no ground-truth key is present or accessible in `DecisionContext`.
+- **Isolation Controls**:
+  1. Typed schema separation between `DecisionContext` and `SimulationGroundTruth`.
+  2. Pydantic `extra="forbid"` on `DecisionContext`, preventing accidental injection or serialization of ground-truth variables.
+  3. Strict programmatic interface: `case.get_decision_context()` returns only `DecisionContext`.
+  4. Automated leakage tests enforcing that no ground-truth key exists in decision context.
 
 ---
 
@@ -54,5 +59,5 @@ The `CustomerResponseSimulator` is **policy-independent**:
 ---
 
 ## 4. Reproducibility & Common Random Numbers (CRN)
-- Simulator calls accept an explicit integer `seed`.
-- When evaluating competing policies across Monte Carlo draws (e.g., 50 draws per case in Layer 5B/5C), using identical seeds ensures **Common Random Numbers**, eliminating extraneous Monte Carlo variance.
+- **Cross-Process Deterministic Randomness**: The simulator derives RNG seeds via `SHA-256(case_id:seed)`, ensuring identical outcomes across separate Python processes and environments without reliance on Python's process-dependent `hash()`.
+- **Variance Reduction**: Common random numbers can reduce the variance of policy differences by correlating the stochastic draws used for the same underlying case; they do not eliminate Monte Carlo uncertainty.

@@ -42,9 +42,9 @@ def test_evaluation_dataset_monetary_and_edge_case_distribution():
     """Verify presence of high-value, cooldown, and multi-currency edge cases."""
     cases = load_evaluation_dataset()
 
-    # High value (> ₹50,000 / 5,000,000 paise)
+    # Exact high value count (> ₹50,000 / 5,000,000 paise) is exactly 8
     high_value_cases = [c for c in cases if c.decision_context.amount > 5000000]
-    assert len(high_value_cases) >= 6
+    assert len(high_value_cases) == 8
 
     # Cooldown active case
     cooldown_cases = [c for c in cases if c.decision_context.last_attempt_at is not None]
@@ -120,6 +120,50 @@ def test_simulator_determinism_with_seed():
     assert outcome1.recovered == outcome2.recovered
     assert outcome1.recovered_amount == outcome2.recovered_amount
     assert outcome1.recovery_probability == outcome2.recovery_probability
+
+
+def test_simulator_cross_process_seed_determinism():
+    """Prove simulator seed is invariant to PYTHONHASHSEED across separate sub-processes."""
+    import os
+    import subprocess
+    import sys
+
+    # Python script snippet to run simulation with a given PYTHONHASHSEED
+    script = (
+        "import json; "
+        "from paymentflow.domain.enums import RecoveryPolicy; "
+        "from paymentflow.eval import load_evaluation_dataset, CustomerResponseSimulator; "
+        "case = load_evaluation_dataset()[0]; "
+        "res = CustomerResponseSimulator.simulate(case, RecoveryPolicy.P_CREATE_LINK_DELAYED, "
+        "seed=999); "
+        "print(json.dumps({'rec': res.recovered, 'amt': res.recovered_amount}))"
+    )
+
+    # Run in process 1 with PYTHONHASHSEED=123
+    env1 = os.environ.copy()
+    env1["PYTHONHASHSEED"] = "123"
+    env1["PYTHONPATH"] = "src"
+    proc1 = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        check=True,
+        env=env1,
+    )
+
+    # Run in process 2 with PYTHONHASHSEED=456
+    env2 = os.environ.copy()
+    env2["PYTHONHASHSEED"] = "456"
+    env2["PYTHONPATH"] = "src"
+    proc2 = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        check=True,
+        env=env2,
+    )
+
+    assert proc1.stdout.strip() == proc2.stdout.strip()
 
 
 def test_simulator_stochasticity_across_seeds():
