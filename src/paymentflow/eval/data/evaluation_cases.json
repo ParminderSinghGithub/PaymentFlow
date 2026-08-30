@@ -1,0 +1,2252 @@
+[
+  {
+    "decision_context": {
+      "case_id": "eval_case_001",
+      "failed_payment_id": "pay_eval_case_001_orig",
+      "order_id": "order_eval_case_001",
+      "customer_id": "cust_eval_case_001",
+      "amount": 299900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "BAD_REQUEST_GATEWAY_TIMEOUT",
+      "failure_description": "Bank gateway timed out during UPI collect authorization.",
+      "failure_source": "gateway",
+      "failure_step": "payment_authorization",
+      "failure_reason": "gateway_timeout",
+      "failure_category": "C1",
+      "customer_tenure_months": 12,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.85,
+      "p_recovery_no_action": 0.1,
+      "p_recovery_immediate_link": 0.35,
+      "p_recovery_delayed_link": 0.88,
+      "p_recovery_escalate": 0.5,
+      "notes": "Classic C1 gateway timeout; delayed link allows bank gateway to recover."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_002",
+      "failed_payment_id": "pay_eval_case_002_orig",
+      "order_id": "order_eval_case_002",
+      "customer_id": "cust_eval_case_002",
+      "amount": 499900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "GATEWAY_ERROR",
+      "failure_description": "Acquiring bank returned temporary 502 Bad Gateway.",
+      "failure_source": "gateway",
+      "failure_step": "payment_processing",
+      "failure_reason": "bank_down",
+      "failure_category": "C1",
+      "customer_tenure_months": 6,
+      "prior_failed_count_24h": 1,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.8,
+      "p_recovery_no_action": 0.08,
+      "p_recovery_immediate_link": 0.3,
+      "p_recovery_delayed_link": 0.85,
+      "p_recovery_escalate": 0.55,
+      "notes": "Bank gateway outage; delayed link performs best."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_003",
+      "failed_payment_id": "pay_eval_case_003_orig",
+      "order_id": "order_eval_case_003",
+      "customer_id": "cust_eval_case_003",
+      "amount": 149900,
+      "currency": "INR",
+      "payment_method": "netbanking",
+      "failure_code": "BAD_REQUEST_GATEWAY_TIMEOUT",
+      "failure_description": "Netbanking portal unresponsive during session handshake.",
+      "failure_source": "gateway",
+      "failure_step": "bank_redirect",
+      "failure_reason": "netbanking_timeout",
+      "failure_category": "C1",
+      "customer_tenure_months": 24,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 5,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.9,
+      "p_recovery_no_action": 0.15,
+      "p_recovery_immediate_link": 0.4,
+      "p_recovery_delayed_link": 0.92,
+      "p_recovery_escalate": 0.6,
+      "notes": "High intent long-tenure customer on netbanking timeout."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_004",
+      "failed_payment_id": "pay_eval_case_004_orig",
+      "order_id": "order_eval_case_004",
+      "customer_id": "cust_eval_case_004",
+      "amount": 899900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "NETWORK_ERROR",
+      "failure_description": "UPI switch connection dropped during debit confirmation.",
+      "failure_source": "gateway",
+      "failure_step": "payment_authorization",
+      "failure_reason": "network_failure",
+      "failure_category": "C1",
+      "customer_tenure_months": 3,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.75,
+      "p_recovery_no_action": 0.05,
+      "p_recovery_immediate_link": 0.3,
+      "p_recovery_delayed_link": 0.8,
+      "p_recovery_escalate": 0.45,
+      "notes": "UPI network switch failure."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_005",
+      "failed_payment_id": "pay_eval_case_005_orig",
+      "order_id": "order_eval_case_005",
+      "customer_id": "cust_eval_case_005",
+      "amount": 1250000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "ISSUER_TIMEOUT",
+      "failure_description": "Issuing bank 3DS verification server timed out.",
+      "failure_source": "issuer",
+      "failure_step": "otp_verification",
+      "failure_reason": "issuer_unavailable",
+      "failure_category": "C1",
+      "customer_tenure_months": 18,
+      "prior_failed_count_24h": 1,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.85,
+      "p_recovery_no_action": 0.12,
+      "p_recovery_immediate_link": 0.35,
+      "p_recovery_delayed_link": 0.86,
+      "p_recovery_escalate": 0.55,
+      "notes": "3DS issuer timeout; delayed link gives issuer breathing room."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_006",
+      "failed_payment_id": "pay_eval_case_006_orig",
+      "order_id": "order_eval_case_006",
+      "customer_id": "cust_eval_case_006",
+      "amount": 349900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "GATEWAY_ERROR",
+      "failure_description": "NPCI UPI PSP connector responded with temporary system error.",
+      "failure_source": "gateway",
+      "failure_step": "payment_processing",
+      "failure_reason": "psp_system_error",
+      "failure_category": "C1",
+      "customer_tenure_months": 8,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.78,
+      "p_recovery_no_action": 0.07,
+      "p_recovery_immediate_link": 0.28,
+      "p_recovery_delayed_link": 0.82,
+      "p_recovery_escalate": 0.5,
+      "notes": "PSP connector blip."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_007",
+      "failed_payment_id": "pay_eval_case_007_orig",
+      "order_id": "order_eval_case_007",
+      "customer_id": "cust_eval_case_007",
+      "amount": 7500000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "GATEWAY_ERROR",
+      "failure_description": "High-value card transaction failed due to gateway socket timeout.",
+      "failure_source": "gateway",
+      "failure_step": "payment_authorization",
+      "failure_reason": "socket_timeout",
+      "failure_category": "C1",
+      "customer_tenure_months": 36,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 8,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.95,
+      "p_recovery_no_action": 0.1,
+      "p_recovery_immediate_link": 0.4,
+      "p_recovery_delayed_link": 0.85,
+      "p_recovery_escalate": 0.92,
+      "notes": "High-value C1: escalation is permitted and yields highest conversion."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_008",
+      "failed_payment_id": "pay_eval_case_008_orig",
+      "order_id": "order_eval_case_008",
+      "customer_id": "cust_eval_case_008",
+      "amount": 199900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "BAD_REQUEST_GATEWAY_TIMEOUT",
+      "failure_description": "UPI collect request timed out at payer PSP.",
+      "failure_source": "gateway",
+      "failure_step": "payment_authorization",
+      "failure_reason": "payer_psp_timeout",
+      "failure_category": "C1",
+      "customer_tenure_months": 5,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.7,
+      "p_recovery_no_action": 0.08,
+      "p_recovery_immediate_link": 0.32,
+      "p_recovery_delayed_link": 0.78,
+      "p_recovery_escalate": 0.45,
+      "notes": "Standard C1 UPI timeout."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_009",
+      "failed_payment_id": "pay_eval_case_009_orig",
+      "order_id": "order_eval_case_009",
+      "customer_id": "cust_eval_case_009",
+      "amount": 599900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "GATEWAY_ERROR",
+      "failure_description": "Temporary internal server error on payment route.",
+      "failure_source": "gateway",
+      "failure_step": "payment_processing",
+      "failure_reason": "internal_error",
+      "failure_category": "C1",
+      "customer_tenure_months": 10,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.82,
+      "p_recovery_no_action": 0.1,
+      "p_recovery_immediate_link": 0.35,
+      "p_recovery_delayed_link": 0.84,
+      "p_recovery_escalate": 0.52,
+      "notes": "Routing node error."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_010",
+      "failed_payment_id": "pay_eval_case_010_orig",
+      "order_id": "order_eval_case_010",
+      "customer_id": "cust_eval_case_010",
+      "amount": 99900,
+      "currency": "INR",
+      "payment_method": "wallet",
+      "failure_code": "NETWORK_ERROR",
+      "failure_description": "Wallet provider API endpoint unreachable.",
+      "failure_source": "gateway",
+      "failure_step": "wallet_debit",
+      "failure_reason": "endpoint_down",
+      "failure_category": "C1",
+      "customer_tenure_months": 2,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.65,
+      "p_recovery_no_action": 0.05,
+      "p_recovery_immediate_link": 0.25,
+      "p_recovery_delayed_link": 0.75,
+      "p_recovery_escalate": 0.4,
+      "notes": "Low amount wallet endpoint outage."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_011",
+      "failed_payment_id": "pay_eval_case_011_orig",
+      "order_id": "order_eval_case_011",
+      "customer_id": "cust_eval_case_011",
+      "amount": 15000000,
+      "currency": "INR",
+      "payment_method": "netbanking",
+      "failure_code": "BAD_REQUEST_GATEWAY_TIMEOUT",
+      "failure_description": "Corporate netbanking gateway timed out during batch auth.",
+      "failure_source": "gateway",
+      "failure_step": "payment_authorization",
+      "failure_reason": "corp_gateway_timeout",
+      "failure_category": "C1",
+      "customer_tenure_months": 48,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 12,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.98,
+      "p_recovery_no_action": 0.15,
+      "p_recovery_immediate_link": 0.45,
+      "p_recovery_delayed_link": 0.88,
+      "p_recovery_escalate": 0.96,
+      "notes": "Corporate high-value; escalation performs exceptionally well."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_012",
+      "failed_payment_id": "pay_eval_case_012_orig",
+      "order_id": "order_eval_case_012",
+      "customer_id": "cust_eval_case_012",
+      "amount": 420000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "GATEWAY_ERROR",
+      "failure_description": "Bank core banking server temporarily unavailable (CBS down).",
+      "failure_source": "gateway",
+      "failure_step": "payment_processing",
+      "failure_reason": "cbs_offline",
+      "failure_category": "C1",
+      "customer_tenure_months": 14,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 4,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.88,
+      "p_recovery_no_action": 0.12,
+      "p_recovery_immediate_link": 0.2,
+      "p_recovery_delayed_link": 0.9,
+      "p_recovery_escalate": 0.58,
+      "notes": "Bank core banking maintenance; delayed link gives time for CBS restart."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_013",
+      "failed_payment_id": "pay_eval_case_013_orig",
+      "order_id": "order_eval_case_013",
+      "customer_id": "cust_eval_case_013",
+      "amount": 220000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "BAD_REQUEST_GATEWAY_TIMEOUT",
+      "failure_description": "Mastercard directory server connection timed out.",
+      "failure_source": "gateway",
+      "failure_step": "payment_authorization",
+      "failure_reason": "directory_server_timeout",
+      "failure_category": "C1",
+      "customer_tenure_months": 7,
+      "prior_failed_count_24h": 1,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.77,
+      "p_recovery_no_action": 0.08,
+      "p_recovery_immediate_link": 0.33,
+      "p_recovery_delayed_link": 0.83,
+      "p_recovery_escalate": 0.48,
+      "notes": "Card network directory server transient lag."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_014",
+      "failed_payment_id": "pay_eval_case_014_orig",
+      "order_id": "order_eval_case_014",
+      "customer_id": "cust_eval_case_014",
+      "amount": 310000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "NETWORK_ERROR",
+      "failure_description": "Packet loss detected between switch and remitter bank.",
+      "failure_source": "gateway",
+      "failure_step": "payment_authorization",
+      "failure_reason": "packet_loss",
+      "failure_category": "C1",
+      "customer_tenure_months": 9,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.81,
+      "p_recovery_no_action": 0.09,
+      "p_recovery_immediate_link": 0.3,
+      "p_recovery_delayed_link": 0.85,
+      "p_recovery_escalate": 0.5,
+      "notes": "Remitter network blip."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_015",
+      "failed_payment_id": "pay_eval_case_015_orig",
+      "order_id": "order_eval_case_015",
+      "customer_id": "cust_eval_case_015",
+      "amount": 650000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "GATEWAY_ERROR",
+      "failure_description": "Acquirer switched transaction to dead-end backup route.",
+      "failure_source": "gateway",
+      "failure_step": "payment_processing",
+      "failure_reason": "routing_deadend",
+      "failure_category": "C1",
+      "customer_tenure_months": 15,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.84,
+      "p_recovery_no_action": 0.11,
+      "p_recovery_immediate_link": 0.38,
+      "p_recovery_delayed_link": 0.87,
+      "p_recovery_escalate": 0.54,
+      "notes": "Routing issue resolved on retry."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_016",
+      "failed_payment_id": "pay_eval_case_016_orig",
+      "order_id": "order_eval_case_016",
+      "customer_id": "cust_eval_case_016",
+      "amount": 180000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "BAD_REQUEST_GATEWAY_TIMEOUT",
+      "failure_description": "UPI intent notification ack timed out.",
+      "failure_source": "gateway",
+      "failure_step": "payment_authorization",
+      "failure_reason": "intent_ack_timeout",
+      "failure_category": "C1",
+      "customer_tenure_months": 4,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.73,
+      "p_recovery_no_action": 0.06,
+      "p_recovery_immediate_link": 0.32,
+      "p_recovery_delayed_link": 0.8,
+      "p_recovery_escalate": 0.44,
+      "notes": "UPI intent acknowledgement dropped."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_017",
+      "failed_payment_id": "pay_eval_case_017_orig",
+      "order_id": "order_eval_case_017",
+      "customer_id": "cust_eval_case_017",
+      "amount": 250000,
+      "currency": "USD",
+      "payment_method": "card",
+      "failure_code": "GATEWAY_ERROR",
+      "failure_description": "Cross-border USD card gateway timed out.",
+      "failure_source": "gateway",
+      "failure_step": "payment_authorization",
+      "failure_reason": "intl_gateway_timeout",
+      "failure_category": "C1",
+      "customer_tenure_months": 1,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.6,
+      "p_recovery_no_action": 0.05,
+      "p_recovery_immediate_link": 0.4,
+      "p_recovery_delayed_link": 0.5,
+      "p_recovery_escalate": 0.3,
+      "notes": "USD transaction: Ineligible for INR recovery policies."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_018",
+      "failed_payment_id": "pay_eval_case_018_orig",
+      "order_id": "order_eval_case_018",
+      "customer_id": "cust_eval_case_018",
+      "amount": 399900,
+      "currency": "INR",
+      "payment_method": "netbanking",
+      "failure_code": "GATEWAY_ERROR",
+      "failure_description": "Bank portal returned 503 Service Unavailable.",
+      "failure_source": "gateway",
+      "failure_step": "bank_redirect",
+      "failure_reason": "service_unavailable_503",
+      "failure_category": "C1",
+      "customer_tenure_months": 11,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.83,
+      "p_recovery_no_action": 0.09,
+      "p_recovery_immediate_link": 0.25,
+      "p_recovery_delayed_link": 0.86,
+      "p_recovery_escalate": 0.52,
+      "notes": "503 service unavailable; delayed link works best."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_019",
+      "failed_payment_id": "pay_eval_case_019_orig",
+      "order_id": "order_eval_case_019",
+      "customer_id": "cust_eval_case_019",
+      "amount": 129900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "USER_DROPPED_OFF",
+      "failure_description": "Customer navigated away from 3DS challenge page.",
+      "failure_source": "customer",
+      "failure_step": "otp_verification",
+      "failure_reason": "user_cancelled",
+      "failure_category": "C2",
+      "customer_tenure_months": 8,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.82,
+      "p_recovery_no_action": 0.25,
+      "p_recovery_immediate_link": 0.88,
+      "p_recovery_delayed_link": 0.45,
+      "p_recovery_escalate": 0.5,
+      "notes": "Immediate link recovers quickly while customer is still on phone."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_020",
+      "failed_payment_id": "pay_eval_case_020_orig",
+      "order_id": "order_eval_case_020",
+      "customer_id": "cust_eval_case_020",
+      "amount": 249900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "OTP_TIMEOUT",
+      "failure_description": "OTP expired before customer entered 6-digit code.",
+      "failure_source": "customer",
+      "failure_step": "otp_verification",
+      "failure_reason": "otp_expired",
+      "failure_category": "C2",
+      "customer_tenure_months": 16,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 4,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.9,
+      "p_recovery_no_action": 0.3,
+      "p_recovery_immediate_link": 0.92,
+      "p_recovery_delayed_link": 0.5,
+      "p_recovery_escalate": 0.55,
+      "notes": "Delayed OTP delivery; immediate link gives clean second chance."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_021",
+      "failed_payment_id": "pay_eval_case_021_orig",
+      "order_id": "order_eval_case_021",
+      "customer_id": "cust_eval_case_021",
+      "amount": 399900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "AUTHENTICATION_FAILED",
+      "failure_description": "Customer entered incorrect UPI PIN on first attempt.",
+      "failure_source": "customer",
+      "failure_step": "pin_entry",
+      "failure_reason": "wrong_pin",
+      "failure_category": "C2",
+      "customer_tenure_months": 6,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.85,
+      "p_recovery_no_action": 0.28,
+      "p_recovery_immediate_link": 0.86,
+      "p_recovery_delayed_link": 0.48,
+      "p_recovery_escalate": 0.5,
+      "notes": "Typo in PIN; immediate link allows seamless retry."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_022",
+      "failed_payment_id": "pay_eval_case_022_orig",
+      "order_id": "order_eval_case_022",
+      "customer_id": "cust_eval_case_022",
+      "amount": 85000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "USER_DROPPED_OFF",
+      "failure_description": "Customer browser tab closed during 3DS redirect.",
+      "failure_source": "customer",
+      "failure_step": "bank_redirect",
+      "failure_reason": "tab_closed",
+      "failure_category": "C2",
+      "customer_tenure_months": 3,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.75,
+      "p_recovery_no_action": 0.2,
+      "p_recovery_immediate_link": 0.8,
+      "p_recovery_delayed_link": 0.4,
+      "p_recovery_escalate": 0.45,
+      "notes": "Accidental tab closure."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_023",
+      "failed_payment_id": "pay_eval_case_023_orig",
+      "order_id": "order_eval_case_023",
+      "customer_id": "cust_eval_case_023",
+      "amount": 175000,
+      "currency": "INR",
+      "payment_method": "netbanking",
+      "failure_code": "SESSION_EXPIRED",
+      "failure_description": "Bank login session timed out due to user inactivity.",
+      "failure_source": "customer",
+      "failure_step": "bank_login",
+      "failure_reason": "session_timeout",
+      "failure_category": "C2",
+      "customer_tenure_months": 10,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.8,
+      "p_recovery_no_action": 0.22,
+      "p_recovery_immediate_link": 0.84,
+      "p_recovery_delayed_link": 0.46,
+      "p_recovery_escalate": 0.5,
+      "notes": "Customer searched for credentials; immediate link re-engages."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_024",
+      "failed_payment_id": "pay_eval_case_024_orig",
+      "order_id": "order_eval_case_024",
+      "customer_id": "cust_eval_case_024",
+      "amount": 6500000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "OTP_TIMEOUT",
+      "failure_description": "High-value luxury purchase OTP timed out.",
+      "failure_source": "customer",
+      "failure_step": "otp_verification",
+      "failure_reason": "otp_expired",
+      "failure_category": "C2",
+      "customer_tenure_months": 30,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 7,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.96,
+      "p_recovery_no_action": 0.35,
+      "p_recovery_immediate_link": 0.85,
+      "p_recovery_delayed_link": 0.6,
+      "p_recovery_escalate": 0.95,
+      "notes": "High-value C2: escalation/call or immediate link works well."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_025",
+      "failed_payment_id": "pay_eval_case_025_orig",
+      "order_id": "order_eval_case_025",
+      "customer_id": "cust_eval_case_025",
+      "amount": 299900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "USER_DROPPED_OFF",
+      "failure_description": "User switched to another app without approving UPI collect request.",
+      "failure_source": "customer",
+      "failure_step": "collect_approval",
+      "failure_reason": "app_switch_drop",
+      "failure_category": "C2",
+      "customer_tenure_months": 12,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.84,
+      "p_recovery_no_action": 0.26,
+      "p_recovery_immediate_link": 0.89,
+      "p_recovery_delayed_link": 0.44,
+      "p_recovery_escalate": 0.52,
+      "notes": "App switch distraction; immediate link pushes back to top of mind."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_026",
+      "failed_payment_id": "pay_eval_case_026_orig",
+      "order_id": "order_eval_case_026",
+      "customer_id": "cust_eval_case_026",
+      "amount": 450000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "AUTHENTICATION_FAILED",
+      "failure_description": "3DS OTP entered with transposed digits.",
+      "failure_source": "customer",
+      "failure_step": "otp_verification",
+      "failure_reason": "incorrect_otp",
+      "failure_category": "C2",
+      "customer_tenure_months": 5,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.79,
+      "p_recovery_no_action": 0.24,
+      "p_recovery_immediate_link": 0.83,
+      "p_recovery_delayed_link": 0.42,
+      "p_recovery_escalate": 0.48,
+      "notes": "OTP transposition error."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_027",
+      "failed_payment_id": "pay_eval_case_027_orig",
+      "order_id": "order_eval_case_027",
+      "customer_id": "cust_eval_case_027",
+      "amount": 199900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "USER_DROPPED_OFF",
+      "failure_description": "User declined UPI push notification accidentally.",
+      "failure_source": "customer",
+      "failure_step": "notification_click",
+      "failure_reason": "accidental_dismiss",
+      "failure_category": "C2",
+      "customer_tenure_months": 14,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.88,
+      "p_recovery_no_action": 0.3,
+      "p_recovery_immediate_link": 0.9,
+      "p_recovery_delayed_link": 0.45,
+      "p_recovery_escalate": 0.5,
+      "notes": "Accidental swipe dismissal."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_028",
+      "failed_payment_id": "pay_eval_case_028_orig",
+      "order_id": "order_eval_case_028",
+      "customer_id": "cust_eval_case_028",
+      "amount": 350000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "OTP_TIMEOUT",
+      "failure_description": "SMS delivery delayed by telecom operator.",
+      "failure_source": "customer",
+      "failure_step": "otp_delivery",
+      "failure_reason": "telecom_delay",
+      "failure_category": "C2",
+      "customer_tenure_months": 9,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.83,
+      "p_recovery_no_action": 0.25,
+      "p_recovery_immediate_link": 0.87,
+      "p_recovery_delayed_link": 0.49,
+      "p_recovery_escalate": 0.52,
+      "notes": "Telecom delivery lag."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_029",
+      "failed_payment_id": "pay_eval_case_029_orig",
+      "order_id": "order_eval_case_029",
+      "customer_id": "cust_eval_case_029",
+      "amount": 9500000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "USER_DROPPED_OFF",
+      "failure_description": "Corporate user needed second approver for large transaction.",
+      "failure_source": "customer",
+      "failure_step": "otp_verification",
+      "failure_reason": "pending_internal_approval",
+      "failure_category": "C2",
+      "customer_tenure_months": 28,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 6,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.94,
+      "p_recovery_no_action": 0.3,
+      "p_recovery_immediate_link": 0.7,
+      "p_recovery_delayed_link": 0.85,
+      "p_recovery_escalate": 0.94,
+      "notes": "High-value C2: escalation or delayed link allows internal approval."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_030",
+      "failed_payment_id": "pay_eval_case_030_orig",
+      "order_id": "order_eval_case_030",
+      "customer_id": "cust_eval_case_030",
+      "amount": 159900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "AUTHENTICATION_FAILED",
+      "failure_description": "Biometric fingerprint authentication failed on device.",
+      "failure_source": "customer",
+      "failure_step": "biometric_auth",
+      "failure_reason": "fingerprint_mismatch",
+      "failure_category": "C2",
+      "customer_tenure_months": 7,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.81,
+      "p_recovery_no_action": 0.27,
+      "p_recovery_immediate_link": 0.86,
+      "p_recovery_delayed_link": 0.43,
+      "p_recovery_escalate": 0.49,
+      "notes": "Biometric sensor dirty; immediate retry works."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_031",
+      "failed_payment_id": "pay_eval_case_031_orig",
+      "order_id": "order_eval_case_031",
+      "customer_id": "cust_eval_case_031",
+      "amount": 220000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "USER_DROPPED_OFF",
+      "failure_description": "User switched wifi networks mid-transaction causing socket reset.",
+      "failure_source": "customer",
+      "failure_step": "payment_processing",
+      "failure_reason": "network_switch",
+      "failure_category": "C2",
+      "customer_tenure_months": 4,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.76,
+      "p_recovery_no_action": 0.22,
+      "p_recovery_immediate_link": 0.82,
+      "p_recovery_delayed_link": 0.4,
+      "p_recovery_escalate": 0.46,
+      "notes": "Network switch friction."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_032",
+      "failed_payment_id": "pay_eval_case_032_orig",
+      "order_id": "order_eval_case_032",
+      "customer_id": "cust_eval_case_032",
+      "amount": 549900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "OTP_TIMEOUT",
+      "failure_description": "User delayed entering UPI MPIN while checking account balance.",
+      "failure_source": "customer",
+      "failure_step": "pin_entry",
+      "failure_reason": "user_hesitation",
+      "failure_category": "C2",
+      "customer_tenure_months": 11,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.86,
+      "p_recovery_no_action": 0.28,
+      "p_recovery_immediate_link": 0.88,
+      "p_recovery_delayed_link": 0.5,
+      "p_recovery_escalate": 0.54,
+      "notes": "Customer hesitating; immediate link provides quick checkout."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_033",
+      "failed_payment_id": "pay_eval_case_033_orig",
+      "order_id": "order_eval_case_033",
+      "customer_id": "cust_eval_case_033",
+      "amount": 189900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "AUTHENTICATION_FAILED",
+      "failure_description": "Card CVV entered incorrectly on first attempt.",
+      "failure_source": "customer",
+      "failure_step": "cvv_entry",
+      "failure_reason": "incorrect_cvv",
+      "failure_category": "C2",
+      "customer_tenure_months": 15,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.87,
+      "p_recovery_no_action": 0.29,
+      "p_recovery_immediate_link": 0.89,
+      "p_recovery_delayed_link": 0.46,
+      "p_recovery_escalate": 0.51,
+      "notes": "CVV typo."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_034",
+      "failed_payment_id": "pay_eval_case_034_orig",
+      "order_id": "order_eval_case_034",
+      "customer_id": "cust_eval_case_034",
+      "amount": 279900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "USER_DROPPED_OFF",
+      "failure_description": "Customer received phone call while UPI app was in foreground.",
+      "failure_source": "customer",
+      "failure_step": "payment_approval",
+      "failure_reason": "phone_call_interruption",
+      "failure_category": "C2",
+      "customer_tenure_months": 18,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 5,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.91,
+      "p_recovery_no_action": 0.32,
+      "p_recovery_immediate_link": 0.93,
+      "p_recovery_delayed_link": 0.52,
+      "p_recovery_escalate": 0.56,
+      "notes": "Phone call interruption; immediate link completes transaction."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_035",
+      "failed_payment_id": "pay_eval_case_035_orig",
+      "order_id": "order_eval_case_035",
+      "customer_id": "cust_eval_case_035",
+      "amount": 410000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "OTP_TIMEOUT",
+      "failure_description": "Customer was in low coverage zone when OTP arrived.",
+      "failure_source": "customer",
+      "failure_step": "otp_verification",
+      "failure_reason": "low_coverage_delay",
+      "failure_category": "C2",
+      "customer_tenure_months": 6,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.78,
+      "p_recovery_no_action": 0.21,
+      "p_recovery_immediate_link": 0.84,
+      "p_recovery_delayed_link": 0.44,
+      "p_recovery_escalate": 0.48,
+      "notes": "Temporary coverage drop."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_036",
+      "failed_payment_id": "pay_eval_case_036_orig",
+      "order_id": "order_eval_case_036",
+      "customer_id": "cust_eval_case_036",
+      "amount": 135000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "AUTHENTICATION_FAILED",
+      "failure_description": "UPI MPIN entry timed out.",
+      "failure_source": "customer",
+      "failure_step": "pin_entry",
+      "failure_reason": "pin_timeout",
+      "failure_category": "C2",
+      "customer_tenure_months": 8,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.84,
+      "p_recovery_no_action": 0.26,
+      "p_recovery_immediate_link": 0.87,
+      "p_recovery_delayed_link": 0.47,
+      "p_recovery_escalate": 0.51,
+      "notes": "PIN entry timeout."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_037",
+      "failed_payment_id": "pay_eval_case_037_orig",
+      "order_id": "order_eval_case_037",
+      "customer_id": "cust_eval_case_037",
+      "amount": 320000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "USER_DROPPED_OFF",
+      "failure_description": "Customer refreshed browser page during payment submission.",
+      "failure_source": "customer",
+      "failure_step": "form_submit",
+      "failure_reason": "page_refresh",
+      "failure_category": "C2",
+      "customer_tenure_months": 13,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.85,
+      "p_recovery_no_action": 0.27,
+      "p_recovery_immediate_link": 0.88,
+      "p_recovery_delayed_link": 0.45,
+      "p_recovery_escalate": 0.52,
+      "notes": "Accidental refresh."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_038",
+      "failed_payment_id": "pay_eval_case_038_orig",
+      "order_id": "order_eval_case_038",
+      "customer_id": "cust_eval_case_038",
+      "amount": 250000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "USER_DROPPED_OFF",
+      "failure_description": "Customer attempted recovery 5 minutes ago (active cooldown).",
+      "failure_source": "customer",
+      "failure_step": "collect_approval",
+      "failure_reason": "cooldown_test_case",
+      "failure_category": "C2",
+      "customer_tenure_months": 5,
+      "prior_failed_count_24h": 1,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": "2026-08-30T09:55:00+00:00"
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.7,
+      "p_recovery_no_action": 0.2,
+      "p_recovery_immediate_link": 0.8,
+      "p_recovery_delayed_link": 0.6,
+      "p_recovery_escalate": 0.4,
+      "notes": "Cooldown case: Last attempt within 5 minutes."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_039",
+      "failed_payment_id": "pay_eval_case_039_orig",
+      "order_id": "order_eval_case_039",
+      "customer_id": "cust_eval_case_039",
+      "amount": 499900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "INSUFFICIENT_FUNDS",
+      "failure_description": "Issuing bank declined: account balance lower than transaction amount.",
+      "failure_source": "issuer",
+      "failure_step": "debit_authorization",
+      "failure_reason": "insufficient_funds",
+      "failure_category": "C3",
+      "customer_tenure_months": 10,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.75,
+      "p_recovery_no_action": 0.05,
+      "p_recovery_immediate_link": 0.18,
+      "p_recovery_delayed_link": 0.68,
+      "p_recovery_escalate": 0.45,
+      "notes": "Insufficient funds: immediate retry fails; delayed link gives time to top up."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_040",
+      "failed_payment_id": "pay_eval_case_040_orig",
+      "order_id": "order_eval_case_040",
+      "customer_id": "cust_eval_case_040",
+      "amount": 799900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "CARD_EXPIRED",
+      "failure_description": "Card expiration date is in the past.",
+      "failure_source": "issuer",
+      "failure_step": "card_validation",
+      "failure_reason": "expired_card",
+      "failure_category": "C3",
+      "customer_tenure_months": 20,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 4,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.82,
+      "p_recovery_no_action": 0.04,
+      "p_recovery_immediate_link": 0.15,
+      "p_recovery_delayed_link": 0.65,
+      "p_recovery_escalate": 0.55,
+      "notes": "Card expired: Payment Link allows customer to pay via UPI or new card."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_041",
+      "failed_payment_id": "pay_eval_case_041_orig",
+      "order_id": "order_eval_case_041",
+      "customer_id": "cust_eval_case_041",
+      "amount": 1200000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "LIMIT_EXCEEDED",
+      "failure_description": "Card daily online transaction limit exceeded.",
+      "failure_source": "issuer",
+      "failure_step": "limit_check",
+      "failure_reason": "daily_limit_exceeded",
+      "failure_category": "C3",
+      "customer_tenure_months": 14,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.8,
+      "p_recovery_no_action": 0.06,
+      "p_recovery_immediate_link": 0.12,
+      "p_recovery_delayed_link": 0.72,
+      "p_recovery_escalate": 0.5,
+      "notes": "Daily limit: delayed link allows customer to increase limit or pay next day."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_042",
+      "failed_payment_id": "pay_eval_case_042_orig",
+      "order_id": "order_eval_case_042",
+      "customer_id": "cust_eval_case_042",
+      "amount": 349900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "CARD_INACTIVE",
+      "failure_description": "Card not enabled for domestic e-commerce transactions.",
+      "failure_source": "issuer",
+      "failure_step": "card_validation",
+      "failure_reason": "ecommerce_disabled",
+      "failure_category": "C3",
+      "customer_tenure_months": 7,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.78,
+      "p_recovery_no_action": 0.05,
+      "p_recovery_immediate_link": 0.2,
+      "p_recovery_delayed_link": 0.65,
+      "p_recovery_escalate": 0.48,
+      "notes": "Card e-com disabled: customer needs banking app to toggle setting."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_043",
+      "failed_payment_id": "pay_eval_case_043_orig",
+      "order_id": "order_eval_case_043",
+      "customer_id": "cust_eval_case_043",
+      "amount": 8000000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "LIMIT_EXCEEDED",
+      "failure_description": "Single transaction limit on corporate card exceeded.",
+      "failure_source": "issuer",
+      "failure_step": "limit_check",
+      "failure_reason": "per_tx_limit_exceeded",
+      "failure_category": "C3",
+      "customer_tenure_months": 32,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 9,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.95,
+      "p_recovery_no_action": 0.08,
+      "p_recovery_immediate_link": 0.15,
+      "p_recovery_delayed_link": 0.7,
+      "p_recovery_escalate": 0.94,
+      "notes": "High-value limit issue; manual account manager escalation resolves."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_044",
+      "failed_payment_id": "pay_eval_case_044_orig",
+      "order_id": "order_eval_case_044",
+      "customer_id": "cust_eval_case_044",
+      "amount": 199900,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "INSUFFICIENT_FUNDS",
+      "failure_description": "Linked bank account balance insufficient for UPI debit.",
+      "failure_source": "issuer",
+      "failure_step": "debit_authorization",
+      "failure_reason": "insufficient_funds",
+      "failure_category": "C3",
+      "customer_tenure_months": 5,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.7,
+      "p_recovery_no_action": 0.04,
+      "p_recovery_immediate_link": 0.15,
+      "p_recovery_delayed_link": 0.6,
+      "p_recovery_escalate": 0.4,
+      "notes": "UPI balance deficit."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_045",
+      "failed_payment_id": "pay_eval_case_045_orig",
+      "order_id": "order_eval_case_045",
+      "customer_id": "cust_eval_case_045",
+      "amount": 280000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "CARD_EXPIRED",
+      "failure_description": "Card validity period lapsed.",
+      "failure_source": "issuer",
+      "failure_step": "card_validation",
+      "failure_reason": "expired_card",
+      "failure_category": "C3",
+      "customer_tenure_months": 12,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.79,
+      "p_recovery_no_action": 0.03,
+      "p_recovery_immediate_link": 0.16,
+      "p_recovery_delayed_link": 0.64,
+      "p_recovery_escalate": 0.48,
+      "notes": "Expired card on renewal."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_046",
+      "failed_payment_id": "pay_eval_case_046_orig",
+      "order_id": "order_eval_case_046",
+      "customer_id": "cust_eval_case_046",
+      "amount": 620000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "INSUFFICIENT_FUNDS",
+      "failure_description": "Credit card credit limit fully exhausted.",
+      "failure_source": "issuer",
+      "failure_step": "limit_check",
+      "failure_reason": "credit_limit_exhausted",
+      "failure_category": "C3",
+      "customer_tenure_months": 18,
+      "prior_failed_count_24h": 1,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.81,
+      "p_recovery_no_action": 0.05,
+      "p_recovery_immediate_link": 0.12,
+      "p_recovery_delayed_link": 0.66,
+      "p_recovery_escalate": 0.5,
+      "notes": "Credit line maxed out."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_047",
+      "failed_payment_id": "pay_eval_case_047_orig",
+      "order_id": "order_eval_case_047",
+      "customer_id": "cust_eval_case_047",
+      "amount": 12000000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "LIMIT_EXCEEDED",
+      "failure_description": "High-value B2B purchase exceeds daily card limit.",
+      "failure_source": "issuer",
+      "failure_step": "limit_check",
+      "failure_reason": "b2b_limit_exceeded",
+      "failure_category": "C3",
+      "customer_tenure_months": 40,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 11,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.97,
+      "p_recovery_no_action": 0.1,
+      "p_recovery_immediate_link": 0.2,
+      "p_recovery_delayed_link": 0.75,
+      "p_recovery_escalate": 0.95,
+      "notes": "High-value B2B limit issue: Escalation is best policy."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_048",
+      "failed_payment_id": "pay_eval_case_048_orig",
+      "order_id": "order_eval_case_048",
+      "customer_id": "cust_eval_case_048",
+      "amount": 350000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "ACCOUNT_BLOCKED",
+      "failure_description": "Customer bank account frozen due to KYC re-verification.",
+      "failure_source": "issuer",
+      "failure_step": "account_validation",
+      "failure_reason": "kyc_freeze",
+      "failure_category": "C3",
+      "customer_tenure_months": 9,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.65,
+      "p_recovery_no_action": 0.02,
+      "p_recovery_immediate_link": 0.1,
+      "p_recovery_delayed_link": 0.5,
+      "p_recovery_escalate": 0.4,
+      "notes": "KYC freeze on single account; Payment Link enables alternate account."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_049",
+      "failed_payment_id": "pay_eval_case_049_orig",
+      "order_id": "order_eval_case_049",
+      "customer_id": "cust_eval_case_049",
+      "amount": 210000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "INSUFFICIENT_FUNDS",
+      "failure_description": "Primary UPI bank balance zero.",
+      "failure_source": "issuer",
+      "failure_step": "debit_authorization",
+      "failure_reason": "zero_balance",
+      "failure_category": "C3",
+      "customer_tenure_months": 4,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.72,
+      "p_recovery_no_action": 0.04,
+      "p_recovery_immediate_link": 0.15,
+      "p_recovery_delayed_link": 0.58,
+      "p_recovery_escalate": 0.42,
+      "notes": "Zero balance UPI."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_050",
+      "failed_payment_id": "pay_eval_case_050_orig",
+      "order_id": "order_eval_case_050",
+      "customer_id": "cust_eval_case_050",
+      "amount": 475000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "CARD_INACTIVE",
+      "failure_description": "International usage disabled on debit card.",
+      "failure_source": "issuer",
+      "failure_step": "card_validation",
+      "failure_reason": "intl_disabled",
+      "failure_category": "C3",
+      "customer_tenure_months": 11,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.8,
+      "p_recovery_no_action": 0.04,
+      "p_recovery_immediate_link": 0.18,
+      "p_recovery_delayed_link": 0.65,
+      "p_recovery_escalate": 0.5,
+      "notes": "Card settings need update via bank app."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_051",
+      "failed_payment_id": "pay_eval_case_051_orig",
+      "order_id": "order_eval_case_051",
+      "customer_id": "cust_eval_case_051",
+      "amount": 165000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "CARD_EXPIRED",
+      "failure_description": "Card expired last month.",
+      "failure_source": "issuer",
+      "failure_step": "card_validation",
+      "failure_reason": "expired_card",
+      "failure_category": "C3",
+      "customer_tenure_months": 15,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.83,
+      "p_recovery_no_action": 0.03,
+      "p_recovery_immediate_link": 0.17,
+      "p_recovery_delayed_link": 0.67,
+      "p_recovery_escalate": 0.51,
+      "notes": "Expired card on recurring customer."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_052",
+      "failed_payment_id": "pay_eval_case_052_orig",
+      "order_id": "order_eval_case_052",
+      "customer_id": "cust_eval_case_052",
+      "amount": 520000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "LIMIT_EXCEEDED",
+      "failure_description": "Monthly credit card spend threshold reached.",
+      "failure_source": "issuer",
+      "failure_step": "limit_check",
+      "failure_reason": "monthly_limit_reached",
+      "failure_category": "C3",
+      "customer_tenure_months": 13,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.82,
+      "p_recovery_no_action": 0.06,
+      "p_recovery_immediate_link": 0.14,
+      "p_recovery_delayed_link": 0.7,
+      "p_recovery_escalate": 0.52,
+      "notes": "Monthly spend cap."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_053",
+      "failed_payment_id": "pay_eval_case_053_orig",
+      "order_id": "order_eval_case_053",
+      "customer_id": "cust_eval_case_053",
+      "amount": 290000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "INSUFFICIENT_FUNDS",
+      "failure_description": "Insufficient balance on second UPI attempt.",
+      "failure_source": "issuer",
+      "failure_step": "debit_authorization",
+      "failure_reason": "insufficient_funds_repeat",
+      "failure_category": "C3",
+      "customer_tenure_months": 8,
+      "prior_failed_count_24h": 1,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.74,
+      "p_recovery_no_action": 0.03,
+      "p_recovery_immediate_link": 0.12,
+      "p_recovery_delayed_link": 0.62,
+      "p_recovery_escalate": 0.44,
+      "notes": "Repeated insufficient funds."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_054",
+      "failed_payment_id": "pay_eval_case_054_orig",
+      "order_id": "order_eval_case_054",
+      "customer_id": "cust_eval_case_054",
+      "amount": 380000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "ACCOUNT_BLOCKED",
+      "failure_description": "Card temporarily blocked by customer via banking app.",
+      "failure_source": "issuer",
+      "failure_step": "account_validation",
+      "failure_reason": "user_temp_block",
+      "failure_category": "C3",
+      "customer_tenure_months": 16,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 4,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.81,
+      "p_recovery_no_action": 0.05,
+      "p_recovery_immediate_link": 0.15,
+      "p_recovery_delayed_link": 0.68,
+      "p_recovery_escalate": 0.49,
+      "notes": "Card locked temporarily; delayed link gives time to unlock."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_055",
+      "failed_payment_id": "pay_eval_case_055_orig",
+      "order_id": "order_eval_case_055",
+      "customer_id": "cust_eval_case_055",
+      "amount": 499900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "FRAUD_SUSPECTED",
+      "failure_description": "Razorpay Thirdwatch risk engine flagged high fraud probability.",
+      "failure_source": "risk",
+      "failure_step": "risk_check",
+      "failure_reason": "thirdwatch_high_risk",
+      "failure_category": "C4",
+      "customer_tenure_months": 1,
+      "prior_failed_count_24h": 2,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.1,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.01,
+      "p_recovery_delayed_link": 0.01,
+      "p_recovery_escalate": 0.2,
+      "notes": "Fraud suspected: automated links are dangerous/ineffective."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_056",
+      "failed_payment_id": "pay_eval_case_056_orig",
+      "order_id": "order_eval_case_056",
+      "customer_id": "cust_eval_case_056",
+      "amount": 899900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "CARD_BLOCKED_RISK",
+      "failure_description": "Issuer fraud detection system placed hard security block on card.",
+      "failure_source": "issuer",
+      "failure_step": "risk_check",
+      "failure_reason": "issuer_fraud_block",
+      "failure_category": "C4",
+      "customer_tenure_months": 2,
+      "prior_failed_count_24h": 1,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.15,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.02,
+      "p_recovery_delayed_link": 0.02,
+      "p_recovery_escalate": 0.25,
+      "notes": "Issuer fraud block; only human risk review can unblock."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_057",
+      "failed_payment_id": "pay_eval_case_057_orig",
+      "order_id": "order_eval_case_057",
+      "customer_id": "cust_eval_case_057",
+      "amount": 11000000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "FRAUD_SUSPECTED",
+      "failure_description": "Large velocity spike from unfamiliar IP geo-location.",
+      "failure_source": "risk",
+      "failure_step": "risk_check",
+      "failure_reason": "geo_velocity_spike",
+      "failure_category": "C4",
+      "customer_tenure_months": 0,
+      "prior_failed_count_24h": 3,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.05,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.3,
+      "notes": "High-value velocity anomaly: Must be escalated/held."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_058",
+      "failed_payment_id": "pay_eval_case_058_orig",
+      "order_id": "order_eval_case_058",
+      "customer_id": "cust_eval_case_058",
+      "amount": 150000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "HIGH_RISK_MERCHANT",
+      "failure_description": "Payer bank restricted payments to high-risk merchant category code.",
+      "failure_source": "risk",
+      "failure_step": "mcc_check",
+      "failure_reason": "mcc_restricted",
+      "failure_category": "C4",
+      "customer_tenure_months": 3,
+      "prior_failed_count_24h": 1,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.3,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.05,
+      "p_recovery_delayed_link": 0.05,
+      "p_recovery_escalate": 0.35,
+      "notes": "Merchant category block."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_059",
+      "failed_payment_id": "pay_eval_case_059_orig",
+      "order_id": "order_eval_case_059",
+      "customer_id": "cust_eval_case_059",
+      "amount": 25000000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "AML_CHECK_FAILED",
+      "failure_description": "Transaction triggered anti-money laundering screening match.",
+      "failure_source": "risk",
+      "failure_step": "compliance_check",
+      "failure_reason": "aml_screening_match",
+      "failure_category": "C4",
+      "customer_tenure_months": 12,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.5,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.55,
+      "notes": "AML compliance block: Escalation only."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_060",
+      "failed_payment_id": "pay_eval_case_060_orig",
+      "order_id": "order_eval_case_060",
+      "customer_id": "cust_eval_case_060",
+      "amount": 320000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "FRAUD_SUSPECTED",
+      "failure_description": "Stolen card pattern match on card BIN.",
+      "failure_source": "risk",
+      "failure_step": "risk_check",
+      "failure_reason": "stolen_card_pattern",
+      "failure_category": "C4",
+      "customer_tenure_months": 0,
+      "prior_failed_count_24h": 2,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.02,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.15,
+      "notes": "Stolen card: No automated recovery link should ever be sent."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_061",
+      "failed_payment_id": "pay_eval_case_061_orig",
+      "order_id": "order_eval_case_061",
+      "customer_id": "cust_eval_case_061",
+      "amount": 480000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "CARD_BLOCKED_RISK",
+      "failure_description": "Card issuer security department placed block.",
+      "failure_source": "issuer",
+      "failure_step": "risk_check",
+      "failure_reason": "issuer_security_block",
+      "failure_category": "C4",
+      "customer_tenure_months": 1,
+      "prior_failed_count_24h": 1,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.12,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.01,
+      "p_recovery_delayed_link": 0.01,
+      "p_recovery_escalate": 0.22,
+      "notes": "Issuer security block."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_062",
+      "failed_payment_id": "pay_eval_case_062_orig",
+      "order_id": "order_eval_case_062",
+      "customer_id": "cust_eval_case_062",
+      "amount": 220000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "FRAUD_SUSPECTED",
+      "failure_description": "Device fingerprint associated with known fraud ring.",
+      "failure_source": "risk",
+      "failure_step": "device_fingerprint",
+      "failure_reason": "fraud_ring_device",
+      "failure_category": "C4",
+      "customer_tenure_months": 0,
+      "prior_failed_count_24h": 4,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.01,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.1,
+      "notes": "Fraud ring device block."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_063",
+      "failed_payment_id": "pay_eval_case_063_orig",
+      "order_id": "order_eval_case_063",
+      "customer_id": "cust_eval_case_063",
+      "amount": 650000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "HIGH_RISK_MERCHANT",
+      "failure_description": "Transaction exceeds merchant risk tier single-ticket allowance.",
+      "failure_source": "risk",
+      "failure_step": "tier_check",
+      "failure_reason": "tier_limit_exceeded",
+      "failure_category": "C4",
+      "customer_tenure_months": 6,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.6,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.05,
+      "p_recovery_delayed_link": 0.05,
+      "p_recovery_escalate": 0.65,
+      "notes": "Merchant risk tier limit: Escalation to raise limit works."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_064",
+      "failed_payment_id": "pay_eval_case_064_orig",
+      "order_id": "order_eval_case_064",
+      "customer_id": "cust_eval_case_064",
+      "amount": 180000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "FRAUD_SUSPECTED",
+      "failure_description": "Automated bot checkout detection triggered.",
+      "failure_source": "risk",
+      "failure_step": "bot_detection",
+      "failure_reason": "bot_traffic_pattern",
+      "failure_category": "C4",
+      "customer_tenure_months": 0,
+      "prior_failed_count_24h": 5,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.0,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.05,
+      "notes": "Bot checkout: Zero recovery potential."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_065",
+      "failed_payment_id": "pay_eval_case_065_orig",
+      "order_id": "order_eval_case_065",
+      "customer_id": "cust_eval_case_065",
+      "amount": 390000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "CARD_BLOCKED_RISK",
+      "failure_description": "Card blacklisted in global chargeback monitoring list.",
+      "failure_source": "risk",
+      "failure_step": "blacklist_check",
+      "failure_reason": "chargeback_blacklist",
+      "failure_category": "C4",
+      "customer_tenure_months": 1,
+      "prior_failed_count_24h": 2,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.08,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.18,
+      "notes": "Chargeback blacklist: Strict NO_ACTION or ESCALATE."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_066",
+      "failed_payment_id": "pay_eval_case_066_orig",
+      "order_id": "order_eval_case_066",
+      "customer_id": "cust_eval_case_066",
+      "amount": 199900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "INVALID_MERCHANT_KEY",
+      "failure_description": "Authentication with Razorpay failed due to rotated merchant API credentials.",
+      "failure_source": "integration",
+      "failure_step": "api_authentication",
+      "failure_reason": "invalid_api_key",
+      "failure_category": "C5",
+      "customer_tenure_months": 24,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 5,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.9,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "API key invalid: Non-recoverable by customer intervention."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_067",
+      "failed_payment_id": "pay_eval_case_067_orig",
+      "order_id": "order_eval_case_067",
+      "customer_id": "cust_eval_case_067",
+      "amount": 349900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "INVALID_REQUEST_PARAMETERS",
+      "failure_description": "Order metadata payload exceeded maximum byte length.",
+      "failure_source": "integration",
+      "failure_step": "order_creation",
+      "failure_reason": "schema_validation_error",
+      "failure_category": "C5",
+      "customer_tenure_months": 8,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.85,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "Bad request payload: Technical bug."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_068",
+      "failed_payment_id": "pay_eval_case_068_orig",
+      "order_id": "order_eval_case_068",
+      "customer_id": "cust_eval_case_068",
+      "amount": 500000,
+      "currency": "EUR",
+      "payment_method": "card",
+      "failure_code": "UNSUPPORTED_CURRENCY",
+      "failure_description": "Merchant account not enabled for EUR currency settlement.",
+      "failure_source": "integration",
+      "failure_step": "currency_check",
+      "failure_reason": "currency_not_configured",
+      "failure_category": "C5",
+      "customer_tenure_months": 12,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 2,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.8,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "EUR unsupported currency."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_069",
+      "failed_payment_id": "pay_eval_case_069_orig",
+      "order_id": "order_eval_case_069",
+      "customer_id": "cust_eval_case_069",
+      "amount": 250000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "ORDER_ALREADY_PAID",
+      "failure_description": "Attempted to capture payment on order ID that was already settled.",
+      "failure_source": "integration",
+      "failure_step": "order_validation",
+      "failure_reason": "order_settled",
+      "failure_category": "C5",
+      "customer_tenure_months": 15,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 4,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.95,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "Order already settled; customer already paid on another attempt."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_070",
+      "failed_payment_id": "pay_eval_case_070_orig",
+      "order_id": "order_eval_case_070",
+      "customer_id": "cust_eval_case_070",
+      "amount": 420000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "MERCHANT_INACTIVE",
+      "failure_description": "Merchant account suspended pending annual compliance review.",
+      "failure_source": "integration",
+      "failure_step": "account_check",
+      "failure_reason": "merchant_suspended",
+      "failure_category": "C5",
+      "customer_tenure_months": 36,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 10,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.9,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "Merchant suspended: Non-recoverable."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_071",
+      "failed_payment_id": "pay_eval_case_071_orig",
+      "order_id": "order_eval_case_071",
+      "customer_id": "cust_eval_case_071",
+      "amount": 150000,
+      "currency": "INR",
+      "payment_method": "upi",
+      "failure_code": "INVALID_REQUEST_PARAMETERS",
+      "failure_description": "Invalid currency symbol sent in payment request body.",
+      "failure_source": "integration",
+      "failure_step": "request_validation",
+      "failure_reason": "invalid_currency_symbol",
+      "failure_category": "C5",
+      "customer_tenure_months": 2,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.7,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "Malformed request parameters."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_072",
+      "failed_payment_id": "pay_eval_case_072_orig",
+      "order_id": "order_eval_case_072",
+      "customer_id": "cust_eval_case_072",
+      "amount": 299900,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "INVALID_MERCHANT_KEY",
+      "failure_description": "Test mode key used in production environment call.",
+      "failure_source": "integration",
+      "failure_step": "api_authentication",
+      "failure_reason": "test_key_in_prod",
+      "failure_category": "C5",
+      "customer_tenure_months": 1,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 0,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.75,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "Misconfigured environment credentials."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_073",
+      "failed_payment_id": "pay_eval_case_073_orig",
+      "order_id": "order_eval_case_073",
+      "customer_id": "cust_eval_case_073",
+      "amount": 600000,
+      "currency": "USD",
+      "payment_method": "card",
+      "failure_code": "UNSUPPORTED_CURRENCY",
+      "failure_description": "Merchant gateway configuration missing multi-currency routing.",
+      "failure_source": "integration",
+      "failure_step": "currency_check",
+      "failure_reason": "unsupported_currency_usd",
+      "failure_category": "C5",
+      "customer_tenure_months": 5,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 1,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.8,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "USD routing unconfigured."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_074",
+      "failed_payment_id": "pay_eval_case_074_orig",
+      "order_id": "order_eval_case_074",
+      "customer_id": "cust_eval_case_074",
+      "amount": 180000,
+      "currency": "INR",
+      "payment_method": "card",
+      "failure_code": "INVALID_REQUEST_PARAMETERS",
+      "failure_description": "Duplicate idempotency key used with mutated payment amount.",
+      "failure_source": "integration",
+      "failure_step": "idempotency_check",
+      "failure_reason": "mutated_idempotency_payload",
+      "failure_category": "C5",
+      "customer_tenure_months": 14,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 3,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.85,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "Integration bug: Idempotency mutation rejection."
+    }
+  },
+  {
+    "decision_context": {
+      "case_id": "eval_case_075",
+      "failed_payment_id": "pay_eval_case_075_orig",
+      "order_id": "order_eval_case_075",
+      "customer_id": "cust_eval_case_075",
+      "amount": 450000,
+      "currency": "INR",
+      "payment_method": "netbanking",
+      "failure_code": "MERCHANT_INACTIVE",
+      "failure_description": "Merchant banking settlement account closed.",
+      "failure_source": "integration",
+      "failure_step": "account_check",
+      "failure_reason": "settlement_account_closed",
+      "failure_category": "C5",
+      "customer_tenure_months": 20,
+      "prior_failed_count_24h": 0,
+      "prior_recovered_count_24h": 6,
+      "created_at": "2026-08-30T10:00:00+00:00",
+      "last_attempt_at": null
+    },
+    "ground_truth": {
+      "customer_intent_score": 0.88,
+      "p_recovery_no_action": 0.0,
+      "p_recovery_immediate_link": 0.0,
+      "p_recovery_delayed_link": 0.0,
+      "p_recovery_escalate": 0.0,
+      "notes": "Settlement account closed: Zero recovery potential."
+    }
+  }
+]
