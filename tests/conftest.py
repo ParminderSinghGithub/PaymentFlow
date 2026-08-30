@@ -5,9 +5,10 @@ from typing import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 
 from paymentflow.config import Settings, get_settings
-from paymentflow.db.session import close_db
+from paymentflow.db.session import close_db, get_engine
 from paymentflow.main import create_app
 
 
@@ -29,9 +30,22 @@ def test_settings() -> Settings:
 
 
 @pytest.fixture(autouse=True)
-async def cleanup_db_connections():
-    """Ensure database connections are cleanly disposed between tests."""
+async def cleanup_db_tables():
+    """Ensure database tables are truncated and connections disposed cleanly."""
+    try:
+        engine = get_engine()
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "TRUNCATE TABLE audit_events, recovery_cases, webhook_events "
+                    "RESTART IDENTITY CASCADE;"
+                )
+            )
+    except Exception:
+        pass
+
     yield
+
     await close_db()
 
 
@@ -44,4 +58,5 @@ async def client(test_settings: Settings) -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
 
