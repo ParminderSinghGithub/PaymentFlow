@@ -10,6 +10,9 @@ from paymentflow.domain.enums import (
     EligibilityReasonCode,
     EligibilityStatus,
     FailureCategory,
+    PolicyDecision,
+    RecoveryPolicy,
+    TemplateId,
 )
 
 
@@ -87,6 +90,32 @@ class EligibilityDecision(BaseModel):
     details: dict[str, Any] = Field(default_factory=dict)
 
 
+class RecoveryProposal(BaseModel):
+    """Strict Pydantic contract for LLM advisory proposal output."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    failure_category: FailureCategory
+    policy_id: RecoveryPolicy
+    template_id: TemplateId = TemplateId.TPL_NONE
+    explanation: str = Field(..., min_length=5, max_length=1000)
+
+
+class PolicyValidationResult(BaseModel):
+    """Structured decision object produced by PolicyGuardrailEngine."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    decision: PolicyDecision
+    requested_policy: RecoveryPolicy
+    effective_policy: RecoveryPolicy
+    reason_code: str
+    reasons: list[str] = Field(default_factory=list)
+    guardrails_checked: list[str] = Field(default_factory=list)
+    is_approved: bool
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
 class RecoveryCaseView(BaseModel):
     """Read-only domain representation of a recovery case."""
 
@@ -105,5 +134,8 @@ class RecoveryCaseView(BaseModel):
     failure_description: str | None = None
     eligibility_status: EligibilityStatus | None = None
     eligibility_reason: EligibilityReasonCode | None = None
+    ai_policy_id: RecoveryPolicy | None = None
+    ai_explanation: str | None = None
+    validated_policy_id: RecoveryPolicy | None = None
     created_at: datetime
     updated_at: datetime

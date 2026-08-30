@@ -73,3 +73,31 @@ class EligibilityReasonCode(str, Enum):
     INELIGIBLE_INVALID_AMOUNT = "INELIGIBLE_INVALID_AMOUNT"
     INELIGIBLE_STALE_STATE = "INELIGIBLE_STALE_STATE"
     INELIGIBLE_MISSING_CONTEXT = "INELIGIBLE_MISSING_CONTEXT"
+
+
+class RecoveryPolicy(str, Enum):
+    """Allowed recovery policy IDs frozen in the source of truth."""
+
+    P_CREATE_LINK_IMMEDIATE = "P_CREATE_LINK_IMMEDIATE"
+    P_CREATE_LINK_DELAYED = "P_CREATE_LINK_DELAYED"
+    P_ESCALATE_ONLY = "P_ESCALATE_ONLY"
+    P_NO_ACTION = "P_NO_ACTION"
+
+
+class PolicyDecision(str, Enum):
+    """Deterministic policy and guardrail authority decisions."""
+
+    APPROVE = "APPROVE"
+    DOWNGRADE = "DOWNGRADE"
+    REJECT = "REJECT"
+    ESCALATE = "ESCALATE"
+
+
+class TemplateId(str, Enum):
+    """Approved recovery communication message templates."""
+
+    TPL_RECOVERY_STANDARD = "TPL_RECOVERY_STANDARD"
+    TPL_RECOVERY_URGENT = "TPL_RECOVERY_URGENT"
+    TPL_RECOVERY_DISCOUNT = "TPL_RECOVERY_DISCOUNT"
+    TPL_ESCALATION_INTERNAL = "TPL_ESCALATION_INTERNAL"
+    TPL_NONE = "TPL_NONE"
