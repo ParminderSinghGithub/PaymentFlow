@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: paymentflow_test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run linter (ruff)
+        run: |
+          ruff check src/ tests/
+
+      - name: Run database migrations
+        env:
+          SYNC_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/paymentflow_test_db
+        run: |
+          alembic upgrade head
+
+      - name: Run test suite
+        env:
+          ENVIRONMENT: testing
+          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/paymentflow_test_db
+          SYNC_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/paymentflow_test_db
+        run: |
+          pytest -v --cov=paymentflow --cov-report=term-missing

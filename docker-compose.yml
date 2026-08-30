@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: paymentflow_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paymentflow_db
+      POSTGRES_USER: paymentflow_user
+      POSTGRES_PASSWORD: paymentflow_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paymentflow_user -d paymentflow_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 3s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: paymentflow_app
+    restart: unless-stopped
+    ports:
+      - "${APP_HOST_PORT:-8000}:8000"
+    environment:
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      DATABASE_URL: postgresql+asyncpg://paymentflow_user:paymentflow_password@db:5432/paymentflow_db
+      SYNC_DATABASE_URL: postgresql://paymentflow_user:paymentflow_password@db:5432/paymentflow_db
+      RAZORPAY_KEY_ID: rzp_test_placeholder_key
+      RAZORPAY_KEY_SECRET: placeholder_secret
+      RAZORPAY_WEBHOOK_SECRET: placeholder_webhook_secret
+      LLM_API_KEY: placeholder_llm_api_key
+      LLM_MODEL: gemini-1.5-flash
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
