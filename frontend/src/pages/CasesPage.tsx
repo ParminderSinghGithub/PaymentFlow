@@ -1,31 +1,68 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Search,
   Filter,
   RefreshCw,
   Clock,
-  ExternalLink,
-  ChevronLeft,
-  ChevronRight,
   Zap,
+  ArrowRight,
+  Timer,
 } from 'lucide-react';
 import type { CaseSummaryItem, CaseState } from '../types';
-import { StatusBadge } from '../components/common/StatusBadge';
-import { PolicyBadge } from '../components/common/PolicyBadge';
+import { StateBadge } from '../components/common/StateBadge';
 import { CategoryBadge } from '../components/common/CategoryBadge';
+import { PolicyBadge } from '../components/common/PolicyBadge';
 import { TableRowSkeleton } from '../components/common/Skeleton';
 import { EmptyState } from '../components/common/EmptyState';
 
 interface CasesPageProps {
   cases: CaseSummaryItem[];
   loading: boolean;
-  onSelectCase: (caseId: string) => void;
+  onSelectCase: (id: string) => void;
   onProcessDelayed: () => void;
   delayedProcessing: boolean;
   onRefresh: () => void;
-  onTriggerTriage: (caseId: string) => void;
+  onTriggerTriage: (id: string) => void;
   triageLoadingCaseId: string | null;
 }
+
+type StateFilter =
+  | 'ALL'
+  | 'FAILED_INGESTED'
+  | 'RECOVERED'
+  | 'ESCALATED'
+  | 'TERMINAL_NO_ACTION'
+  | 'ACTION_EXECUTED';
+
+const STATE_FILTERS: { id: StateFilter; label: string }[] = [
+  { id: 'ALL',               label: 'All' },
+  { id: 'FAILED_INGESTED',   label: 'Ingested' },
+  { id: 'ACTION_EXECUTED',   label: 'In Flight' },
+  { id: 'RECOVERED',         label: 'Recovered' },
+  { id: 'ESCALATED',         label: 'Escalated' },
+  { id: 'TERMINAL_NO_ACTION',label: 'No Action' },
+];
+
+const FILTER_ACTIVE_CLASSES: Partial<Record<StateFilter, string>> = {
+  FAILED_INGESTED:   'bg-[rgba(217,119,6,0.12)] border-[rgba(217,119,6,0.30)] text-[#FCD34D]',
+  ACTION_EXECUTED:   'bg-[rgba(13,148,136,0.12)] border-[rgba(13,148,136,0.30)] text-guard-text',
+  RECOVERED:         'bg-[rgba(5,150,105,0.12)] border-[rgba(5,150,105,0.30)] text-recover-text',
+  ESCALATED:         'bg-[rgba(217,119,6,0.12)] border-[rgba(217,119,6,0.30)] text-risk-text',
+  TERMINAL_NO_ACTION:'bg-[rgba(225,29,72,0.08)] border-[rgba(225,29,72,0.25)] text-halt-text',
+  ALL:               'bg-[rgba(124,58,237,0.10)] border-[rgba(124,58,237,0.30)] text-ai-text',
+};
+
+const formatInr = (v: number) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(v);
+
+const formatRelative = (ts: string | null | undefined) => {
+  if (!ts) return '—';
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+};
 
 export const CasesPage: React.FC<CasesPageProps> = ({
   cases,
@@ -37,265 +74,196 @@ export const CasesPage: React.FC<CasesPageProps> = ({
   onTriggerTriage,
   triageLoadingCaseId,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [stateFilter, setStateFilter] = useState<string>('ALL');
-  const [page, setPage] = useState(1);
-  const pageSize = 15;
-
-  const stateFilters: Array<{ label: string; value: string }> = [
-    { label: 'All Cases', value: 'ALL' },
-    { label: 'Recovered', value: 'RECOVERED' },
-    { label: 'Link Executed', value: 'ACTION_EXECUTED' },
-    { label: 'Action Approved', value: 'ACTION_APPROVED' },
-    { label: 'Escalated', value: 'ESCALATED' },
-    { label: 'No Action', value: 'TERMINAL_NO_ACTION' },
-    { label: 'Ingested', value: 'FAILED_INGESTED' },
-  ];
+  const [activeFilter, setActiveFilter] = useState<StateFilter>('ALL');
 
   const filteredCases = useMemo(() => {
-    return cases.filter((c) => {
-      // 1. State filter
-      if (stateFilter !== 'ALL' && c.state !== stateFilter) {
-        return false;
-      }
-      // 2. Search query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesId = c.case_id.toLowerCase().includes(q);
-        const matchesPayId = c.failed_payment_id.toLowerCase().includes(q);
-        const matchesCust = c.customer_id?.toLowerCase().includes(q) ?? false;
-        const matchesOrder = c.order_id?.toLowerCase().includes(q) ?? false;
-        return matchesId || matchesPayId || matchesCust || matchesOrder;
-      }
-      return true;
-    });
-  }, [cases, stateFilter, searchQuery]);
+    if (activeFilter === 'ALL') return cases;
+    return cases.filter((c) => c.state === activeFilter);
+  }, [cases, activeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredCases.length / pageSize));
-  const paginatedCases = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredCases.slice(start, start + pageSize);
-  }, [filteredCases, page, pageSize]);
-
-  const formatInr = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
+  const hasDelayed = cases.some((c) => c.scheduled_at !== null && c.state === 'FAILED_INGESTED');
 
   return (
-    <div className="space-y-5">
-      {/* Action and Filter Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-background-surface border border-border-subtle">
-        {/* Left: Search input */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search by Case ID, Payment ID, Customer ID..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setPage(1);
-            }}
-            className="w-full bg-background-subtle border border-border rounded-lg pl-9 pr-4 py-2 text-xs text-gray-200 placeholder:text-zinc-500 focus:outline-none focus:border-brand-500/50 transition-colors font-mono"
-          />
-          {searchQuery && (
+    <div className="space-y-4 animate-fade-in">
+
+      {/* ── Toolbar ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        {/* State filter pills */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <Filter className="w-3.5 h-3.5 text-[#4B5563] shrink-0 mr-1" />
+          {STATE_FILTERS.map((f) => {
+            const isActive = activeFilter === f.id;
+            const count = f.id === 'ALL' ? cases.length : cases.filter((c) => c.state === f.id).length;
+            const activeClass = FILTER_ACTIVE_CLASSES[f.id] ?? 'bg-surface-raised border-white/[0.12] text-[#9CA3AF]';
+
+            return (
+              <button
+                key={f.id}
+                onClick={() => setActiveFilter(f.id)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium border rounded transition-colors ${
+                  isActive
+                    ? activeClass
+                    : 'bg-transparent border-white/[0.08] text-[#4B5563] hover:border-white/[0.14] hover:text-[#6B7280]'
+                }`}
+              >
+                {f.label}
+                <span className="font-mono text-[10px] opacity-70">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-2">
+          {hasDelayed && (
             <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-300"
+              onClick={onProcessDelayed}
+              disabled={delayedProcessing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-guard-text bg-[rgba(13,148,136,0.10)] hover:bg-[rgba(13,148,136,0.18)] border border-[rgba(13,148,136,0.25)] rounded-md transition-colors disabled:opacity-50"
             >
-              Clear
+              <Timer className={`w-3.5 h-3.5 ${delayedProcessing ? 'animate-spin-slow' : ''}`} />
+              {delayedProcessing ? 'Processing…' : 'Process Delayed'}
             </button>
           )}
-        </div>
-
-        {/* Right: Operational Actions */}
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={onProcessDelayed}
-            disabled={delayedProcessing}
-            title="Batch process all due delayed recovery cases"
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20 transition-colors disabled:opacity-50"
-          >
-            <Clock className={`w-3.5 h-3.5 ${delayedProcessing ? 'animate-spin' : ''}`} />
-            <span>{delayedProcessing ? 'Processing Due...' : 'Process Due Delayed Cases'}</span>
-          </button>
-
           <button
             onClick={onRefresh}
-            title="Refresh case collection"
-            className="p-2 rounded-lg bg-background-elevated border border-border text-zinc-400 hover:text-zinc-200 hover:bg-background-hover transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-[#6B7280] hover:text-[#9CA3AF] bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.08] rounded-md transition-colors"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5" />
+            Refresh
           </button>
+          <span className="text-[10px] font-mono text-[#4B5563]">
+            {filteredCases.length} cases
+          </span>
         </div>
       </div>
 
-      {/* State Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0 mr-1" />
-        {stateFilters.map((sf) => {
-          const isSelected = stateFilter === sf.value;
-          return (
-            <button
-              key={sf.value}
-              onClick={() => {
-                setStateFilter(sf.value);
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 font-mono ${
-                isSelected
-                  ? 'bg-brand-500/20 text-brand-300 border border-brand-500/40 shadow-sm'
-                  : 'bg-background-surface/80 text-zinc-400 border border-border hover:bg-background-elevated hover:text-zinc-200'
-              }`}
-            >
-              {sf.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Table Container */}
-      <div className="rounded-xl bg-background-surface border border-border-subtle overflow-hidden">
+      {/* ── Cases Table ──────────────────────────────────────────────── */}
+      <div className="bg-surface-base border border-white/[0.06] rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-border bg-background-subtle/50 text-zinc-400 font-mono text-[11px]">
-                <th className="py-3.5 pl-4 font-medium">Case Identifier</th>
-                <th className="py-3.5 font-medium">Original Amount</th>
-                <th className="py-3.5 font-medium">Failure Category</th>
-                <th className="py-3.5 font-medium">Lifecycle State</th>
-                <th className="py-3.5 font-medium">Authorized Policy</th>
-                <th className="py-3.5 font-medium">Payment Link</th>
-                <th className="py-3.5 font-medium">Recovered Amount</th>
-                <th className="py-3.5 pr-4 text-right font-medium">Action</th>
+              <tr className="border-b border-white/[0.06]">
+                {[
+                  { label: 'Case ID',    cls: 'pl-5' },
+                  { label: 'Payment ID', cls: '' },
+                  { label: 'Amount',     cls: 'text-right' },
+                  { label: 'Category',   cls: '' },
+                  { label: 'State',      cls: '' },
+                  { label: 'Policy',     cls: '' },
+                  { label: 'Created',    cls: '' },
+                  { label: 'Actions',    cls: 'pr-5 text-right' },
+                ].map(({ label, cls }) => (
+                  <th
+                    key={label}
+                    className={`py-3 px-3 text-[10px] font-mono text-[#4B5563] uppercase tracking-wider font-medium ${cls}`}
+                  >
+                    {label}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle font-mono">
+            <tbody>
               {loading ? (
                 <>
-                  <TableRowSkeleton columns={8} />
-                  <TableRowSkeleton columns={8} />
-                  <TableRowSkeleton columns={8} />
-                  <TableRowSkeleton columns={8} />
-                  <TableRowSkeleton columns={8} />
-                  <TableRowSkeleton columns={8} />
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                    <TableRowSkeleton key={i} columns={8} />
+                  ))}
                 </>
-              ) : paginatedCases.length === 0 ? (
+              ) : filteredCases.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-0">
+                  <td colSpan={8}>
                     <EmptyState
-                      title="No Recovery Cases Found"
+                      title={activeFilter === 'ALL' ? 'No cases yet' : `No ${activeFilter.toLowerCase().replace('_', ' ')} cases`}
                       description={
-                        searchQuery || stateFilter !== 'ALL'
-                          ? 'No cases match your active search or state filters.'
-                          : 'No failed payment cases are currently registered in the database.'
+                        activeFilter === 'ALL'
+                          ? 'Cases will appear here once payment.failed webhooks are received from Razorpay.'
+                          : 'Try a different state filter to see other cases.'
                       }
-                      actionText={searchQuery || stateFilter !== 'ALL' ? 'Reset Filters' : undefined}
-                      onAction={() => {
-                        setSearchQuery('');
-                        setStateFilter('ALL');
-                      }}
                     />
                   </td>
                 </tr>
               ) : (
-                paginatedCases.map((c) => {
-                  const isTriagePending = triageLoadingCaseId === c.case_id;
+                filteredCases.map((c) => {
+                  const isTriaging = triageLoadingCaseId === c.case_id;
                   return (
                     <tr
                       key={c.case_id}
                       onClick={() => onSelectCase(c.case_id)}
-                      className="hover:bg-background-elevated/50 transition-colors cursor-pointer group"
+                      className="border-b border-white/[0.04] hover:bg-surface-raised cursor-pointer transition-colors group"
                     >
                       {/* Case ID */}
-                      <td className="py-3.5 pl-4 font-medium text-brand-300 group-hover:underline">
-                        <div>{c.case_id}</div>
-                        <div className="text-[10px] text-zinc-500 font-normal">
-                          {c.failed_payment_id}
-                        </div>
+                      <td className="py-3 pl-5 px-3">
+                        <span className="font-mono text-[11px] text-ai-text group-hover:underline">
+                          {c.case_id}
+                        </span>
                       </td>
 
-                      {/* Original Amount */}
-                      <td className="py-3.5 font-semibold text-gray-200">
-                        <div>{formatInr(c.amount_inr)}</div>
-                        <div className="text-[10px] text-zinc-500 font-normal">
-                          {c.amount_paise} paise
-                        </div>
+                      {/* Payment ID */}
+                      <td className="py-3 px-3">
+                        <span className="font-mono text-[10px] text-[#4B5563]">
+                          {c.failed_payment_id ? `${c.failed_payment_id.slice(0, 18)}…` : '—'}
+                        </span>
+                      </td>
+
+                      {/* Amount */}
+                      <td className="py-3 px-3 text-right">
+                        <span className="font-mono text-[12px] font-semibold text-[#F0F2F5]">
+                          {formatInr(c.amount_inr)}
+                        </span>
                       </td>
 
                       {/* Category */}
-                      <td className="py-3.5">
+                      <td className="py-3 px-3">
                         <CategoryBadge category={c.failure_category} />
                       </td>
 
                       {/* State */}
-                      <td className="py-3.5 font-sans">
-                        <StatusBadge state={c.state as CaseState} size="sm" />
+                      <td className="py-3 px-3">
+                        <StateBadge state={c.state as CaseState} size="sm" />
                       </td>
 
-                      {/* Validated Policy */}
-                      <td className="py-3.5">
-                        <PolicyBadge policy={c.validated_policy_id} />
+                      {/* Policy */}
+                      <td className="py-3 px-3">
+                        <PolicyBadge policy={c.validated_policy_id} context="guard" showIcon={false} />
                       </td>
 
-                      {/* Payment Link */}
-                      <td className="py-3.5 text-zinc-400 text-[11px]">
-                        {c.payment_link_id ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-emerald-400 font-medium">
-                              {c.payment_link_id}
-                            </span>
-                            {c.payment_link_short_url && (
-                              <a
-                                href={c.payment_link_short_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-zinc-500 hover:text-brand-300"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
+                      {/* Created */}
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-[#4B5563]">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          {formatRelative(c.created_at)}
+                        </div>
+                        {c.scheduled_at && (
+                          <div className="flex items-center gap-1 text-[9px] font-mono text-risk-text mt-0.5">
+                            <Timer className="w-2.5 h-2.5 shrink-0" />
+                            Scheduled
                           </div>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
-                      </td>
-
-                      {/* Recovered Amount */}
-                      <td className="py-3.5 font-semibold">
-                        {c.recovered_amount_paise && c.recovered_amount_paise > 0 ? (
-                          <span className="text-emerald-400">
-                            {formatInr(c.recovered_amount_inr)}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-600">₹0.00</span>
                         )}
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3.5 pr-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-2 font-sans">
+                      <td
+                        className="py-3 pr-5 px-3 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-end gap-2">
                           {c.state === 'FAILED_INGESTED' && (
                             <button
                               onClick={() => onTriggerTriage(c.case_id)}
-                              disabled={isTriagePending}
-                              title="Trigger AI Triage Orchestration"
-                              className="px-2 py-1 text-[11px] font-semibold rounded bg-brand-500/10 text-brand-400 border border-brand-500/30 hover:bg-brand-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
+                              disabled={isTriaging}
+                              className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-ai-text bg-[rgba(124,58,237,0.10)] hover:bg-[rgba(124,58,237,0.18)] border border-[rgba(124,58,237,0.25)] rounded transition-colors disabled:opacity-50"
                             >
-                              <Zap className={`w-3 h-3 ${isTriagePending ? 'animate-spin' : ''}`} />
-                              <span>{isTriagePending ? '...' : 'Triage'}</span>
+                              <Zap className={`w-3 h-3 ${isTriaging ? 'animate-spin-slow' : ''}`} />
+                              {isTriaging ? '…' : 'Triage'}
                             </button>
                           )}
                           <button
                             onClick={() => onSelectCase(c.case_id)}
-                            className="px-2.5 py-1 text-[11px] font-medium rounded text-zinc-300 hover:text-gray-100 hover:bg-background-elevated transition-colors border border-border"
+                            className="flex items-center gap-1 text-[10px] text-[#4B5563] hover:text-[#9CA3AF] transition-colors"
+                            aria-label={`Investigate case ${c.case_id}`}
                           >
-                            Inspect
+                            Inspect <ArrowRight className="w-3 h-3" />
                           </button>
                         </div>
                       </td>
@@ -305,41 +273,6 @@ export const CasesPage: React.FC<CasesPageProps> = ({
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination Bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-background-subtle/30 text-xs text-zinc-400">
-          <div className="font-mono">
-            Showing{' '}
-            <span className="text-zinc-200 font-semibold">
-              {filteredCases.length === 0 ? 0 : (page - 1) * pageSize + 1}
-            </span>{' '}
-            to{' '}
-            <span className="text-zinc-200 font-semibold">
-              {Math.min(page * pageSize, filteredCases.length)}
-            </span>{' '}
-            of <span className="text-zinc-200 font-semibold">{filteredCases.length}</span> cases
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-1.5 rounded-lg border border-border bg-background-surface text-zinc-400 hover:text-zinc-200 hover:bg-background-elevated disabled:opacity-40 disabled:pointer-events-none transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="font-mono px-2 text-zinc-300">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="p-1.5 rounded-lg border border-border bg-background-surface text-zinc-400 hover:text-zinc-200 hover:bg-background-elevated disabled:opacity-40 disabled:pointer-events-none transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
         </div>
       </div>
     </div>

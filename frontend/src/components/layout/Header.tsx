@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Activity, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import type { HealthResponse } from '../../types';
 
 interface HeaderProps {
@@ -8,7 +8,7 @@ interface HeaderProps {
   health: HealthResponse | null;
   healthLoading: boolean;
   onRefresh: () => void;
-  isRefreshing?: boolean;
+  isRefreshing: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,47 +17,56 @@ export const Header: React.FC<HeaderProps> = ({
   health,
   healthLoading,
   onRefresh,
-  isRefreshing = false,
+  isRefreshing,
 }) => {
-  const isHealthy = health?.status === 'ok' && health?.database === 'connected';
+  const isHealthy = health?.status === 'ok';
+  const isOffline = !health;
 
   return (
-    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
+    <header className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-void shrink-0">
+      {/* Title */}
       <div>
-        <h2 className="text-base font-bold text-gray-100 tracking-tight">{title}</h2>
-        {subtitle && <p className="text-xs text-zinc-400 font-mono mt-0.5">{subtitle}</p>}
+        <h1 className="text-[16px] font-bold text-[#F0F2F5] leading-tight tracking-tight">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="text-[11px] text-[#4B5563] mt-0.5 font-sans leading-none">{subtitle}</p>
+        )}
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* Health status pill */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background-surface border border-border text-xs">
+      {/* Right controls */}
+      <div className="flex items-center gap-3">
+        {/* Backend status */}
+        <div className="flex items-center gap-1.5 text-[11px] font-mono">
           {healthLoading ? (
-            <Activity className="w-3.5 h-3.5 text-zinc-400 animate-spin" />
-          ) : isHealthy ? (
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-live-dot" />
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-emerald-300 font-medium">System Healthy</span>
-              <span className="text-zinc-500 font-mono text-[10px]">({health?.environment})</span>
-            </div>
+            <span className="text-[#4B5563]">Connecting…</span>
+          ) : isOffline ? (
+            <>
+              <WifiOff className="w-3.5 h-3.5 text-halt-text" />
+              <span className="text-halt-text">Offline</span>
+            </>
           ) : (
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-              <span className="text-amber-300 font-medium">Degraded Mode</span>
-            </div>
+            <>
+              <Wifi className={`w-3.5 h-3.5 ${isHealthy ? 'text-recover-text' : 'text-risk-text'}`} />
+              <span className={isHealthy ? 'text-[#4B5563]' : 'text-risk-text'}>
+                {health?.environment ?? 'connected'}
+              </span>
+            </>
           )}
         </div>
 
-        {/* Global manual refresh button */}
+        {/* Divider */}
+        <div className="w-px h-4 bg-white/[0.08]" />
+
+        {/* Refresh */}
         <button
           onClick={onRefresh}
           disabled={isRefreshing}
-          title="Refresh operational data"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-background-surface border border-border hover:bg-background-elevated hover:text-gray-100 text-zinc-300 transition-colors disabled:opacity-50"
+          aria-label="Refresh data"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-[#6B7280] hover:text-[#9CA3AF] bg-transparent hover:bg-white/[0.04] border border-white/[0.08] hover:border-white/[0.14] rounded-md transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-brand-400' : 'text-zinc-400'}`} />
-          <span>Sync</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Syncing…' : 'Refresh'}
         </button>
       </div>
     </header>

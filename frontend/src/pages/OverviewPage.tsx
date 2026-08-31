@@ -1,17 +1,20 @@
 import React from 'react';
 import {
-  TrendingUp,
   IndianRupee,
-  Link as LinkIcon,
-  ArrowRight,
+  TrendingUp,
+  Link2,
   ShieldCheck,
+  ArrowRight,
+  BrainCircuit,
   Zap,
 } from 'lucide-react';
 import type { CaseSummaryItem, MetricsSummary } from '../types';
-import { StatusBadge } from '../components/common/StatusBadge';
-import { PolicyBadge } from '../components/common/PolicyBadge';
+import { KpiCard, KpiCardSkeleton } from '../components/common/KpiCard';
+import { StateBadge } from '../components/common/StateBadge';
 import { CategoryBadge } from '../components/common/CategoryBadge';
-import { KpiCardSkeleton, TableRowSkeleton } from '../components/common/Skeleton';
+import { PolicyBadge } from '../components/common/PolicyBadge';
+import { TableRowSkeleton } from '../components/common/Skeleton';
+import { EmptyState } from '../components/common/EmptyState';
 import { CATEGORY_INFO, type FailureCategory } from '../types';
 
 interface OverviewPageProps {
@@ -19,12 +22,84 @@ interface OverviewPageProps {
   metricsLoading: boolean;
   recentCases: CaseSummaryItem[];
   casesLoading: boolean;
-  onSelectCase: (caseId: string) => void;
+  onSelectCase: (id: string) => void;
   onNavigateToCases: () => void;
-  onNavigateToMcp: () => void;
-  onTriggerTriage: (caseId: string) => void;
+  onNavigateToArchitecture: () => void;
+  onTriggerTriage: (id: string) => void;
   triageLoadingCaseId: string | null;
 }
+
+const formatInr = (v: number) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
+
+// ─── Pipeline Funnel Stage ────────────────────────────────────────────
+
+interface FunnelStage {
+  num: string;
+  label: string;
+  desc: string;
+  zone: 'teal' | 'violet' | 'neutral' | 'emerald';
+  count: number;
+}
+
+const FunnelStageCard: React.FC<{ stage: FunnelStage }> = ({ stage }) => {
+  const zoneColors = {
+    teal:    'border-[rgba(13,148,136,0.25)] text-guard-text bg-[rgba(13,148,136,0.06)]',
+    violet:  'border-[rgba(124,58,237,0.30)] text-ai-text bg-[rgba(124,58,237,0.08)]',
+    emerald: 'border-[rgba(5,150,105,0.25)] text-recover-text bg-[rgba(5,150,105,0.06)]',
+    neutral: 'border-white/[0.08] text-[#6B7280] bg-surface-raised',
+  };
+
+  return (
+    <div className={`border rounded-lg p-3 flex flex-col gap-1 ${zoneColors[stage.zone]}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[9px] font-mono text-[#4B5563]">{stage.num}</span>
+        <span className={`text-[11px] font-mono font-bold`}>{stage.count}</span>
+      </div>
+      <div className={`text-[11px] font-mono font-semibold uppercase tracking-tight`}>
+        {stage.label}
+      </div>
+      <p className="text-[10px] text-[#4B5563] leading-snug">{stage.desc}</p>
+    </div>
+  );
+};
+
+// ─── Category Card ─────────────────────────────────────────────────────
+
+const CategoryCard: React.FC<{
+  cat: FailureCategory;
+  count: number;
+}> = ({ cat, count }) => {
+  const meta = CATEGORY_INFO[cat];
+
+  const catColors: Record<FailureCategory, { border: string; bg: string; num: string }> = {
+    C1: { border: 'border-[rgba(217,119,6,0.20)]',  bg: 'bg-[rgba(217,119,6,0.04)]',  num: 'text-[#FCD34D]' },
+    C2: { border: 'border-[rgba(37,99,235,0.20)]',  bg: 'bg-[rgba(37,99,235,0.04)]',  num: 'text-[#93C5FD]' },
+    C3: { border: 'border-[rgba(234,88,12,0.20)]',  bg: 'bg-[rgba(234,88,12,0.04)]',  num: 'text-[#FDBA74]' },
+    C4: { border: 'border-[rgba(225,29,72,0.20)]',  bg: 'bg-[rgba(225,29,72,0.04)]',  num: 'text-[#FDA4AF]' },
+    C5: { border: 'border-[rgba(82,82,91,0.20)]',   bg: 'bg-[rgba(82,82,91,0.04)]',   num: 'text-[#A1A1AA]' },
+    UNKNOWN: { border: 'border-white/[0.06]', bg: 'bg-surface-raised', num: 'text-[#6B7280]' },
+  };
+
+  const colors = catColors[cat];
+
+  return (
+    <div className={`border rounded-lg p-4 flex flex-col gap-2 ${colors.border} ${colors.bg} hover:border-white/[0.14] transition-colors`}>
+      <div className="flex items-center justify-between">
+        <CategoryBadge category={cat} />
+        <span className={`text-[15px] font-mono font-bold ${colors.num}`}>{count}</span>
+      </div>
+      <h4 className="text-[12px] font-semibold text-[#9CA3AF]">{meta.name}</h4>
+      <p className="text-[11px] text-[#4B5563] leading-relaxed">{meta.description}</p>
+      <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between">
+        <span className="text-[10px] text-[#4B5563]">Default</span>
+        <PolicyBadge policy={meta.defaultPolicy} context="guard" showIcon={false} />
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
   metrics,
@@ -33,359 +108,257 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   casesLoading,
   onSelectCase,
   onNavigateToCases,
-  onNavigateToMcp,
+  onNavigateToArchitecture,
   onTriggerTriage,
   triageLoadingCaseId,
 }) => {
-  // Format monetary numbers
-  const formatInr = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
+  const m = metrics;
+
+  const funnelStages: FunnelStage[] = [
+    {
+      num: '01', label: 'INGESTED',  zone: 'neutral',
+      desc: 'Webhook verified + deduplicated',
+      count: m?.total_cases ?? 0,
+    },
+    {
+      num: '02', label: 'CLASSIFIED', zone: 'teal',
+      desc: 'C1–C5 taxonomy mapped',
+      count: m?.total_cases ?? 0,
+    },
+    {
+      num: '03', label: 'ELIGIBLE',   zone: 'teal',
+      desc: '8 deterministic rules checked',
+      count: (m?.total_cases ?? 0) - (m?.terminal_no_action_cases ?? 0),
+    },
+    {
+      num: '04', label: 'AI TRIAGE',  zone: 'violet',
+      desc: 'LLM proposes policy via MCP',
+      count: (m?.active_recovery_links ?? 0) + (m?.recovered_cases ?? 0),
+    },
+    {
+      num: '05', label: 'GUARDRAIL',  zone: 'teal',
+      desc: 'PolicyGuardrailEngine authorizes',
+      count: (m?.active_recovery_links ?? 0) + (m?.recovered_cases ?? 0),
+    },
+    {
+      num: '06', label: 'RECOVERED',  zone: 'emerald',
+      desc: 'Captured · attributed',
+      count: m?.recovered_cases ?? 0,
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* 1. Hero KPI Grid */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-zinc-400 uppercase font-mono tracking-wider">
-            Operational Recovery Performance
-          </h3>
-          <span className="text-[11px] text-zinc-500 font-mono">
-            Deterministic Captured Attribution
-          </span>
+    <div className="space-y-6 animate-fade-in">
+
+      {/* ── Section label ────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-mono uppercase tracking-widest text-[#4B5563]">
+          Recovery Performance
+        </span>
+        <span className="text-[10px] font-mono text-[#4B5563]">
+          Captured-only attribution
+        </span>
+      </div>
+
+      {/* ── KPI Cards ────────────────────────────────────────────────── */}
+      {metricsLoading || !m ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => <KpiCardSkeleton key={i} />)}
         </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard
+            label="Revenue Recovered"
+            value={formatInr(m.total_recovered_amount_inr)}
+            subValue="100% captured · verified"
+            footer={`${m.recovered_cases} successful cases`}
+            accent="recover"
+            icon={<IndianRupee className="w-4 h-4" />}
+          />
+          <KpiCard
+            label="Recovery Rate"
+            value={`${m.recovery_rate_pct.toFixed(1)}%`}
+            subValue={`${m.recovered_cases} of ${m.total_cases} cases`}
+            footer={`${m.active_recovery_links} links awaiting customer`}
+            accent="guard"
+            icon={<TrendingUp className="w-4 h-4" />}
+          />
+          <KpiCard
+            label="Active Links"
+            value={String(m.active_recovery_links)}
+            subValue="Single-link limit enforced"
+            footer={`${m.total_cases} total cases processed`}
+            accent="none"
+            icon={<Link2 className="w-4 h-4" />}
+          />
+          <KpiCard
+            label="Guardrail Protected"
+            value={String(m.escalated_cases + m.terminal_no_action_cases)}
+            subValue={`${m.escalated_cases} escalated · ${m.terminal_no_action_cases} halted`}
+            footer="Zero unauthorized writes"
+            accent="halt"
+            icon={<ShieldCheck className="w-4 h-4" />}
+          />
+        </div>
+      )}
 
-        {metricsLoading || !metrics ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCardSkeleton />
-            <KpiCardSkeleton />
-            <KpiCardSkeleton />
-            <KpiCardSkeleton />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* KPI 1: Recovered Revenue */}
-            <div className="p-5 rounded-xl bg-background-surface border border-emerald-500/20 shadow-glow-success relative overflow-hidden flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-emerald-400">Total Revenue Recovered</span>
-                <span className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <IndianRupee className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-extrabold text-gray-100 tracking-tight font-mono">
-                  {formatInr(metrics.total_recovered_amount_inr)}
-                </div>
-                <div className="text-[11px] text-emerald-400/80 font-mono mt-1">
-                  100% Captured & Settled Verification
-                </div>
-              </div>
-              <div className="text-[10px] text-zinc-400 flex items-center gap-1 border-t border-border-subtle pt-2">
-                <span>{metrics.recovered_cases} successful recovery cases</span>
-              </div>
-            </div>
-
-            {/* KPI 2: Recovery Conversion Rate */}
-            <div className="p-5 rounded-xl bg-background-surface border border-brand-500/20 shadow-glow-brand flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-brand-400">Recovery Conversion Rate</span>
-                <span className="p-2 rounded-lg bg-brand-500/10 text-brand-400 border border-brand-500/20">
-                  <TrendingUp className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-extrabold text-gray-100 tracking-tight font-mono">
-                  {metrics.recovery_rate_pct.toFixed(1)}%
-                </div>
-                <div className="text-[11px] text-brand-400/80 font-mono mt-1">
-                  {metrics.recovered_cases} of {metrics.total_cases} failed payments
-                </div>
-              </div>
-              <div className="text-[10px] text-zinc-400 flex items-center gap-1 border-t border-border-subtle pt-2">
-                <span>{metrics.active_recovery_links} active links awaiting customer</span>
-              </div>
-            </div>
-
-            {/* KPI 3: Active Links & In-Flight */}
-            <div className="p-5 rounded-xl bg-background-surface border border-border-subtle flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-zinc-400">Active Recovery Links</span>
-                <span className="p-2 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                  <LinkIcon className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-extrabold text-gray-100 tracking-tight font-mono">
-                  {metrics.active_recovery_links}
-                </div>
-                <div className="text-[11px] text-zinc-400 font-mono mt-1">
-                  Single-link limit strictly enforced
-                </div>
-              </div>
-              <div className="text-[10px] text-zinc-500 flex items-center gap-1 border-t border-border-subtle pt-2">
-                <span>Total processed cases: {metrics.total_cases}</span>
-              </div>
-            </div>
-
-            {/* KPI 4: Guardrail Protected / Escalated */}
-            <div className="p-5 rounded-xl bg-background-surface border border-border-subtle flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-zinc-400">Guardrail Enforced</span>
-                <span className="p-2 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                  <ShieldCheck className="w-4 h-4" />
-                </span>
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-extrabold text-gray-100 tracking-tight font-mono">
-                  {metrics.escalated_cases + metrics.terminal_no_action_cases}
-                </div>
-                <div className="text-[11px] text-zinc-400 font-mono mt-1">
-                  {metrics.escalated_cases} Risk Escalated · {metrics.terminal_no_action_cases} Halted Safe
-                </div>
-              </div>
-              <div className="text-[10px] text-zinc-500 flex items-center gap-1 border-t border-border-subtle pt-2">
-                <span>Zero unauthorized payment writes</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* 2. Recovery Pipeline State Funnel */}
-      <section className="p-5 rounded-xl bg-background-surface border border-border-subtle">
+      {/* ── Recovery Pipeline Funnel ──────────────────────────────────── */}
+      <section className="bg-surface-base border border-white/[0.06] rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-bold text-gray-100">Recovery Lifecycle Funnel</h3>
-            <p className="text-xs text-zinc-400">
-              State transitions verified by deterministic state machine & guardrails
+            <h3 className="text-[13px] font-semibold text-[#F0F2F5]">Recovery Pipeline</h3>
+            <p className="text-[11px] text-[#4B5563] mt-0.5">
+              Deterministic state machine · AI advisory at stage 4
             </p>
           </div>
           <button
-            onClick={onNavigateToMcp}
-            className="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors"
+            onClick={onNavigateToArchitecture}
+            className="flex items-center gap-1 text-[11px] text-[#6B7280] hover:text-[#9CA3AF] transition-colors"
           >
-            <span>View Guardrail Rules</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            Architecture <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-          {[
-            {
-              step: '01',
-              title: 'FAILED_INGESTED',
-              desc: 'Webhook signature verified & deduplicated',
-              count: metrics?.total_cases ?? 0,
-              badgeClass: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-            },
-            {
-              step: '02',
-              title: 'CONTEXT_RETRIEVED',
-              desc: 'Gateway details enriched & C1–C5 classified',
-              count: metrics?.total_cases ?? 0,
-              badgeClass: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
-            },
-            {
-              step: '03',
-              title: 'ELIGIBILITY_CHECKED',
-              desc: '8 deterministic rules & cooldown checks',
-              count: (metrics?.total_cases ?? 0) - (metrics?.terminal_no_action_cases ?? 0),
-              badgeClass: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
-            },
-            {
-              step: '04',
-              title: 'ACTION_APPROVED',
-              desc: 'AI proposed & GuardrailEngine authorized',
-              count: (metrics?.active_recovery_links ?? 0) + (metrics?.recovered_cases ?? 0),
-              badgeClass: 'bg-blue-500/10 text-blue-300 border-blue-500/30',
-            },
-            {
-              step: '05',
-              title: 'ACTION_EXECUTED',
-              desc: 'Razorpay Payment Link generated & sent',
-              count: (metrics?.active_recovery_links ?? 0) + (metrics?.recovered_cases ?? 0),
-              badgeClass: 'bg-sky-500/10 text-sky-300 border-sky-500/30',
-            },
-            {
-              step: '06',
-              title: 'RECOVERED',
-              desc: 'Captured payment verified & attributed',
-              count: metrics?.recovered_cases ?? 0,
-              badgeClass: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
-            },
-          ].map((s, idx) => (
-            <div
-              key={idx}
-              className="p-3 rounded-lg bg-background-elevated/40 border border-border flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-mono text-zinc-500">{s.step}</span>
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${s.badgeClass}`}>
-                  {s.count} Cases
-                </span>
-              </div>
-              <div className="text-xs font-semibold text-gray-200 font-mono tracking-tight">
-                {s.title}
-              </div>
-              <p className="text-[10px] text-zinc-400 mt-1 leading-snug">{s.desc}</p>
-            </div>
+        {/* Funnel grid */}
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+          {funnelStages.map((stage, idx) => (
+            <React.Fragment key={stage.num}>
+              <FunnelStageCard stage={stage} />
+              {idx < funnelStages.length - 1 && (
+                <div className="hidden md:flex items-center justify-center -mx-1 z-10">
+                  <ArrowRight className={`w-3 h-3 ${
+                    idx === 2 ? 'text-ai-base' : 'text-[#4B5563]'
+                  }`} />
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Zone legend */}
+        <div className="flex items-center gap-5 mt-4 pt-4 border-t border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-px bg-guard-base" />
+            <span className="text-[10px] text-[#4B5563] font-mono">Deterministic stages</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-px bg-ai-base" />
+            <BrainCircuit className="w-3 h-3 text-ai-text" />
+            <span className="text-[10px] text-ai-text font-mono">AI advisory (Stage 04)</span>
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <ShieldCheck className="w-3.5 h-3.5 text-guard-text" />
+            <span className="text-[10px] text-[#4B5563] font-mono">PolicyGuardrailEngine enforces after AI</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Failure Intelligence (C1–C5) ─────────────────────────────── */}
+      <section className="bg-surface-base border border-white/[0.06] rounded-lg p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-[13px] font-semibold text-[#F0F2F5]">Failure Intelligence</h3>
+            <p className="text-[11px] text-[#4B5563] mt-0.5">
+              C1–C5 normalized taxonomy · deterministic category mapping
+            </p>
+          </div>
+          <span className="text-[10px] font-mono text-[#4B5563]">5 classes</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {(['C1', 'C2', 'C3', 'C4', 'C5'] as FailureCategory[]).map((cat) => (
+            <CategoryCard
+              key={cat}
+              cat={cat}
+              count={m?.category_breakdown?.[cat] ?? 0}
+            />
           ))}
         </div>
       </section>
 
-      {/* 3. Failure Intelligence (C1–C5 Breakdown) */}
-      <section className="p-5 rounded-xl bg-background-surface border border-border-subtle">
+      {/* ── Live Cases Feed ───────────────────────────────────────────── */}
+      <section className="bg-surface-base border border-white/[0.06] rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-bold text-gray-100">Failure Taxonomy & Intelligence (C1–C5)</h3>
-            <p className="text-xs text-zinc-400">
-              Deterministic rule-based categorization connected to effective recovery policies
-            </p>
-          </div>
-          <div className="text-xs text-zinc-500 font-mono">
-            5 Formal Classes
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-          {(['C1', 'C2', 'C3', 'C4', 'C5'] as FailureCategory[]).map((cat) => {
-            const meta = CATEGORY_INFO[cat];
-            const caseCount = metrics?.category_breakdown?.[cat] ?? 0;
-            return (
-              <div
-                key={cat}
-                className="p-4 rounded-xl bg-background-elevated/30 border border-border hover:border-zinc-500/40 transition-colors flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <CategoryBadge category={cat} />
-                    <span className="text-xs font-mono font-bold text-gray-200">
-                      {caseCount} {caseCount === 1 ? 'case' : 'cases'}
-                    </span>
-                  </div>
-                  <h4 className="text-xs font-semibold text-zinc-200">{meta.name}</h4>
-                  <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                    {meta.description}
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-2 border-t border-border-subtle/60 text-[10px] space-y-1">
-                  <div className="flex items-center justify-between text-zinc-400">
-                    <span>Default:</span>
-                    <PolicyBadge policy={meta.defaultPolicy} showIcon={false} />
-                  </div>
-                  <div className="flex items-center justify-between text-zinc-400">
-                    <span>Likelihood:</span>
-                    <span className="font-mono text-zinc-300">{meta.recoveryLikelihood.split(' ')[0]}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 4. Live Operational Cases Feed */}
-      <section className="p-5 rounded-xl bg-background-surface border border-border-subtle">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-sm font-bold text-gray-100">Live Recovery Pipeline Stream</h3>
-            <p className="text-xs text-zinc-400">
-              Recent failed payment cases and real-time execution status
+            <h3 className="text-[13px] font-semibold text-[#F0F2F5]">Pipeline Stream</h3>
+            <p className="text-[11px] text-[#4B5563] mt-0.5">
+              Recent failed payment cases · click any case to investigate
             </p>
           </div>
           <button
             onClick={onNavigateToCases}
-            className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors"
+            className="flex items-center gap-1 text-[11px] text-[#6B7280] hover:text-[#9CA3AF] transition-colors"
           >
-            <span>View All Cases</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            All cases <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-border text-zinc-400 font-mono text-[11px]">
-                <th className="pb-3 pl-2 font-medium">Case ID</th>
-                <th className="pb-3 font-medium">Amount</th>
-                <th className="pb-3 font-medium">Category</th>
-                <th className="pb-3 font-medium">State</th>
-                <th className="pb-3 font-medium">Authorized Policy</th>
-                <th className="pb-3 font-medium">Payment Link</th>
-                <th className="pb-3 pr-2 text-right font-medium">Actions</th>
+              <tr className="border-b border-white/[0.06]">
+                {['Case ID', 'Amount', 'Category', 'State', 'Policy', 'Actions'].map((h) => (
+                  <th key={h} className="pb-2.5 px-2 text-[10px] font-mono text-[#4B5563] uppercase tracking-wider font-medium">
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody>
               {casesLoading ? (
                 <>
-                  <TableRowSkeleton columns={7} />
-                  <TableRowSkeleton columns={7} />
-                  <TableRowSkeleton columns={7} />
-                  <TableRowSkeleton columns={7} />
-                  <TableRowSkeleton columns={7} />
+                  {[1, 2, 3, 4, 5].map((i) => <TableRowSkeleton key={i} columns={6} />)}
                 </>
               ) : recentCases.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-zinc-500 font-mono">
-                    No failed payment cases recorded yet.
+                  <td colSpan={6}>
+                    <EmptyState
+                      title="No cases yet"
+                      description="Cases will appear here once payment.failed webhooks are received from Razorpay."
+                    />
                   </td>
                 </tr>
               ) : (
                 recentCases.slice(0, 8).map((c) => {
-                  const isTriagePending = triageLoadingCaseId === c.case_id;
+                  const isTriaging = triageLoadingCaseId === c.case_id;
                   return (
                     <tr
                       key={c.case_id}
                       onClick={() => onSelectCase(c.case_id)}
-                      className="hover:bg-background-elevated/50 transition-colors cursor-pointer group"
+                      className="border-b border-white/[0.04] hover:bg-surface-raised cursor-pointer transition-colors group"
                     >
-                      <td className="py-3 pl-2 font-mono font-medium text-brand-300 group-hover:underline">
+                      <td className="py-3 px-2 font-mono text-[11px] text-ai-text group-hover:underline">
                         {c.case_id}
                       </td>
-                      <td className="py-3 font-mono font-semibold text-gray-200">
-                        {formatInr(c.amount_inr)}
+                      <td className="py-3 px-2 font-mono text-[12px] font-semibold text-[#F0F2F5]">
+                        ₹{c.amount_inr.toFixed(2)}
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 px-2">
                         <CategoryBadge category={c.failure_category} />
                       </td>
-                      <td className="py-3">
-                        <StatusBadge state={c.state} size="sm" />
+                      <td className="py-3 px-2">
+                        <StateBadge state={c.state} size="sm" />
                       </td>
-                      <td className="py-3">
-                        <PolicyBadge policy={c.validated_policy_id} />
+                      <td className="py-3 px-2">
+                        <PolicyBadge policy={c.validated_policy_id} context="guard" showIcon={false} />
                       </td>
-                      <td className="py-3 font-mono text-zinc-400 text-[11px]">
-                        {c.payment_link_id ? (
-                          <span className="text-emerald-400 font-medium">
-                            {c.payment_link_id}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-2 text-right">
-                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-3 px-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
                           {c.state === 'FAILED_INGESTED' && (
                             <button
                               onClick={() => onTriggerTriage(c.case_id)}
-                              disabled={isTriagePending}
-                              title="Run AI Triage"
-                              className="px-2.5 py-1 text-[11px] font-semibold rounded bg-brand-500/10 text-brand-400 border border-brand-500/30 hover:bg-brand-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
+                              disabled={isTriaging}
+                              className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-ai-text bg-[rgba(124,58,237,0.10)] hover:bg-[rgba(124,58,237,0.18)] border border-[rgba(124,58,237,0.25)] rounded transition-colors disabled:opacity-50"
                             >
-                              <Zap className={`w-3 h-3 ${isTriagePending ? 'animate-spin' : ''}`} />
-                              <span>{isTriagePending ? 'Triaging...' : 'Triage'}</span>
+                              <Zap className={`w-3 h-3 ${isTriaging ? 'animate-spin-slow' : ''}`} />
+                              {isTriaging ? '…' : 'Triage'}
                             </button>
                           )}
                           <button
                             onClick={() => onSelectCase(c.case_id)}
-                            className="px-2 py-1 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200 hover:bg-background-elevated transition-colors"
+                            className="text-[10px] text-[#4B5563] hover:text-[#9CA3AF] transition-colors"
                           >
-                            Inspect
+                            Inspect →
                           </button>
                         </div>
                       </td>

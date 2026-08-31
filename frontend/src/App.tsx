@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from './components/layout/AppShell';
-import { type ActivePage } from './components/layout/Sidebar';
+import type { ActivePage } from './components/layout/Sidebar';
 import { OverviewPage } from './pages/OverviewPage';
 import { CasesPage } from './pages/CasesPage';
-import { CaseDetailPage } from './pages/CaseDetailPage';
-import { McpArchitecturePage } from './pages/McpArchitecturePage';
+import { CaseInvestigationPage } from './pages/CaseInvestigationPage';
+import { ArchitecturePage } from './pages/ArchitecturePage';
 import { SystemHealthPage } from './pages/SystemHealthPage';
 import { ToastProvider, useToast } from './components/common/Toast';
 import {
@@ -16,21 +16,43 @@ import {
   triggerCaseTriage,
   ApiError,
 } from './api/client';
-import type {
-  CaseDetailResponse,
-  CaseSummaryItem,
-  HealthResponse,
-  MetricsSummary,
-} from './types';
+import type { CaseDetailResponse, CaseSummaryItem, HealthResponse, MetricsSummary } from './types';
+
+// ─── Page title map ───────────────────────────────────────────────────
+
+const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
+  overview: {
+    title: 'Recovery Overview',
+    subtitle: 'Autonomous revenue recovery performance and pipeline state',
+  },
+  cases: {
+    title: 'Cases Explorer',
+    subtitle: 'Failed payment pipeline — state machine registry',
+  },
+  investigation: {
+    title: 'Case Investigation',
+    subtitle: 'Decision story — from gateway failure to revenue attribution',
+  },
+  architecture: {
+    title: 'System Architecture',
+    subtitle: 'AI advisory + MCP boundary + deterministic guardrails',
+  },
+  system: {
+    title: 'System Diagnostics',
+    subtitle: 'Backend health, layer status, and API contract reference',
+  },
+};
+
+// ─── App Content ──────────────────────────────────────────────────────
 
 const AppContent: React.FC = () => {
   const { showToast } = useToast();
 
-  // Navigation State
+  // Navigation
   const [activePage, setActivePage] = useState<ActivePage>('overview');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
-  // Data States
+  // Data states
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
 
@@ -44,12 +66,13 @@ const AppContent: React.FC = () => {
   const [caseDetailLoading, setCaseDetailLoading] = useState(false);
   const [caseDetailError, setCaseDetailError] = useState<string | null>(null);
 
-  // Action / Mutation States
+  // Action states
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [triageLoadingCaseId, setTriageLoadingCaseId] = useState<string | null>(null);
   const [delayedProcessing, setDelayedProcessing] = useState(false);
 
-  // URL Hash Sync for bookmarkable navigation
+  // ── Hash routing ──────────────────────────────────────────────────
+
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#/, '');
@@ -58,7 +81,7 @@ const AppContent: React.FC = () => {
         const id = params.get('id');
         setActivePage('investigation');
         if (id) setSelectedCaseId(id);
-      } else if (['overview', 'cases', 'mcp', 'health'].includes(hash)) {
+      } else if (['overview', 'cases', 'investigation', 'architecture', 'system'].includes(hash)) {
         setActivePage(hash as ActivePage);
       }
     };
@@ -70,72 +93,61 @@ const AppContent: React.FC = () => {
 
   const navigateTo = useCallback((page: ActivePage, caseId?: string | null) => {
     setActivePage(page);
-    if (caseId !== undefined) {
-      setSelectedCaseId(caseId);
-    }
-    if (page === 'investigation' && (caseId || selectedCaseId)) {
-      const id = caseId || selectedCaseId;
-      window.location.hash = `investigation?id=${encodeURIComponent(id!)}`;
+    if (caseId !== undefined) setSelectedCaseId(caseId);
+    if (page === 'investigation') {
+      const id = caseId ?? selectedCaseId;
+      window.location.hash = id
+        ? `investigation?id=${encodeURIComponent(id)}`
+        : 'investigation';
     } else {
       window.location.hash = page;
     }
   }, [selectedCaseId]);
 
-  // Load Health
+  // ── Data fetchers ─────────────────────────────────────────────────
+
   const loadHealth = useCallback(async () => {
     setHealthLoading(true);
     try {
-      const data = await fetchHealth();
-      setHealth(data);
+      setHealth(await fetchHealth());
     } catch {
-      setHealth({
-        status: 'degraded',
-        environment: 'offline',
-        database: 'disconnected',
-        version: '0.1.0',
-      });
+      setHealth({ status: 'degraded', environment: 'offline', database: 'disconnected', version: '—' });
     } finally {
       setHealthLoading(false);
     }
   }, []);
 
-  // Load Metrics
   const loadMetrics = useCallback(async () => {
     setMetricsLoading(true);
     try {
-      const data = await fetchMetricsSummary();
-      setMetrics(data);
+      setMetrics(await fetchMetricsSummary());
     } catch (err) {
-      const msg = err instanceof ApiError ? err.detail : 'Failed to fetch metrics';
-      showToast('error', 'Metrics Sync Error', msg);
+      const msg = err instanceof ApiError ? err.detail : 'Metrics unavailable';
+      showToast('error', 'Metrics Error', msg);
     } finally {
       setMetricsLoading(false);
     }
   }, [showToast]);
 
-  // Load Cases
   const loadCases = useCallback(async () => {
     setCasesLoading(true);
     try {
-      const data = await fetchCases({ limit: 100 });
-      setCases(data);
+      setCases(await fetchCases({ limit: 100 }));
     } catch (err) {
-      const msg = err instanceof ApiError ? err.detail : 'Failed to fetch cases';
-      showToast('error', 'Cases Sync Error', msg);
+      const msg = err instanceof ApiError ? err.detail : 'Cases unavailable';
+      showToast('error', 'Cases Error', msg);
     } finally {
       setCasesLoading(false);
     }
   }, [showToast]);
 
-  // Load Case Detail
   const loadCaseDetail = useCallback(async (id: string) => {
     setCaseDetailLoading(true);
     setCaseDetailError(null);
     try {
-      const data = await fetchCaseDetail(id);
-      setCaseDetail(data);
+      setCaseDetail(await fetchCaseDetail(id));
     } catch (err) {
-      const msg = err instanceof ApiError ? err.detail : 'Failed to load case detail';
+      const msg = err instanceof ApiError ? err.detail : 'Failed to load case';
       setCaseDetailError(msg);
       showToast('error', 'Case Detail Error', msg);
     } finally {
@@ -143,34 +155,36 @@ const AppContent: React.FC = () => {
     }
   }, [showToast]);
 
-  // Fetch when selected case changes
+  // Auto-load case detail when navigating to investigation
   useEffect(() => {
     if (selectedCaseId && activePage === 'investigation') {
       loadCaseDetail(selectedCaseId);
     }
   }, [selectedCaseId, activePage, loadCaseDetail]);
 
-  // Initial Data Load
+  // Initial load
   useEffect(() => {
     loadHealth();
     loadMetrics();
     loadCases();
   }, [loadHealth, loadMetrics, loadCases]);
 
-  // Global Refresh Handler
+  // ── Actions ───────────────────────────────────────────────────────
+
   const handleGlobalRefresh = async () => {
     setIsRefreshing(true);
     await Promise.all([
       loadHealth(),
       loadMetrics(),
       loadCases(),
-      selectedCaseId && activePage === 'investigation' ? loadCaseDetail(selectedCaseId) : Promise.resolve(),
+      selectedCaseId && activePage === 'investigation'
+        ? loadCaseDetail(selectedCaseId)
+        : Promise.resolve(),
     ]);
     setIsRefreshing(false);
-    showToast('success', 'Data Synchronized', 'Latest operational states refreshed from backend.');
+    showToast('success', 'Synchronized', 'Latest operational state refreshed from backend.');
   };
 
-  // Trigger Triage Mutation
   const handleTriggerTriage = async (caseId: string) => {
     setTriageLoadingCaseId(caseId);
     try {
@@ -178,83 +192,52 @@ const AppContent: React.FC = () => {
       if (result.success) {
         showToast(
           'success',
-          'AI Triage Orchestration Complete',
-          `Policy: ${result.policy || 'Enforced'} · State: ${result.state || 'Updated'}`
+          'Recovery Triage Complete',
+          `Policy: ${result.policy ?? 'enforced'} · State: ${result.state ?? 'updated'}`
         );
       } else {
-        showToast('warning', 'Triage Outcome Non-Recoverable', result.error || 'Triage completed safely.');
+        showToast('warning', 'Triage Outcome', result.error ?? 'Triage completed — no action taken.');
       }
-      // Invalidate and refresh
       loadMetrics();
       loadCases();
-      if (selectedCaseId === caseId) {
-        loadCaseDetail(caseId);
-      }
+      if (selectedCaseId === caseId) loadCaseDetail(caseId);
     } catch (err) {
-      const msg = err instanceof ApiError ? err.detail : 'Triage execution failed';
-      showToast('error', 'Triage Error', msg);
+      showToast('error', 'Triage Error', err instanceof ApiError ? err.detail : 'Triage failed');
     } finally {
       setTriageLoadingCaseId(null);
     }
   };
 
-  // Process Due Delayed Cases Mutation
   const handleProcessDelayed = async () => {
     setDelayedProcessing(true);
     try {
       const result = await processDueDelayedCases();
       showToast(
         'success',
-        'Batch Delayed Execution Completed',
-        `Processed ${result.processed_count} due delayed recovery cases restart-safely.`
+        'Delayed Processing Complete',
+        `${result.processed_count} due delayed cases processed.`
       );
       loadMetrics();
       loadCases();
       if (selectedCaseId) loadCaseDetail(selectedCaseId);
     } catch (err) {
-      const msg = err instanceof ApiError ? err.detail : 'Delayed processing failed';
-      showToast('error', 'Batch Execution Error', msg);
+      showToast('error', 'Delayed Processing Error', err instanceof ApiError ? err.detail : 'Processing failed');
     } finally {
       setDelayedProcessing(false);
     }
   };
 
-  // Select case handler from tables
-  const handleSelectCase = (caseId: string) => {
-    navigateTo('investigation', caseId);
-  };
+  const handleSelectCase = (caseId: string) => navigateTo('investigation', caseId);
 
-  // Titles mapping
-  const pageTitles: Record<ActivePage, { title: string; subtitle: string }> = {
-    overview: {
-      title: 'Executive Recovery Overview',
-      subtitle: 'Autonomous Revenue Recovery Intelligence & Funnel Analytics',
-    },
-    cases: {
-      title: 'Failed Payment Cases Explorer',
-      subtitle: 'Real-time Payment Failure Stream & State Machine Registry',
-    },
-    investigation: {
-      title: 'Case Decision Story & Investigation',
-      subtitle: selectedCaseId ? `Active Case: ${selectedCaseId}` : 'Step-by-step Decision Reasoning Walkthrough',
-    },
-    mcp: {
-      title: 'MCP Boundary & Guardrail Architecture',
-      subtitle: 'Advisory AI Isolation & Deterministic Policy Enforcement Invariants',
-    },
-    health: {
-      title: 'System Operational Diagnostics',
-      subtitle: 'FastAPI Backend, PostgreSQL Connection & Layer Status',
-    },
-  };
+  const { title, subtitle } = PAGE_TITLES[activePage];
 
   return (
     <AppShell
       activePage={activePage}
       onNavigate={navigateTo}
       selectedCaseId={selectedCaseId}
-      pageTitle={pageTitles[activePage].title}
-      pageSubtitle={pageTitles[activePage].subtitle}
+      pageTitle={activePage === 'investigation' && selectedCaseId ? `Investigation · ${selectedCaseId}` : title}
+      pageSubtitle={subtitle}
       health={health}
       healthLoading={healthLoading}
       onRefresh={handleGlobalRefresh}
@@ -268,7 +251,7 @@ const AppContent: React.FC = () => {
           casesLoading={casesLoading}
           onSelectCase={handleSelectCase}
           onNavigateToCases={() => navigateTo('cases')}
-          onNavigateToMcp={() => navigateTo('mcp')}
+          onNavigateToArchitecture={() => navigateTo('architecture')}
           onTriggerTriage={handleTriggerTriage}
           triageLoadingCaseId={triageLoadingCaseId}
         />
@@ -288,7 +271,7 @@ const AppContent: React.FC = () => {
       )}
 
       {activePage === 'investigation' && (
-        <CaseDetailPage
+        <CaseInvestigationPage
           caseId={selectedCaseId}
           detail={caseDetail}
           loading={caseDetailLoading}
@@ -300,9 +283,9 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      {activePage === 'mcp' && <McpArchitecturePage />}
+      {activePage === 'architecture' && <ArchitecturePage />}
 
-      {activePage === 'health' && (
+      {activePage === 'system' && (
         <SystemHealthPage
           health={health}
           loading={healthLoading}
@@ -313,12 +296,12 @@ const AppContent: React.FC = () => {
   );
 };
 
-export const App: React.FC = () => {
-  return (
-    <ToastProvider>
-      <AppContent />
-    </ToastProvider>
-  );
-};
+// ─── Root ─────────────────────────────────────────────────────────────
+
+export const App: React.FC = () => (
+  <ToastProvider>
+    <AppContent />
+  </ToastProvider>
+);
 
 export default App;
