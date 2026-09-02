@@ -103,6 +103,7 @@ async def test_razorpay_adapter_get_order_success():
 @pytest.mark.asyncio
 async def test_razorpay_adapter_auth_error_401():
     """Verify 401 response raises RazorpayAuthError."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"error": {"description": "Invalid key or secret"}})
 
@@ -119,6 +120,7 @@ async def test_razorpay_adapter_auth_error_401():
 @pytest.mark.asyncio
 async def test_razorpay_adapter_not_found_404():
     """Verify 404 response raises RazorpayNotFoundError."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"error": {"description": "Payment not found"}})
 
@@ -132,6 +134,7 @@ async def test_razorpay_adapter_not_found_404():
 @pytest.mark.asyncio
 async def test_razorpay_adapter_rate_limit_429():
     """Verify 429 response raises RazorpayRateLimitError."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(429, json={"error": {"description": "Too many requests"}})
 
@@ -145,6 +148,7 @@ async def test_razorpay_adapter_rate_limit_429():
 @pytest.mark.asyncio
 async def test_razorpay_adapter_server_error_500():
     """Verify 500 response raises RazorpayAPIError."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, text="Internal Server Error")
 
@@ -159,6 +163,7 @@ async def test_razorpay_adapter_server_error_500():
 @pytest.mark.asyncio
 async def test_razorpay_adapter_timeout():
     """Verify network timeout raises RazorpayAdapterError."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("Connection timed out")
 
@@ -221,4 +226,3 @@ async def test_razorpay_adapter_get_payment_link_success():
         )
         res = await adapter.get_payment_link("plink_test999")
         assert res["id"] == "plink_test999"
-

@@ -2,36 +2,36 @@
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
-from paymentflow.main import app
+from paymentflow.db.models import AuditEventModel, RecoveryCaseModel
 from paymentflow.db.session import get_sessionmaker
-from paymentflow.db.models import RecoveryCaseModel, AuditEventModel
+from paymentflow.domain.enums import CaseState
 from paymentflow.eval.canonical_batch import (
     CANONICAL_BATCH_SCENARIOS,
     seed_canonical_demonstration_batch,
 )
-from paymentflow.domain.enums import CaseState
+from paymentflow.main import app
 
 
 @pytest.mark.asyncio
 async def test_canonical_batch_scenarios_definition():
     """Verify the definition and integrity of the 15 canonical scenarios."""
     assert len(CANONICAL_BATCH_SCENARIOS) == 15
-    
+
     # Check scenario IDs
     scenario_ids = [s["id"] for s in CANONICAL_BATCH_SCENARIOS]
     expected_ids = [f"CS{i:02d}" for i in range(1, 16)]
     assert scenario_ids == expected_ids
-    
+
     # Check total revenue at risk
     total_risk = sum(s["amount"] for s in CANONICAL_BATCH_SCENARIOS)
     assert total_risk == 13400000  # ₹134,000.00
-    
+
     # Check total recovered amount
     total_rec = sum(s["recovered_amount"] or 0 for s in CANONICAL_BATCH_SCENARIOS)
     assert total_rec == 3070000  # ₹30,700.00
-    
+
     # Check state distribution
     states = [s["state"] for s in CANONICAL_BATCH_SCENARIOS]
     assert states.count(CaseState.RECOVERED.value) == 6
@@ -55,9 +55,7 @@ async def test_seed_canonical_demonstration_batch():
         # Verify DB records
         demo_cases = (
             await session.scalars(
-                select(RecoveryCaseModel).where(
-                    RecoveryCaseModel.case_id.like("case_demo_%")
-                )
+                select(RecoveryCaseModel).where(RecoveryCaseModel.case_id.like("case_demo_%"))
             )
         ).all()
         assert len(demo_cases) == 15
@@ -71,9 +69,7 @@ async def test_seed_canonical_demonstration_batch():
         # Check audit trail count
         audit_events = (
             await session.scalars(
-                select(AuditEventModel).where(
-                    AuditEventModel.case_id.like("case_demo_%")
-                )
+                select(AuditEventModel).where(AuditEventModel.case_id.like("case_demo_%"))
             )
         ).all()
         assert len(audit_events) >= 90  # Average >6 events per case

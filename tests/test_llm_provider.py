@@ -102,15 +102,19 @@ def test_llm_provider_gemini_format_success():
                 "content": {
                     "parts": [
                         {
-                            "text": json.dumps({
-                                "case_id": dc.case_id,
-                                "failure_category": "C1",
-                                "proposed_policy_id": "P_CREATE_LINK_DELAYED",
-                                "reasoning": "Gateway transient issue; recommend delayed recovery.",
-                                "confidence_score": 0.92,
-                                "proposed_amount": dc.amount,
-                                "proposed_currency": dc.currency,
-                            })
+                            "text": json.dumps(
+                                {
+                                    "case_id": dc.case_id,
+                                    "failure_category": "C1",
+                                    "proposed_policy_id": "P_CREATE_LINK_DELAYED",
+                                    "reasoning": (
+                                        "Gateway transient issue; recommend delayed recovery."
+                                    ),
+                                    "confidence_score": 0.92,
+                                    "proposed_amount": dc.amount,
+                                    "proposed_currency": dc.currency,
+                                }
+                            )
                         }
                     ]
                 }
@@ -152,13 +156,15 @@ def test_llm_provider_openai_format_success():
         "choices": [
             {
                 "message": {
-                    "content": json.dumps({
-                        "case_id": dc.case_id,
-                        "failure_category": "C2",
-                        "proposed_policy_id": "P_CREATE_LINK_IMMEDIATE",
-                        "reasoning": "User dropoff; immediate link recommended.",
-                        "confidence_score": 0.95,
-                    })
+                    "content": json.dumps(
+                        {
+                            "case_id": dc.case_id,
+                            "failure_category": "C2",
+                            "proposed_policy_id": "P_CREATE_LINK_IMMEDIATE",
+                            "reasoning": "User dropoff; immediate link recommended.",
+                            "confidence_score": 0.95,
+                        }
+                    )
                 }
             }
         ],
@@ -238,11 +244,7 @@ def test_llm_provider_malformed_json_fallback():
 
     mock_response = {
         "candidates": [
-            {
-                "content": {
-                    "parts": [{"text": "I suggest we create a payment link immediately."}]
-                }
-            }
+            {"content": {"parts": [{"text": "I suggest we create a payment link immediately."}]}}
         ]
     }
 
@@ -272,13 +274,15 @@ def test_llm_provider_invalid_policy_id_fallback():
                 "content": {
                     "parts": [
                         {
-                            "text": json.dumps({
-                                "case_id": dc.case_id,
-                                "failure_category": "C1",
-                                "proposed_policy_id": "P_UNAUTHORIZED_HACK",
-                                "reasoning": "Invalid policy test.",
-                                "confidence_score": 0.9,
-                            })
+                            "text": json.dumps(
+                                {
+                                    "case_id": dc.case_id,
+                                    "failure_category": "C1",
+                                    "proposed_policy_id": "P_UNAUTHORIZED_HACK",
+                                    "reasoning": "Invalid policy test.",
+                                    "confidence_score": 0.9,
+                                }
+                            )
                         }
                     ]
                 }
@@ -433,15 +437,19 @@ async def test_end_to_end_offline_llm_mcp_pipeline():
                 "content": {
                     "parts": [
                         {
-                            "text": json.dumps({
-                                "case_id": dc.case_id,
-                                "failure_category": "C1",
-                                "proposed_policy_id": "P_CREATE_LINK_DELAYED",
-                                "reasoning": "Gateway transient issue; recommend delayed recovery.",
-                                "confidence_score": 0.94,
-                                "proposed_amount": dc.amount,
-                                "proposed_currency": dc.currency,
-                            })
+                            "text": json.dumps(
+                                {
+                                    "case_id": dc.case_id,
+                                    "failure_category": "C1",
+                                    "proposed_policy_id": "P_CREATE_LINK_DELAYED",
+                                    "reasoning": (
+                                        "Gateway transient issue; recommend delayed recovery."
+                                    ),
+                                    "confidence_score": 0.94,
+                                    "proposed_amount": dc.amount,
+                                    "proposed_currency": dc.currency,
+                                }
+                            )
                         }
                     ]
                 }

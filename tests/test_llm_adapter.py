@@ -76,6 +76,7 @@ async def test_llm_adapter_success_proposal():
 @pytest.mark.asyncio
 async def test_llm_adapter_timeout_fallback():
     """Verify network timeout returns deterministic safe fallback."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("Request timed out")
 
@@ -95,6 +96,7 @@ async def test_llm_adapter_timeout_fallback():
 @pytest.mark.asyncio
 async def test_llm_adapter_http_error_fallback():
     """Verify provider 500 error returns safe fallback."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, text="Internal Server Error")
 

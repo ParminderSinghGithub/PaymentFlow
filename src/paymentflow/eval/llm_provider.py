@@ -153,9 +153,7 @@ class LLMAgentDecisionProvider(AgentDecisionProvider):
 
     def _safe_fallback(self, context: DecisionContext, reason: str) -> AgentDecision:
         """Deterministic fail-closed fallback when LLM is unavailable or produces errors."""
-        logger.warning(
-            f"LLM Decision fallback applied for case '{context.case_id}': {reason}"
-        )
+        logger.warning(f"LLM Decision fallback applied for case '{context.case_id}': {reason}")
         if context.amount > 5_000_000:
             fallback_policy = RecoveryPolicy.P_ESCALATE_ONLY
             fallback_reason = f"Deterministic fallback (high-value escalation): {reason}"

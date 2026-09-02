@@ -67,10 +67,7 @@ async def test_webhook_service_payment_failed_validation_branches():
 async def test_webhook_service_extract_event_id_fallbacks():
     """Verify event ID extraction fallbacks."""
     # 1. From event_id field
-    assert (
-        WebhookService.extract_event_id({"event_id": "evt_custom_1"}, b"")
-        == "evt_custom_1"
-    )
+    assert WebhookService.extract_event_id({"event_id": "evt_custom_1"}, b"") == "evt_custom_1"
 
     # 2. From payment id and created_at
     payload = {

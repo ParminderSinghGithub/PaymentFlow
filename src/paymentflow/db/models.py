@@ -43,9 +43,7 @@ class WebhookEventModel(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="RECEIVED", index=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    __table_args__ = (
-        Index("ix_webhook_events_received_at", "received_at"),
-    )
+    __table_args__ = (Index("ix_webhook_events_received_at", "received_at"),)
 
 
 class RecoveryCaseModel(Base):

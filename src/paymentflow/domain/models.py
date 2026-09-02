@@ -173,4 +173,3 @@ class RecoveryCaseView(BaseModel):
     payment_link_status: str | None = None
     created_at: datetime
     updated_at: datetime
-

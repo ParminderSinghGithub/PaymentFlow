@@ -39,11 +39,13 @@ class RecoveryAgentClient:
         discovered = []
         for t in tools:
             schema = t.inputSchema if hasattr(t, "inputSchema") else getattr(t, "input_schema", {})
-            discovered.append({
-                "name": t.name,
-                "description": t.description,
-                "input_schema": schema,
-            })
+            discovered.append(
+                {
+                    "name": t.name,
+                    "description": t.description,
+                    "input_schema": schema,
+                }
+            )
         return discovered
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> Any:
@@ -92,9 +94,7 @@ class RecoveryAgentClient:
         )
         if not payment_info or "error" in payment_info:
             err = (
-                payment_info.get("error")
-                if payment_info
-                else "Failed to retrieve payment context."
+                payment_info.get("error") if payment_info else "Failed to retrieve payment context."
             )
             return {"success": False, "error": err}
 

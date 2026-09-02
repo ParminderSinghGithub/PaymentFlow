@@ -26,9 +26,7 @@ from paymentflow.eval.simulator import CustomerResponseSimulator
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BASELINE_RESULTS_PATH = (
-    Path(__file__).parent / "data" / "baseline_results.json"
-)
+DEFAULT_BASELINE_RESULTS_PATH = Path(__file__).parent / "data" / "baseline_results.json"
 DEFAULT_BASELINE_REPORT_PATH = (
     Path(__file__).resolve().parents[3] / "docs" / "BASELINE_EVALUATION_REPORT.md"
 )
@@ -73,9 +71,7 @@ class BaselinePolicy:
     """
 
     @classmethod
-    def decide(
-        cls, context: DecisionContext
-    ) -> tuple[RecoveryPolicy, EligibilityDecision]:
+    def decide(cls, context: DecisionContext) -> tuple[RecoveryPolicy, EligibilityDecision]:
         """Determine recovery policy solely based on decision context features."""
         decision = evaluate_baseline_eligibility(context)
         if decision.eligible:
@@ -241,9 +237,7 @@ class BaselineEvaluator:
 
         # 5. Compute overall summary aggregate
         total_draws = total_cases * draws_per_case
-        overall_rec_rate = (
-            total_recovered_draws / total_draws if total_draws > 0 else 0.0
-        )
+        overall_rec_rate = total_recovered_draws / total_draws if total_draws > 0 else 0.0
         expected_recovered_revenue_paise = (
             total_recovered_draw_paise // draws_per_case if draws_per_case > 0 else 0
         )
@@ -360,15 +354,17 @@ class BaselineEvaluator:
             desc = reason_descriptions.get(reason, "Deterministic safety constraint")
             lines.append(f"| `{reason}` | {count} | {desc} |")
 
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## 3. Failure Category Breakdown",
-            "| Category | Cases | Eligible | Action | Opportunity (₹) | "
-            "Expected Recovered (₹) | Recovery Rate |",
-            "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## 3. Failure Category Breakdown",
+                "| Category | Cases | Eligible | Action | Opportunity (₹) | "
+                "Expected Recovered (₹) | Recovery Rate |",
+                "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+            ]
+        )
 
         for cat_key in ["C1", "C2", "C3", "C4", "C5"]:
             cat_agg = summary.categories[cat_key]
@@ -381,19 +377,21 @@ class BaselineEvaluator:
                 f"{action_desc} | ₹{c_opp:,.2f} | ₹{c_rec:,.2f} | {c_rate:.2f}% |"
             )
 
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## 4. Evaluation Methodology & Reproducibility",
-            "- **Simulator**: `CustomerResponseSimulator` (L5A hardened with SHA-256)",
-            "- **Common Random Numbers (CRN)**: Draw seeds are indexed `0..49` for each "
-            "`case_id`, allowing future agent evaluations to use identical stochastic draws.",
-            "- **Ground-Truth Isolation**: Baseline decision logic had zero access to "
-            "`SimulationGroundTruth` (latent customer intent or recovery probabilities).",
-            "- **Economic Integrity**: Failed recovery yields ₹0; successful recovery yields "
-            "exact case amount.",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## 4. Evaluation Methodology & Reproducibility",
+                "- **Simulator**: `CustomerResponseSimulator` (L5A hardened with SHA-256)",
+                "- **Common Random Numbers (CRN)**: Draw seeds are indexed `0..49` for each "
+                "`case_id`, allowing future agent evaluations to use identical stochastic draws.",
+                "- **Ground-Truth Isolation**: Baseline decision logic had zero access to "
+                "`SimulationGroundTruth` (latent customer intent or recovery probabilities).",
+                "- **Economic Integrity**: Failed recovery yields ₹0; successful recovery yields "
+                "exact case amount.",
+            ]
+        )
 
         with open(target_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")

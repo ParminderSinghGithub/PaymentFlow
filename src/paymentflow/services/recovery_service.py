@@ -270,9 +270,7 @@ class RecoveryTriageService:
                 current_state, CaseState.ELIGIBILITY_CHECKED
             ).value
         elif decision.status == EligibilityStatus.REQUIRES_ESCALATION:
-            case.state = RecoveryStateMachine.transition(
-                current_state, CaseState.ESCALATED
-            ).value
+            case.state = RecoveryStateMachine.transition(current_state, CaseState.ESCALATED).value
         else:
             case.state = RecoveryStateMachine.transition(
                 current_state, CaseState.TERMINAL_NO_ACTION

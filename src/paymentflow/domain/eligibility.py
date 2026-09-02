@@ -48,9 +48,7 @@ class EligibilityEngine:
 
         # 1. Missing / Invalid Context Constraint
         if not context.payment_id or context.amount is None or context.amount <= 0:
-            logger.info(
-                f"Eligibility REJECT: Invalid or missing amount ({context.amount})."
-            )
+            logger.info(f"Eligibility REJECT: Invalid or missing amount ({context.amount}).")
             return EligibilityDecision(
                 eligible=False,
                 status=EligibilityStatus.INELIGIBLE,
@@ -65,9 +63,7 @@ class EligibilityEngine:
         # 2. Payment State Freshness / Success Check
         norm_status = str(context.status).strip().lower()
         if norm_status != "failed":
-            logger.info(
-                f"Eligibility REJECT: Payment state '{context.status}' is not 'failed'."
-            )
+            logger.info(f"Eligibility REJECT: Payment state '{context.status}' is not 'failed'.")
             return EligibilityDecision(
                 eligible=False,
                 status=EligibilityStatus.INELIGIBLE,

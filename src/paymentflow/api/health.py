@@ -34,4 +34,3 @@ async def health_check(settings: Settings = Depends(get_settings)) -> HealthResp
         database="connected" if db_connected else "disconnected",
         version="0.1.0",
     )
-

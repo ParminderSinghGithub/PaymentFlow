@@ -24,15 +24,19 @@ async def test_live_validator_mcp_triage_flow_with_mock_llm():
                 "content": {
                     "parts": [
                         {
-                            "text": json.dumps({
-                                "case_id": dc.case_id,
-                                "failure_category": "C1",
-                                "proposed_policy_id": "P_CREATE_LINK_DELAYED",
-                                "reasoning": "Gateway transient issue; recommend delayed recovery.",
-                                "confidence_score": 0.94,
-                                "proposed_amount": dc.amount,
-                                "proposed_currency": dc.currency,
-                            })
+                            "text": json.dumps(
+                                {
+                                    "case_id": dc.case_id,
+                                    "failure_category": "C1",
+                                    "proposed_policy_id": "P_CREATE_LINK_DELAYED",
+                                    "reasoning": (
+                                        "Gateway transient issue; recommend delayed recovery."
+                                    ),
+                                    "confidence_score": 0.94,
+                                    "proposed_amount": dc.amount,
+                                    "proposed_currency": dc.currency,
+                                }
+                            )
                         }
                     ]
                 }
@@ -90,13 +94,15 @@ async def test_live_validator_smoke_test_with_mock_llm():
                     "content": {
                         "parts": [
                             {
-                                "text": json.dumps({
-                                    "case_id": "case_test",
-                                    "failure_category": cat,
-                                    "proposed_policy_id": pol,
-                                    "reasoning": f"Triage decision for {cat}.",
-                                    "confidence_score": 0.95,
-                                })
+                                "text": json.dumps(
+                                    {
+                                        "case_id": "case_test",
+                                        "failure_category": cat,
+                                        "proposed_policy_id": pol,
+                                        "reasoning": f"Triage decision for {cat}.",
+                                        "confidence_score": 0.95,
+                                    }
+                                )
                             }
                         ]
                     }
@@ -118,6 +124,7 @@ async def test_live_validator_smoke_test_with_mock_llm():
 @pytest.mark.asyncio
 async def test_live_validator_controlled_evaluation_and_report_generation(tmp_path):
     """Verify controlled evaluation runs and generates formatted report."""
+
     def mock_handler(request: httpx.Request) -> httpx.Response:
         resp_data = {
             "candidates": [
@@ -125,13 +132,15 @@ async def test_live_validator_controlled_evaluation_and_report_generation(tmp_pa
                     "content": {
                         "parts": [
                             {
-                                "text": json.dumps({
-                                    "case_id": "test_case",
-                                    "failure_category": "C1",
-                                    "proposed_policy_id": "P_CREATE_LINK_DELAYED",
-                                    "reasoning": "Standard delayed recovery.",
-                                    "confidence_score": 0.90,
-                                })
+                                "text": json.dumps(
+                                    {
+                                        "case_id": "test_case",
+                                        "failure_category": "C1",
+                                        "proposed_policy_id": "P_CREATE_LINK_DELAYED",
+                                        "reasoning": "Standard delayed recovery.",
+                                        "confidence_score": 0.90,
+                                    }
+                                )
                             }
                         ]
                     }

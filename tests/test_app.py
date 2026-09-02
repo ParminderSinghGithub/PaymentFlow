@@ -43,4 +43,3 @@ async def test_root_endpoint(client: AsyncClient):
     data = response.json()
     assert data["name"] == "PaymentFlow Recovery Agent"
     assert data["status"] == "online"
-

@@ -160,18 +160,14 @@ async def get_metrics_summary(
         RecoveryCaseModel.failure_category, func.count(RecoveryCaseModel.case_id)
     ).group_by(RecoveryCaseModel.failure_category)
     cat_res = await db.execute(cat_q)
-    cat_breakdown = {
-        str(row[0] or "UNKNOWN"): int(row[1]) for row in cat_res.fetchall()
-    }
+    cat_breakdown = {str(row[0] or "UNKNOWN"): int(row[1]) for row in cat_res.fetchall()}
 
     # 3. Policy Breakdown
     pol_q = select(
         RecoveryCaseModel.validated_policy_id, func.count(RecoveryCaseModel.case_id)
     ).group_by(RecoveryCaseModel.validated_policy_id)
     pol_res = await db.execute(pol_q)
-    pol_breakdown = {
-        str(row[0] or "NONE"): int(row[1]) for row in pol_res.fetchall()
-    }
+    pol_breakdown = {str(row[0] or "NONE"): int(row[1]) for row in pol_res.fetchall()}
 
     return MetricsSummaryResponse(
         total_cases=total_cases,
@@ -311,4 +307,3 @@ async def seed_demo_batch(
 
     result = await seed_canonical_demonstration_batch(session=db, reset_first=reset_first)
     return result
-

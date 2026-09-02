@@ -47,4 +47,3 @@ async def test_engine_lifecycle():
     engine = get_engine()
     assert engine is not None
     await close_db()
-

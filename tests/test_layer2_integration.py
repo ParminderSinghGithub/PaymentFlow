@@ -93,9 +93,7 @@ async def test_layer2_end_to_end_eligible_pipeline(
     # 2. Run Layer 2 Triage Pipeline
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
-        adapter = RazorpayAdapter(
-            settings=test_settings, http_client=mock_gateway_client
-        )
+        adapter = RazorpayAdapter(settings=test_settings, http_client=mock_gateway_client)
         service = RecoveryTriageService(session, razorpay_adapter=adapter)
 
         case, decision = await service.process_triage_pipeline(case_id)

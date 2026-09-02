@@ -53,9 +53,7 @@ async def test_recovery_executor_happy_path(mock_razorpay_adapter):
         "reference_id": case_id,
     }
 
-    executor = RecoveryExecutor(
-        sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter
-    )
+    executor = RecoveryExecutor(sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter)
     result = await executor.execute(case_id)
 
     assert result.success is True
@@ -115,9 +113,7 @@ async def test_recovery_executor_already_executed_idempotency(mock_razorpay_adap
         session.add(case)
         await session.commit()
 
-    executor = RecoveryExecutor(
-        sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter
-    )
+    executor = RecoveryExecutor(sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter)
     result = await executor.execute(case_id)
 
     assert result.success is True
@@ -147,9 +143,7 @@ async def test_recovery_executor_wrong_state_rejected(mock_razorpay_adapter):
         session.add(case)
         await session.commit()
 
-    executor = RecoveryExecutor(
-        sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter
-    )
+    executor = RecoveryExecutor(sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter)
     result = await executor.execute(case_id)
 
     assert result.success is False
@@ -177,9 +171,7 @@ async def test_recovery_executor_non_executable_policy(mock_razorpay_adapter):
         session.add(case)
         await session.commit()
 
-    executor = RecoveryExecutor(
-        sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter
-    )
+    executor = RecoveryExecutor(sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter)
     result = await executor.execute(case_id)
 
     assert result.success is False
@@ -207,9 +199,7 @@ async def test_recovery_executor_pre_write_high_value_escalation(mock_razorpay_a
         session.add(case)
         await session.commit()
 
-    executor = RecoveryExecutor(
-        sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter
-    )
+    executor = RecoveryExecutor(sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter)
     result = await executor.execute(case_id)
 
     assert result.success is False
@@ -248,9 +238,7 @@ async def test_recovery_executor_timeout_unknown_outcome(mock_razorpay_adapter):
         "Request timed out"
     )
 
-    executor = RecoveryExecutor(
-        sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter
-    )
+    executor = RecoveryExecutor(sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter)
     result = await executor.execute(case_id)
 
     assert result.success is False
@@ -295,9 +283,7 @@ async def test_recovery_executor_api_rejection(mock_razorpay_adapter):
         status_code=400, message="Invalid request parameters"
     )
 
-    executor = RecoveryExecutor(
-        sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter
-    )
+    executor = RecoveryExecutor(sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter)
     result = await executor.execute(case_id)
 
     assert result.success is False
@@ -342,9 +328,7 @@ async def test_recovery_executor_concurrent_execution(mock_razorpay_adapter):
         "currency": "INR",
     }
 
-    executor = RecoveryExecutor(
-        sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter
-    )
+    executor = RecoveryExecutor(sessionmaker=sessionmaker, razorpay_adapter=mock_razorpay_adapter)
 
     # First execution succeeds
     res1 = await executor.execute(case_id)

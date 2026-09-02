@@ -62,12 +62,8 @@ class LiveLLMValidator:
         payment_ctx = await mcp_client.call_tool(
             "get_payment_context", {"payment_id": dc.failed_payment_id}
         )
-        case_info = await mcp_client.call_tool(
-            "get_recovery_case", {"case_id": dc.case_id}
-        )
-        status_info = await mcp_client.call_tool(
-            "get_recovery_status", {"case_id": dc.case_id}
-        )
+        case_info = await mcp_client.call_tool("get_recovery_case", {"case_id": dc.case_id})
+        status_info = await mcp_client.call_tool("get_recovery_status", {"case_id": dc.case_id})
 
         # 3. LLM Advisory Decision from DecisionContext
         start_time = time.perf_counter()
@@ -231,49 +227,71 @@ class LiveLLMValidator:
         tel = controlled_results["telemetry"]
         fb_count = tel["fallback_count"]
         call_count = tel["call_count"]
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## 3. Real MCP Protocol Boundary Verification",
-            "- **MCP Server Interface**: `mcp.server.mcpserver.MCPServer` (`paymentflow-eval-mcp`)",
-            "- **MCP Client**: `RecoveryAgentClient` executing tool discovery and protocol calls.",
-            "- **Read Tools Exercised**: `get_payment_context`, `get_recovery_case`, "
-            "`get_recovery_status`, `get_allowed_recovery_policies`.",
-            "- **Action Tool Exercised**: `request_recovery_action` submitting advisory proposals "
-            "into `PolicyGuardrailEngine`.",
-            "- **Financial Side Effects**: `ZERO` (no Razorpay write APIs invoked).",
-            "",
-            "---",
-            "",
-            "## 4. Small Controlled LLM Evaluation (15 Cases)",
-            f"- **Sample Size**: {controlled_results['sample_size']} cases (3 per C1-C5 category)",
-            f"- **Schema Validity Rate**: {controlled_results['valid_schema_rate'] * 100:.1f}%",
-            f"- **Category Accuracy**: {controlled_results['category_accuracy'] * 100:.1f}%",
-            f"- **Guardrail Intervention Rate**: {interv_rate:.1f}% ({interv_count} cases)",
-            f"- **Average LLM Latency**: {controlled_results['avg_latency_ms']} ms",
-            f"- **Total Tokens Consumed**: {tel['total_tokens']:,} tokens",
-            f"- **Prompt Tokens**: {tel['prompt_tokens']:,}",
-            f"- **Completion Tokens**: {tel['completion_tokens']:,}",
-            f"- **Fallback Rate**: {fb_count} fallbacks across {call_count} calls (0.0%)",
-            "",
-            "---",
-            "",
-            "## 5. Full Evaluation Decision",
-            f"### Status: `{full_evaluation_decision}`",
-            f"**Rationale**: {decision_reason}",
-            "",
-            "---",
-            "",
-            "## 6. Distinction of Evaluation Modes",
-            "1. **Offline Verification**: Unit and mock transport tests ensuring zero regressions.",
-            "2. **Live Validation**: Real Google Gemini LLM calls producing structured JSON "
-            "proposals through the MCP boundary.",
-            "3. **Synthetic Evaluation**: 75-case benchmark evaluated across 50 stochastic Common "
-            "Random Number (CRN) customer response draws.",
-            "4. **What is NOT Demonstrated**: Production merchant uplift (requires live merchant "
-            "traffic and Razorpay write execution in Layer 6+).",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## 3. Real MCP Protocol Boundary Verification",
+                (
+                    "- **MCP Server Interface**: `mcp.server.mcpserver.MCPServer` "
+                    "(`paymentflow-eval-mcp`)"
+                ),
+                (
+                    "- **MCP Client**: `RecoveryAgentClient` executing tool discovery and protocol"
+                    " calls."
+                ),
+                "- **Read Tools Exercised**: `get_payment_context`, `get_recovery_case`, ",
+                "`get_recovery_status`, `get_allowed_recovery_policies`.",
+                (
+                    "- **Action Tool Exercised**: `request_recovery_action` submitting advisory"
+                    " proposals into `PolicyGuardrailEngine`."
+                ),
+                "- **Financial Side Effects**: `ZERO` (no Razorpay write APIs invoked).",
+                "",
+                "---",
+                "",
+                "## 4. Small Controlled LLM Evaluation (15 Cases)",
+                (
+                    f"- **Sample Size**: {controlled_results['sample_size']} cases (3 per C1-C5"
+                    " category)"
+                ),
+                f"- **Schema Validity Rate**: {controlled_results['valid_schema_rate'] * 100:.1f}%",
+                f"- **Category Accuracy**: {controlled_results['category_accuracy'] * 100:.1f}%",
+                f"- **Guardrail Intervention Rate**: {interv_rate:.1f}% ({interv_count} cases)",
+                f"- **Average LLM Latency**: {controlled_results['avg_latency_ms']} ms",
+                f"- **Total Tokens Consumed**: {tel['total_tokens']:,} tokens",
+                f"- **Prompt Tokens**: {tel['prompt_tokens']:,}",
+                f"- **Completion Tokens**: {tel['completion_tokens']:,}",
+                f"- **Fallback Rate**: {fb_count} fallbacks across {call_count} calls (0.0%)",
+                "",
+                "---",
+                "",
+                "## 5. Full Evaluation Decision",
+                f"### Status: `{full_evaluation_decision}`",
+                f"**Rationale**: {decision_reason}",
+                "",
+                "---",
+                "",
+                "## 6. Distinction of Evaluation Modes",
+                (
+                    "1. **Offline Verification**: Unit and mock transport tests ensuring zero"
+                    " regressions."
+                ),
+                (
+                    "2. **Live Validation**: Real Google Gemini LLM calls producing structured JSON"
+                    " proposals through the MCP boundary."
+                ),
+                (
+                    "3. **Synthetic Evaluation**: 75-case benchmark evaluated across 50 stochastic"
+                    " Common Random Number (CRN) customer response draws."
+                ),
+                (
+                    "4. **What is NOT Demonstrated**: Production merchant uplift (requires live"
+                    " merchant traffic and Razorpay write execution in Layer 6+)."
+                ),
+            ]
+        )
 
         with open(target_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")

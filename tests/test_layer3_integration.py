@@ -17,6 +17,7 @@ from paymentflow.mcp.client import RecoveryAgentClient
 @pytest.fixture
 def mock_gemini_client() -> httpx.AsyncClient:
     """Mock Gemini API returning valid immediate recovery proposal."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         gemini_response = {
             "candidates": [

@@ -394,7 +394,6 @@ CASES_DEF = [
         "p_esc": 0.52,
         "notes": "503 service unavailable; delayed link works best.",
     },
-
     # =========================================================================
     # C2: Soft User / Infrastructure Friction (20 cases)
     # =========================================================================
@@ -819,7 +818,6 @@ CASES_DEF = [
         "notes": "Cooldown case: Last attempt within 5 minutes.",
         "cooldown_active": True,
     },
-
     # =========================================================================
     # C3: Hard Payment-Instrument Failure (16 cases)
     # =========================================================================
@@ -1159,7 +1157,6 @@ CASES_DEF = [
         "p_esc": 0.49,
         "notes": "Card locked temporarily; delayed link gives time to unlock.",
     },
-
     # =========================================================================
     # C4: Business / Risk / Limit Rejection (11 cases)
     # =========================================================================
@@ -1394,7 +1391,6 @@ CASES_DEF = [
         "p_esc": 0.18,
         "notes": "Chargeback blacklist: Strict NO_ACTION or ESCALATE.",
     },
-
     # =========================================================================
     # C5: Technical Integration / Non-Recoverable Failure (10 cases)
     # =========================================================================
@@ -1637,9 +1633,7 @@ def generate_dataset() -> list[dict]:
             "prior_failed_count_24h": c["prior_f"],
             "prior_recovered_count_24h": c["prior_r"],
             "created_at": created_at_iso,
-            "last_attempt_at": (
-                "2026-08-30T09:55:00+00:00" if c.get("cooldown_active") else None
-            ),
+            "last_attempt_at": ("2026-08-30T09:55:00+00:00" if c.get("cooldown_active") else None),
         }
 
         # Build ground truth
@@ -1652,10 +1646,12 @@ def generate_dataset() -> list[dict]:
             "notes": c["notes"],
         }
 
-        dataset.append({
-            "decision_context": decision_context,
-            "ground_truth": ground_truth,
-        })
+        dataset.append(
+            {
+                "decision_context": decision_context,
+                "ground_truth": ground_truth,
+            }
+        )
     return dataset
 
 

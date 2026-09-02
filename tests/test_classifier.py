@@ -112,10 +112,7 @@ def test_classify_c5_technical_integration_failure():
 def test_classify_fallback_for_empty_unknown_input():
     """Verify safe C5 fallback for completely unknown/empty inputs."""
     assert FailureClassifier.classify(None).category == FailureCategory.C5
-    assert (
-        FailureClassifier.classify(PaymentFailureDetails()).category
-        == FailureCategory.C5
-    )
+    assert FailureClassifier.classify(PaymentFailureDetails()).category == FailureCategory.C5
 
 
 def test_classify_source_based_fallbacks():

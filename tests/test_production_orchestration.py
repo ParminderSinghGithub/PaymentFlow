@@ -23,6 +23,7 @@ from paymentflow.services.webhook_service import WebhookService
 @pytest.fixture
 def mock_gemini_immediate():
     """Mock Gemini transport returning P_CREATE_LINK_IMMEDIATE."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         resp = {
             "candidates": [
@@ -30,12 +31,14 @@ def mock_gemini_immediate():
                     "content": {
                         "parts": [
                             {
-                                "text": json.dumps({
-                                    "failure_category": "C1",
-                                    "policy_id": "P_CREATE_LINK_IMMEDIATE",
-                                    "template_id": "TPL_RECOVERY_STANDARD",
-                                    "explanation": "Transient OTP error; immediate link.",
-                                })
+                                "text": json.dumps(
+                                    {
+                                        "failure_category": "C1",
+                                        "policy_id": "P_CREATE_LINK_IMMEDIATE",
+                                        "template_id": "TPL_RECOVERY_STANDARD",
+                                        "explanation": "Transient OTP error; immediate link.",
+                                    }
+                                )
                             }
                         ]
                     }
@@ -50,6 +53,7 @@ def mock_gemini_immediate():
 @pytest.fixture
 def mock_gemini_delayed():
     """Mock Gemini transport returning P_CREATE_LINK_DELAYED."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         resp = {
             "candidates": [
@@ -57,12 +61,14 @@ def mock_gemini_delayed():
                     "content": {
                         "parts": [
                             {
-                                "text": json.dumps({
-                                    "failure_category": "C1",
-                                    "policy_id": "P_CREATE_LINK_DELAYED",
-                                    "template_id": "TPL_RECOVERY_STANDARD",
-                                    "explanation": "Gateway timeout; delayed link recommended.",
-                                })
+                                "text": json.dumps(
+                                    {
+                                        "failure_category": "C1",
+                                        "policy_id": "P_CREATE_LINK_DELAYED",
+                                        "template_id": "TPL_RECOVERY_STANDARD",
+                                        "explanation": "Gateway timeout; delayed link recommended.",
+                                    }
+                                )
                             }
                         ]
                     }
@@ -206,6 +212,7 @@ async def test_end_to_end_immediate_recovery_pipeline(
 
     # 5. Customer Outcome: Payment Link Paid Webhook
     async with sessionmaker() as session:
+
         async def mock_captured_payment(pid: str) -> dict[str, Any]:
             return {
                 "id": pid,
@@ -528,15 +535,7 @@ async def test_malformed_llm_output_fail_closed_safe_fallback(
     def malformed_handler(request: httpx.Request) -> httpx.Response:
         resp = {
             "candidates": [
-                {
-                    "content": {
-                        "parts": [
-                            {
-                                "text": "This is non-JSON raw plain text from model."
-                            }
-                        ]
-                    }
-                }
+                {"content": {"parts": [{"text": "This is non-JSON raw plain text from model."}]}}
             ]
         }
         return httpx.Response(200, json=resp, request=request)
@@ -1013,4 +1012,3 @@ async def test_webhook_captured_only_attribution_authorized_rejected(
         reloaded = await session.get(RecoveryCaseModel, case_id)
         assert reloaded.state != CaseState.RECOVERED.value
         assert reloaded.recovered_amount is None
-

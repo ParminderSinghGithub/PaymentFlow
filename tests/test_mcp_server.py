@@ -204,9 +204,10 @@ async def test_mcp_request_action_validation_errors():
     assert "required" in (await request_recovery_action("", "P_CREATE_LINK_IMMEDIATE"))["error"]
 
     # Non-existent case_id
-    assert "not found" in (
-        await request_recovery_action("case_nonexistent", "P_CREATE_LINK_IMMEDIATE")
-    )["error"]
+    assert (
+        "not found"
+        in (await request_recovery_action("case_nonexistent", "P_CREATE_LINK_IMMEDIATE"))["error"]
+    )
 
     # Terminal case state
     sessionmaker = get_sessionmaker()

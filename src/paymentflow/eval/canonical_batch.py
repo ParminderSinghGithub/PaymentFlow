@@ -32,7 +32,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "eligibility_status": "ELIGIBLE",
         "eligibility_reason": "ELIGIBLE",
         "ai_policy": RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value,
-        "ai_explanation": "Transient user dropout detected; immediate payment link provides frictionless retry.",
+        "ai_explanation": (
+            "Transient user dropout detected; immediate payment link provides frictionless retry."
+        ),
         "validated_policy": RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value,
         "guardrail_decision": PolicyDecision.APPROVE.value,
         "guardrail_reasons": ["Standard customer action eligible for immediate payment link."],
@@ -45,7 +47,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": None,
         "offset_minutes": 0,
         "paid_offset_minutes": 15,
-        "why": "Demonstrates high-propensity immediate recovery with 100% verified capture attribution.",
+        "why": (
+            "Demonstrates high-propensity immediate recovery with 100% verified capture "
+            "attribution."
+        ),
     },
     {
         "id": "CS02",
@@ -63,7 +68,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "eligibility_status": "ELIGIBLE",
         "eligibility_reason": "ELIGIBLE",
         "ai_policy": RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value,
-        "ai_explanation": "Network timeout occurred during payment processing; high intent to complete.",
+        "ai_explanation": (
+            "Network timeout occurred during payment processing; high intent to complete."
+        ),
         "validated_policy": RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value,
         "guardrail_decision": PolicyDecision.APPROVE.value,
         "guardrail_reasons": ["Network friction failure eligible for immediate recovery."],
@@ -94,7 +101,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "eligibility_status": "ELIGIBLE",
         "eligibility_reason": "ELIGIBLE",
         "ai_policy": RecoveryPolicy.P_CREATE_LINK_DELAYED.value,
-        "ai_explanation": "Insufficient funds require cooldown window before re-attempting recovery.",
+        "ai_explanation": (
+            "Insufficient funds require cooldown window before re-attempting recovery."
+        ),
         "validated_policy": RecoveryPolicy.P_CREATE_LINK_DELAYED.value,
         "guardrail_decision": PolicyDecision.APPROVE.value,
         "guardrail_reasons": ["Balance failure eligible for delayed recovery link."],
@@ -107,7 +116,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": (BASE_TIME + timedelta(hours=2)).isoformat(),
         "offset_minutes": 10,
         "paid_offset_minutes": 140,
-        "why": "Demonstrates restart-safe delayed scheduling (P_CREATE_LINK_DELAYED) and eventual recovery.",
+        "why": (
+            "Demonstrates restart-safe delayed scheduling (P_CREATE_LINK_DELAYED) and "
+            "eventual recovery."
+        ),
     },
     {
         "id": "CS04",
@@ -128,7 +140,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "ai_explanation": "Customer dropped off; recommend immediate payment link.",
         "validated_policy": RecoveryPolicy.P_ESCALATE_ONLY.value,
         "guardrail_decision": PolicyDecision.ESCALATE.value,
-        "guardrail_reasons": ["Amount ₹75000.00 exceeds threshold ₹50000.00; escalated to manual review."],
+        "guardrail_reasons": [
+            "Amount ₹75000.00 exceeds threshold ₹50000.00; escalated to manual review."
+        ],
         "payment_link_id": None,
         "payment_link_short_url": None,
         "payment_link_status": None,
@@ -138,7 +152,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": None,
         "offset_minutes": 15,
         "paid_offset_minutes": None,
-        "why": "Demonstrates strict financial threshold guardrail overriding AI proposal to prevent high-value automated risk.",
+        "why": (
+            "Demonstrates strict financial threshold guardrail overriding AI proposal to "
+            "prevent high-value automated risk."
+        ),
     },
     {
         "id": "CS05",
@@ -159,7 +176,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "ai_explanation": "Customer attempted checkout; re-send payment link.",
         "validated_policy": RecoveryPolicy.P_ESCALATE_ONLY.value,
         "guardrail_decision": PolicyDecision.DOWNGRADE.value,
-        "guardrail_reasons": ["Risk/business rejection (C4) cannot receive automated Payment Link."],
+        "guardrail_reasons": [
+            "Risk/business rejection (C4) cannot receive automated Payment Link."
+        ],
         "payment_link_id": None,
         "payment_link_short_url": None,
         "payment_link_status": None,
@@ -169,7 +188,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": None,
         "offset_minutes": 20,
         "paid_offset_minutes": None,
-        "why": "Demonstrates compliance guardrail overriding AI to escalate fraud/AML flags to compliance operations.",
+        "why": (
+            "Demonstrates compliance guardrail overriding AI to escalate fraud/AML flags to "
+            "compliance operations."
+        ),
     },
     {
         "id": "CS06",
@@ -200,7 +222,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": None,
         "offset_minutes": 25,
         "paid_offset_minutes": None,
-        "why": "Demonstrates failure classification stopping rule for unrecoverable infrastructure errors.",
+        "why": (
+            "Demonstrates failure classification stopping rule for unrecoverable "
+            "infrastructure errors."
+        ),
     },
     {
         "id": "CS07",
@@ -221,7 +246,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "ai_explanation": "Offer 10% discount to incentivize immediate conversion.",
         "validated_policy": RecoveryPolicy.P_NO_ACTION.value,
         "guardrail_decision": PolicyDecision.REJECT.value,
-        "guardrail_reasons": ["Proposed recovery amount (5400000) does not match verified original payment amount (6000000)."],
+        "guardrail_reasons": [
+            "Proposed recovery amount (5400000) does not match verified original payment "
+            "amount (6000000)."
+        ],
         "payment_link_id": None,
         "payment_link_short_url": None,
         "payment_link_status": None,
@@ -252,7 +280,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "ai_explanation": "Send international USD payment link.",
         "validated_policy": RecoveryPolicy.P_NO_ACTION.value,
         "guardrail_decision": PolicyDecision.REJECT.value,
-        "guardrail_reasons": ["Proposed recovery currency (USD) does not match original currency (INR)."],
+        "guardrail_reasons": [
+            "Proposed recovery currency (USD) does not match original currency (INR)."
+        ],
         "payment_link_id": None,
         "payment_link_short_url": None,
         "payment_link_status": None,
@@ -262,7 +292,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": None,
         "offset_minutes": 35,
         "paid_offset_minutes": None,
-        "why": "Demonstrates currency immutability invariant; LLM cannot switch currency denomination.",
+        "why": (
+            "Demonstrates currency immutability invariant; LLM cannot switch currency denomination."
+        ),
     },
     {
         "id": "CS09",
@@ -283,7 +315,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "ai_explanation": "Retry customer with new link.",
         "validated_policy": RecoveryPolicy.P_NO_ACTION.value,
         "guardrail_decision": PolicyDecision.REJECT.value,
-        "guardrail_reasons": ["Customer exceeded maximum recovery link attempts in 24-hour window."],
+        "guardrail_reasons": [
+            "Customer exceeded maximum recovery link attempts in 24-hour window."
+        ],
         "payment_link_id": None,
         "payment_link_short_url": None,
         "payment_link_status": None,
@@ -307,7 +341,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "payment_method": "card",
         "failure_category": FailureCategory.C1.value,
         "failure_code": "BAD_REQUEST_ERROR",
-        "failure_description": "Initial card attempt failed, but secondary attempt on same order succeeded.",
+        "failure_description": (
+            "Initial card attempt failed, but secondary attempt on same order succeeded."
+        ),
         "eligibility_status": "INELIGIBLE",
         "eligibility_reason": "ORDER_ALREADY_PAID",
         "ai_policy": RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value,
@@ -324,7 +360,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": None,
         "offset_minutes": 45,
         "paid_offset_minutes": None,
-        "why": "Demonstrates order-level payment verification preventing double-charge/superfluous recovery.",
+        "why": (
+            "Demonstrates order-level payment verification preventing double-charge/superfluous "
+            "recovery."
+        ),
     },
     {
         "id": "CS11",
@@ -355,7 +394,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": (BASE_TIME + timedelta(minutes=50)).isoformat(),
         "offset_minutes": 50,
         "paid_offset_minutes": 110,
-        "why": "Demonstrates scheduled delayed case maturation and autonomous restart-safe batch execution.",
+        "why": (
+            "Demonstrates scheduled delayed case maturation and autonomous restart-safe "
+            "batch execution."
+        ),
     },
     {
         "id": "CS12",
@@ -386,7 +428,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": None,
         "offset_minutes": 55,
         "paid_offset_minutes": None,
-        "why": "Demonstrates in-flight active recovery link state where link is created but not yet counted as recovered revenue.",
+        "why": (
+            "Demonstrates in-flight active recovery link state where link is created but "
+            "not yet counted as recovered revenue."
+        ),
     },
     {
         "id": "CS13",
@@ -417,7 +462,10 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "scheduled_at": None,
         "offset_minutes": 60,
         "paid_offset_minutes": None,
-        "why": "Demonstrates duplicate event suppression; zero duplicate links or double-attribution allowed.",
+        "why": (
+            "Demonstrates duplicate event suppression; zero duplicate links or "
+            "double-attribution allowed."
+        ),
     },
     {
         "id": "CS14",
@@ -435,7 +483,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "eligibility_status": "ELIGIBLE",
         "eligibility_reason": "ELIGIBLE",
         "ai_policy": RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value,
-        "ai_explanation": "Overdue commercial invoice with positive credit record; dispatch direct link.",
+        "ai_explanation": (
+            "Overdue commercial invoice with positive credit record; dispatch direct link."
+        ),
         "validated_policy": RecoveryPolicy.P_CREATE_LINK_IMMEDIATE.value,
         "guardrail_decision": PolicyDecision.APPROVE.value,
         "guardrail_reasons": ["B2B receivables recovery link authorized under ₹50,000 threshold."],
@@ -466,7 +516,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "eligibility_status": "ELIGIBLE",
         "eligibility_reason": "ELIGIBLE",
         "ai_policy": RecoveryPolicy.P_CREATE_LINK_DELAYED.value,
-        "ai_explanation": "Customer recorded promise to pay; pause aggressive retries until scheduled maturity.",
+        "ai_explanation": (
+            "Customer recorded promise to pay; pause aggressive retries until scheduled maturity."
+        ),
         "validated_policy": RecoveryPolicy.P_CREATE_LINK_DELAYED.value,
         "guardrail_decision": PolicyDecision.APPROVE.value,
         "guardrail_reasons": ["Promise-to-pay scheduled recovery link authorized."],
@@ -484,7 +536,9 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
 ]
 
 
-def generate_case_audit_trail(scenario: dict[str, Any], created_at: datetime) -> list[dict[str, Any]]:
+def generate_case_audit_trail(
+    scenario: dict[str, Any], created_at: datetime
+) -> list[dict[str, Any]]:
     """Generate chronological audit events for a canonical demonstration scenario."""
     case_id = scenario["case_id"]
     state = scenario["state"]
@@ -493,124 +547,139 @@ def generate_case_audit_trail(scenario: dict[str, Any], created_at: datetime) ->
 
     # 1. WEBHOOK_INGESTED
     t0 = created_at
-    events.append({
-        "case_id": case_id,
-        "event_type": "WEBHOOK_INGESTED",
-        "actor": "system",
-        "decision": "CASE_CREATED",
-        "policy": None,
-        "action": "INGEST",
-        "outcome": "SUCCESS",
-        "timestamp": t0,
-        "details": {
-            "payment_id": scenario["payment_id"],
-            "amount_paise": scenario["amount"],
-            "currency": scenario["currency"],
-            "payment_method": scenario["payment_method"],
-        },
-        "guardrail_result": None,
-    })
+    events.append(
+        {
+            "case_id": case_id,
+            "event_type": "WEBHOOK_INGESTED",
+            "actor": "system",
+            "decision": "CASE_CREATED",
+            "policy": None,
+            "action": "INGEST",
+            "outcome": "SUCCESS",
+            "timestamp": t0,
+            "details": {
+                "payment_id": scenario["payment_id"],
+                "amount_paise": scenario["amount"],
+                "currency": scenario["currency"],
+                "payment_method": scenario["payment_method"],
+            },
+            "guardrail_result": None,
+        }
+    )
 
     # 2. CONTEXT_ENRICHED
     t1 = t0 + timedelta(seconds=2)
-    events.append({
-        "case_id": case_id,
-        "event_type": "CONTEXT_ENRICHED",
-        "actor": "system",
-        "decision": "CONTEXT_RETRIEVED",
-        "policy": None,
-        "action": "ENRICH",
-        "outcome": "SUCCESS",
-        "timestamp": t1,
-        "details": {
-            "order_id": scenario["order_id"],
-            "customer_id": scenario["customer_id"],
-            "error_code": scenario["failure_code"],
-            "error_description": scenario["failure_description"],
-        },
-        "guardrail_result": None,
-    })
+    events.append(
+        {
+            "case_id": case_id,
+            "event_type": "CONTEXT_ENRICHED",
+            "actor": "system",
+            "decision": "CONTEXT_RETRIEVED",
+            "policy": None,
+            "action": "ENRICH",
+            "outcome": "SUCCESS",
+            "timestamp": t1,
+            "details": {
+                "order_id": scenario["order_id"],
+                "customer_id": scenario["customer_id"],
+                "error_code": scenario["failure_code"],
+                "error_description": scenario["failure_description"],
+            },
+            "guardrail_result": None,
+        }
+    )
 
     # 3. FAILURE_CLASSIFIED
     t2 = t1 + timedelta(seconds=1)
-    events.append({
-        "case_id": case_id,
-        "event_type": "FAILURE_CLASSIFIED",
-        "actor": "system",
-        "decision": scenario["failure_category"],
-        "policy": None,
-        "action": "CLASSIFY",
-        "outcome": "SUCCESS",
-        "timestamp": t2,
-        "details": {
-            "category": scenario["failure_category"],
-            "classification_rule": f"RULE_{scenario['failure_category']}",
-        },
-        "guardrail_result": None,
-    })
+    events.append(
+        {
+            "case_id": case_id,
+            "event_type": "FAILURE_CLASSIFIED",
+            "actor": "system",
+            "decision": scenario["failure_category"],
+            "policy": None,
+            "action": "CLASSIFY",
+            "outcome": "SUCCESS",
+            "timestamp": t2,
+            "details": {
+                "category": scenario["failure_category"],
+                "classification_rule": f"RULE_{scenario['failure_category']}",
+            },
+            "guardrail_result": None,
+        }
+    )
 
     # 4. ELIGIBILITY_EVALUATED
     t3 = t2 + timedelta(seconds=1)
-    events.append({
-        "case_id": case_id,
-        "event_type": "ELIGIBILITY_EVALUATED",
-        "actor": "system",
-        "decision": scenario["eligibility_status"],
-        "policy": None,
-        "action": "CHECK_ELIGIBILITY",
-        "outcome": "SUCCESS" if scenario["eligibility_status"] == "ELIGIBLE" else "TERMINATED",
-        "timestamp": t3,
-        "details": {
-            "reason": scenario["eligibility_reason"],
-            "passed_rules": 8 if scenario["eligibility_status"] == "ELIGIBLE" else 4,
-        },
-        "guardrail_result": None,
-    })
+    events.append(
+        {
+            "case_id": case_id,
+            "event_type": "ELIGIBILITY_EVALUATED",
+            "actor": "system",
+            "decision": scenario["eligibility_status"],
+            "policy": None,
+            "action": "CHECK_ELIGIBILITY",
+            "outcome": "SUCCESS" if scenario["eligibility_status"] == "ELIGIBLE" else "TERMINATED",
+            "timestamp": t3,
+            "details": {
+                "reason": scenario["eligibility_reason"],
+                "passed_rules": 8 if scenario["eligibility_status"] == "ELIGIBLE" else 4,
+            },
+            "guardrail_result": None,
+        }
+    )
 
-    if scenario["eligibility_status"] == "INELIGIBLE" and state == CaseState.TERMINAL_NO_ACTION.value:
+    if (
+        scenario["eligibility_status"] == "INELIGIBLE"
+        and state == CaseState.TERMINAL_NO_ACTION.value
+    ):
         return events
 
     # 5. LLM_DECISION_PROPOSED
     if scenario["ai_policy"]:
         t4 = t3 + timedelta(seconds=2)
-        events.append({
-            "case_id": case_id,
-            "event_type": "LLM_DECISION_PROPOSED",
-            "actor": "ai_agent",
-            "decision": scenario["ai_policy"],
-            "policy": scenario["ai_policy"],
-            "action": "PROPOSE_ACTION",
-            "outcome": "PROPOSAL_GENERATED",
-            "timestamp": t4,
-            "details": {
-                "model": "gemini-3.5-flash-lite",
-                "confidence_score": 0.95,
-                "reasoning": scenario["ai_explanation"],
-            },
-            "guardrail_result": None,
-        })
+        events.append(
+            {
+                "case_id": case_id,
+                "event_type": "LLM_DECISION_PROPOSED",
+                "actor": "ai_agent",
+                "decision": scenario["ai_policy"],
+                "policy": scenario["ai_policy"],
+                "action": "PROPOSE_ACTION",
+                "outcome": "PROPOSAL_GENERATED",
+                "timestamp": t4,
+                "details": {
+                    "model": "gemini-3.5-flash-lite",
+                    "confidence_score": 0.95,
+                    "reasoning": scenario["ai_explanation"],
+                },
+                "guardrail_result": None,
+            }
+        )
 
     # 6. POLICY_GUARDRAIL_VALIDATED
     t5 = t3 + timedelta(seconds=3)
-    events.append({
-        "case_id": case_id,
-        "event_type": "POLICY_GUARDRAIL_VALIDATED",
-        "actor": "policy_engine",
-        "decision": scenario["guardrail_decision"],
-        "policy": val_policy,
-        "action": "AUTHORIZE",
-        "outcome": "SUCCESS" if scenario["guardrail_decision"] == "APPROVE" else "MODIFIED",
-        "timestamp": t5,
-        "details": {
-            "effective_policy": val_policy,
-            "reasons": scenario["guardrail_reasons"],
-        },
-        "guardrail_result": {
+    events.append(
+        {
+            "case_id": case_id,
+            "event_type": "POLICY_GUARDRAIL_VALIDATED",
+            "actor": "policy_engine",
             "decision": scenario["guardrail_decision"],
-            "passed": scenario["guardrail_decision"] == "APPROVE",
-            "reasons": scenario["guardrail_reasons"],
-        },
-    })
+            "policy": val_policy,
+            "action": "AUTHORIZE",
+            "outcome": "SUCCESS" if scenario["guardrail_decision"] == "APPROVE" else "MODIFIED",
+            "timestamp": t5,
+            "details": {
+                "effective_policy": val_policy,
+                "reasons": scenario["guardrail_reasons"],
+            },
+            "guardrail_result": {
+                "decision": scenario["guardrail_decision"],
+                "passed": scenario["guardrail_decision"] == "APPROVE",
+                "reasons": scenario["guardrail_reasons"],
+            },
+        }
+    )
 
     if state == CaseState.ESCALATED.value or val_policy == RecoveryPolicy.P_NO_ACTION.value:
         return events
@@ -618,22 +687,24 @@ def generate_case_audit_trail(scenario: dict[str, Any], created_at: datetime) ->
     # 7. RAZORPAY_PAYMENT_LINK_CREATED
     if scenario["payment_link_id"]:
         t6 = t5 + timedelta(seconds=2)
-        events.append({
-            "case_id": case_id,
-            "event_type": "RAZORPAY_PAYMENT_LINK_CREATED",
-            "actor": "razorpay_adapter",
-            "decision": "SUCCESS",
-            "policy": val_policy,
-            "action": "CREATE_LINK",
-            "outcome": "LINK_CREATED",
-            "timestamp": t6,
-            "details": {
-                "link_id": scenario["payment_link_id"],
-                "short_url": scenario["payment_link_short_url"],
-                "amount_paise": scenario["amount"],
-            },
-            "guardrail_result": None,
-        })
+        events.append(
+            {
+                "case_id": case_id,
+                "event_type": "RAZORPAY_PAYMENT_LINK_CREATED",
+                "actor": "razorpay_adapter",
+                "decision": "SUCCESS",
+                "policy": val_policy,
+                "action": "CREATE_LINK",
+                "outcome": "LINK_CREATED",
+                "timestamp": t6,
+                "details": {
+                    "link_id": scenario["payment_link_id"],
+                    "short_url": scenario["payment_link_short_url"],
+                    "amount_paise": scenario["amount"],
+                },
+                "guardrail_result": None,
+            }
+        )
 
     if state == CaseState.ACTION_EXECUTED.value:
         return events
@@ -641,41 +712,45 @@ def generate_case_audit_trail(scenario: dict[str, Any], created_at: datetime) ->
     # 8. PAYMENT_VERIFIED
     if scenario["paid_offset_minutes"] and scenario["recovered_payment_id"]:
         t7 = t0 + timedelta(minutes=scenario["paid_offset_minutes"])
-        events.append({
-            "case_id": case_id,
-            "event_type": "PAYMENT_VERIFIED",
-            "actor": "system",
-            "decision": "VERIFIED",
-            "policy": None,
-            "action": "VERIFY_CAPTURE",
-            "outcome": "CAPTURED",
-            "timestamp": t7,
-            "details": {
-                "recovered_payment_id": scenario["recovered_payment_id"],
-                "payment_link_id": scenario["payment_link_id"],
-                "status": "captured",
-            },
-            "guardrail_result": None,
-        })
+        events.append(
+            {
+                "case_id": case_id,
+                "event_type": "PAYMENT_VERIFIED",
+                "actor": "system",
+                "decision": "VERIFIED",
+                "policy": None,
+                "action": "VERIFY_CAPTURE",
+                "outcome": "CAPTURED",
+                "timestamp": t7,
+                "details": {
+                    "recovered_payment_id": scenario["recovered_payment_id"],
+                    "payment_link_id": scenario["payment_link_id"],
+                    "status": "captured",
+                },
+                "guardrail_result": None,
+            }
+        )
 
         # 9. RECOVERY_ATTRIBUTED
         t8 = t7 + timedelta(seconds=1)
-        events.append({
-            "case_id": case_id,
-            "event_type": "RECOVERY_ATTRIBUTED",
-            "actor": "system",
-            "decision": "ATTRIBUTED",
-            "policy": None,
-            "action": "ATTRIBUTE_REVENUE",
-            "outcome": "SUCCESS",
-            "timestamp": t8,
-            "details": {
-                "recovered_amount_paise": scenario["recovered_amount"],
-                "recovered_amount_inr": scenario["recovered_amount"] / 100.0,
+        events.append(
+            {
                 "case_id": case_id,
-            },
-            "guardrail_result": None,
-        })
+                "event_type": "RECOVERY_ATTRIBUTED",
+                "actor": "system",
+                "decision": "ATTRIBUTED",
+                "policy": None,
+                "action": "ATTRIBUTE_REVENUE",
+                "outcome": "SUCCESS",
+                "timestamp": t8,
+                "details": {
+                    "recovered_amount_paise": scenario["recovered_amount"],
+                    "recovered_amount_inr": scenario["recovered_amount"] / 100.0,
+                    "case_id": case_id,
+                },
+                "guardrail_result": None,
+            }
+        )
 
     return events
 

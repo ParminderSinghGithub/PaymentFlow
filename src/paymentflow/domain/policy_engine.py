@@ -209,9 +209,7 @@ class PolicyGuardrailEngine:
             # 6. One-Recovery-Link Limit Guardrail
             guardrails_checked.append("ONE_LINK_LIMIT")
             if has_existing_recovery_link:
-                logger.info(
-                    "Guardrail DOWNGRADE: Case already has recovery link. Downgrading."
-                )
+                logger.info("Guardrail DOWNGRADE: Case already has recovery link. Downgrading.")
                 return PolicyValidationResult(
                     decision=PolicyDecision.DOWNGRADE,
                     requested_policy=effective_requested_policy,

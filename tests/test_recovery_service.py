@@ -15,6 +15,7 @@ from paymentflow.services.recovery_service import RecoveryTriageService
 @pytest.fixture
 def mock_razorpay_client() -> httpx.AsyncClient:
     """Mock transport returning standard Razorpay responses."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
         if "/v1/payments/pay_mock_001" in path:
@@ -147,6 +148,7 @@ async def test_recovery_triage_service_high_value_escalation():
 @pytest.mark.asyncio
 async def test_recovery_triage_service_gateway_error_safe_terminal():
     """Verify gateway error fails safely and transitions to ERROR_TERMINAL."""
+
     def error_handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("Network unreachable")
 

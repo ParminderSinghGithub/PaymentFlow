@@ -221,11 +221,7 @@ async def test_unsupported_valid_event(client: AsyncClient, test_settings: Setti
     payload = {
         "event": "order.paid",
         "id": "evt_order_paid_001",
-        "payload": {
-            "order": {
-                "entity": {"id": "order_001", "amount": 10000, "status": "paid"}
-            }
-        },
+        "payload": {"order": {"entity": {"id": "order_001", "amount": 10000, "status": "paid"}}},
     }
     raw_body = json.dumps(payload).encode("utf-8")
     headers = make_signed_headers(raw_body, test_settings.razorpay_webhook_secret)

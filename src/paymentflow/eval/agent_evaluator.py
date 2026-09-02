@@ -29,9 +29,7 @@ from paymentflow.eval.simulator import CustomerResponseSimulator
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MOCK_AGENT_RESULTS_PATH = (
-    Path(__file__).parent / "data" / "mock_agent_results.json"
-)
+DEFAULT_MOCK_AGENT_RESULTS_PATH = Path(__file__).parent / "data" / "mock_agent_results.json"
 DEFAULT_AGENT_REPORT_PATH = (
     Path(__file__).resolve().parents[3] / "docs" / "MOCK_AGENT_EVALUATION_REPORT.md"
 )
@@ -381,9 +379,7 @@ class AgentEvaluator:
 
         # 6. Overall summary aggregate
         total_draws = total_cases * draws_per_case
-        overall_rec_rate = (
-            total_recovered_draws / total_draws if total_draws > 0 else 0.0
-        )
+        overall_rec_rate = total_recovered_draws / total_draws if total_draws > 0 else 0.0
         expected_recovered_revenue_paise = (
             total_recovered_draw_paise // draws_per_case if draws_per_case > 0 else 0
         )
@@ -488,18 +484,20 @@ class AgentEvaluator:
             diff_str = f"{diff:+d}" if diff != 0 else "0"
             lines.append(f"| `{p_key}` | {prop_n} | {auth_n} | {diff_str} |")
 
-        lines.extend([
-            "",
-            f"- **Total Guardrail Fallbacks / Downgrades**: {summary.fallback_count}",
-            f"- **Total Rejections**: {summary.validation_rejection_count}",
-            "",
-            "---",
-            "",
-            "## 3. Failure Category Breakdown",
-            "| Category | Cases | Proposed | Authorized | Opportunity (₹) | "
-            "Expected Recovered (₹) | Recovery Rate |",
-            "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
-        ])
+        lines.extend(
+            [
+                "",
+                f"- **Total Guardrail Fallbacks / Downgrades**: {summary.fallback_count}",
+                f"- **Total Rejections**: {summary.validation_rejection_count}",
+                "",
+                "---",
+                "",
+                "## 3. Failure Category Breakdown",
+                "| Category | Cases | Proposed | Authorized | Opportunity (₹) | "
+                "Expected Recovered (₹) | Recovery Rate |",
+                "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+            ]
+        )
 
         for cat_key in ["C1", "C2", "C3", "C4", "C5"]:
             cat_agg = summary.categories[cat_key]
@@ -517,19 +515,21 @@ class AgentEvaluator:
                 f"₹{c_opp:,.2f} | ₹{c_rec:,.2f} | {c_rate:.2f}% |"
             )
 
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## 4. Evaluation Methodology & Verification",
-            "- **Simulator**: `CustomerResponseSimulator` (L5A hardened with SHA-256)",
-            "- **CRN Alignment**: Uses identical `seed = draw_index` ($0 \\dots 49$) "
-            "per `case_id` to hold the stochastic customer response constant.",
-            "- **Guardrail Enforcement**: Agent proposals cannot bypass eligibility, "
-            "cooldowns, or high-value constraints.",
-            "- **Economic Integrity**: Failed recovery yields ₹0; successful recovery yields "
-            "exact case amount.",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## 4. Evaluation Methodology & Verification",
+                "- **Simulator**: `CustomerResponseSimulator` (L5A hardened with SHA-256)",
+                "- **CRN Alignment**: Uses identical `seed = draw_index` ($0 \\dots 49$) "
+                "per `case_id` to hold the stochastic customer response constant.",
+                "- **Guardrail Enforcement**: Agent proposals cannot bypass eligibility, "
+                "cooldowns, or high-value constraints.",
+                "- **Economic Integrity**: Failed recovery yields ₹0; successful recovery yields "
+                "exact case amount.",
+            ]
+        )
 
         with open(target_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")

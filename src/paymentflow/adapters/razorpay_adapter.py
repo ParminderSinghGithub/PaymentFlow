@@ -147,9 +147,7 @@ class RazorpayAdapter:
         if expire_by:
             payload["expire_by"] = expire_by
 
-        logger.info(
-            f"Creating Razorpay Payment Link: amount={amount}, reference_id={reference_id}"
-        )
+        logger.info(f"Creating Razorpay Payment Link: amount={amount}, reference_id={reference_id}")
         return await self._request("POST", "payment_links", json=payload)
 
     async def get_payment_link(self, payment_link_id: str) -> dict[str, Any]:
@@ -158,4 +156,3 @@ class RazorpayAdapter:
             raise ValueError("payment_link_id must not be empty.")
         logger.info(f"Fetching payment link details for: {payment_link_id}")
         return await self._request("GET", f"payment_links/{payment_link_id}")
-

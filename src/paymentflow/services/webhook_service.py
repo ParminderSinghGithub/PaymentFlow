@@ -139,9 +139,7 @@ class WebhookService:
                 )
 
         except IntegrityError as exc:
-            logger.warning(
-                f"Integrity conflict during webhook processing: {exc}. Rolling back."
-            )
+            logger.warning(f"Integrity conflict during webhook processing: {exc}. Rolling back.")
             await self.session.rollback()
             return WebhookProcessingResult(
                 status="ok",
@@ -193,9 +191,7 @@ class WebhookService:
         }
 
         # Check if recovery case for this payment ID already exists
-        query = select(RecoveryCaseModel).where(
-            RecoveryCaseModel.failed_payment_id == payment_id
-        )
+        query = select(RecoveryCaseModel).where(RecoveryCaseModel.failed_payment_id == payment_id)
         result = await self.session.execute(query)
         existing_case = result.scalar_one_or_none()
 
@@ -537,7 +533,7 @@ class WebhookService:
 
         logger.info(
             f"Recovery Attributed: Case '{case.case_id}' successfully recovered "
-            f"₹{verified_amount/100:.2f} via payment '{payment_id}'."
+            f"₹{verified_amount / 100:.2f} via payment '{payment_id}'."
         )
 
         return WebhookProcessingResult(
