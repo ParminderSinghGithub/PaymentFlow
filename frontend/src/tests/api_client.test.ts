@@ -244,6 +244,70 @@ describe('PaymentFlow Frontend API Client', () => {
     );
   });
 
+  it('verifyInteractivePayment handles unpaid payment link state', async () => {
+    const mockUnpaid = {
+      case_id: 'case_interactive_cs01',
+      verified: false,
+      state: 'ACTION_EXECUTED',
+      payment_link_id: 'plink_123',
+      payment_link_status: 'created',
+      message: 'Payment link is currently unpaid. Complete the payment in Razorpay checkout.',
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockUnpaid,
+    });
+
+    const result = await verifyInteractivePayment();
+    expect(result.verified).toBe(false);
+    expect(result.state).toBe('ACTION_EXECUTED');
+    expect(result.message).toContain('unpaid');
+  });
+
+  it('launchInteractiveScenario formats custom customer details correctly', async () => {
+    const mockLaunch = {
+      status: 'success',
+      case_id: 'case_interactive_cs01',
+      scenario_id: 'CS01',
+      state: 'ACTION_EXECUTED',
+      amount_paise: 250000,
+      amount_inr: 2500.0,
+      payment_link_id: 'plink_custom',
+      payment_link_url: 'https://rzp.io/rzp/custom',
+      audit_trail_count: 5,
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockLaunch,
+    });
+
+    const result = await launchInteractiveScenario({
+      scenario_id: 'CS01',
+      amount_paise: 250000,
+      customer_email: 'evaluator@razorpay.com',
+      customer_contact: '+919876543210',
+      reset_previous: true,
+    });
+
+    expect(result.status).toBe('success');
+    expect(result.payment_link_id).toBe('plink_custom');
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/cases/interactive/launch'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          scenario_id: 'CS01',
+          amount_paise: 250000,
+          customer_email: 'evaluator@razorpay.com',
+          customer_contact: '+919876543210',
+          reset_previous: true,
+        }),
+      })
+    );
+  });
+
   it('triggerCaseTriage sends POST request and receives triage outcome', async () => {
     const mockTriageResult = {
       success: true,
