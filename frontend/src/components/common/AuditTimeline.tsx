@@ -140,7 +140,7 @@ export const AuditTimeline: React.FC<AuditTimelineProps> = ({
                   <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${style.badge}`}>
                     {evt.actor}
                   </span>
-                  <span className="text-[12px] font-medium text-[#F0F2F5] truncate">
+                  <span className="text-[12px] font-medium text-[#F0F2F5] break-words">
                     {evt.event_type.replace(/_/g, ' ')}
                   </span>
                 </div>

@@ -13,6 +13,8 @@ import {
   FileCode2,
 } from 'lucide-react';
 import type { HealthResponse } from '../types';
+import { PageHeader } from '../components/common/PageHeader';
+import { ActionButton } from '../components/common/ActionButton';
 
 interface SystemPageProps {
   health: HealthResponse | null;
@@ -114,6 +116,23 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
 
   return (
     <div className="space-y-6 animate-fade-in max-w-5xl">
+      {/* ── Page Header ─────────────────────────────────────────────────── */}
+      <PageHeader
+        title="System Architecture & Trust Engine"
+        description="Inspect the zero-trust recovery architecture: strict AI advisory boundaries, 10 deterministic financial invariants, and standardized Model Context Protocol (MCP) contracts."
+        icon={Layers}
+        actions={
+          <ActionButton
+            label={loading ? 'Probing…' : 'Probe Backend'}
+            variant="secondary"
+            size="sm"
+            icon={RefreshCw}
+            loading={loading}
+            onClick={onRefresh}
+          />
+        }
+      />
+
       {/* ── Subnav Tabs ────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3 overflow-x-auto">
         {[

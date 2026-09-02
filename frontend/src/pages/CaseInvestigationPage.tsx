@@ -1,34 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Zap,
   RefreshCw,
-  CheckCircle2,
-  Circle,
   BrainCircuit,
   ShieldCheck,
   Copy,
   ExternalLink,
-  ChevronDown,
-  ChevronUp,
-  AlertTriangle,
-  Clock,
-  IndianRupee,
   Bot,
   Lock,
   ListChecks,
   GitMerge,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
-import type { CaseDetailResponse, CaseState, AuditEvent } from '../types';
+import type { CaseDetailResponse, CaseState } from '../types';
 import { StateBadge } from '../components/common/StateBadge';
 import { CategoryBadge } from '../components/common/CategoryBadge';
 import { PolicyBadge } from '../components/common/PolicyBadge';
-import { Skeleton } from '../components/common/Skeleton';
+import { MoneyValue } from '../components/common/MoneyValue';
+import { ActionButton } from '../components/common/ActionButton';
+import { PageHeader } from '../components/common/PageHeader';
+import { SectionHeader } from '../components/common/SectionHeader';
+import { ZoneCard } from '../components/common/ZoneCard';
+import { AuditTimeline } from '../components/common/AuditTimeline';
+import { DataRow } from '../components/common/DataRow';
 import { ErrorBanner } from '../components/common/ErrorBanner';
 import { EmptyState } from '../components/common/EmptyState';
 import { useToast } from '../components/common/Toast';
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface CaseInvestigationPageProps {
   caseId: string | null;
@@ -41,459 +40,7 @@ interface CaseInvestigationPageProps {
   onRefresh: () => void;
 }
 
-type Tab = 'story' | 'audit' | 'raw';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const formatInr = (amount: number) =>
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2,
-  }).format(amount);
-
-const formatTime = (ts: string | null | undefined) => {
-  if (!ts) return '—';
-  try {
-    return new Date(ts).toLocaleString('en-IN', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-    });
-  } catch {
-    return ts;
-  }
-};
-
-function copyText(text: string) {
-  navigator.clipboard.writeText(text).catch(() => {});
-}
-
-// ─── Pipeline Progress ─────────────────────────────────────────────────────
-
-interface PipelineStage {
-  num: string;
-  label: string;
-  zone: 'teal' | 'violet';
-  isDone: (c: CaseDetailResponse['case']) => boolean;
-}
-
-const PIPELINE_STAGES: PipelineStage[] = [
-  { num: '01', label: 'INGESTED',  zone: 'teal',   isDone: () => true },
-  { num: '02', label: 'CONTEXT',   zone: 'teal',   isDone: (c) => !!c.failure_category },
-  { num: '03', label: 'ELIGIBLE',  zone: 'teal',   isDone: (c) => !!c.eligibility_status },
-  { num: '04', label: 'AI TRIAGE', zone: 'violet', isDone: (c) => !!c.ai_policy_id },
-  { num: '05', label: 'GUARDRAIL', zone: 'teal',   isDone: (c) => !!c.validated_policy_id },
-  { num: '06', label: 'EXECUTED',  zone: 'teal',   isDone: (c) => !!c.payment_link_id },
-  { num: '07', label: 'VERIFIED',  zone: 'teal',   isDone: (c) => !!c.recovered_payment_id },
-  { num: '08', label: 'ATTRIBUTED',zone: 'teal',   isDone: (c) => c.state === 'RECOVERED' },
-];
-
-const PipelineProgress: React.FC<{ caseData: CaseDetailResponse['case'] }> = ({ caseData }) => (
-  <div className="flex items-center gap-0 overflow-x-auto">
-    {PIPELINE_STAGES.map((stage, idx) => {
-      const done = stage.isDone(caseData);
-      const isAiStage = stage.zone === 'violet';
-
-      return (
-        <React.Fragment key={stage.num}>
-          {/* Stage node */}
-          <div className="flex flex-col items-center gap-1 shrink-0">
-            <div
-              className={`
-                w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-mono font-bold border
-                transition-colors
-                ${done
-                  ? isAiStage
-                    ? 'bg-[rgba(124,58,237,0.20)] border-[rgba(124,58,237,0.50)] text-ai-text'
-                    : 'bg-[rgba(13,148,136,0.20)] border-[rgba(13,148,136,0.50)] text-guard-text'
-                  : 'bg-surface-raised border-white/[0.08] text-[#4B5563]'
-                }
-              `}
-            >
-              {done ? (
-                isAiStage ? <BrainCircuit className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />
-              ) : (
-                stage.num
-              )}
-            </div>
-            <span
-              className={`text-[9px] font-mono uppercase tracking-wider ${
-                done
-                  ? isAiStage ? 'text-ai-text' : 'text-guard-text'
-                  : 'text-[#4B5563]'
-              }`}
-            >
-              {stage.label}
-            </span>
-          </div>
-
-          {/* Connector between stages */}
-          {idx < PIPELINE_STAGES.length - 1 && (
-            <div
-              className={`h-px flex-1 min-w-[16px] mx-1 ${
-                // connector color: between 03→04 and 04→05 transitions
-                idx === 2 ? 'bg-gradient-to-r from-guard-base to-ai-base'
-                : idx === 3 ? 'bg-gradient-to-r from-ai-base to-guard-base'
-                : stage.zone === 'violet' ? 'bg-ai-base/40'
-                : done ? 'bg-guard-base/40' : 'bg-white/[0.06]'
-              }`}
-            />
-          )}
-        </React.Fragment>
-      );
-    })}
-  </div>
-);
-
-// ─── Story Stage Card ─────────────────────────────────────────────────────
-
-interface StoryStageConfig {
-  num: string;
-  title: string;
-  actor: string;
-  zone: 'teal' | 'violet' | 'neutral';
-  status: 'complete' | 'pending' | 'halted';
-  summary: string;
-  detail?: string | null;
-  evidence?: Record<string, unknown> | null | string;
-  contextData?: Record<string, unknown> | null;
-}
-
-const StoryStageCard: React.FC<{ stage: StoryStageConfig }> = ({ stage }) => {
-  const [expanded, setExpanded] = useState(false);
-
-  const accentClass =
-    stage.zone === 'violet' ? 'accent-ai' :
-    stage.zone === 'teal'   ? 'accent-guard' : 'accent-neutral';
-
-  const dotClass =
-    stage.status === 'complete'
-      ? stage.zone === 'violet' ? 'bg-ai-base' : 'bg-guard-base'
-      : stage.status === 'halted'
-      ? 'bg-halt-base'
-      : 'bg-[#4B5563]';
-
-  const hasExtra = stage.evidence || stage.contextData;
-
-  return (
-    <div className={`bg-surface-base border border-white/[0.06] rounded-lg overflow-hidden hover:border-white/[0.10] transition-colors ${accentClass}`}>
-      {/* Header row */}
-      <div className="flex items-start justify-between px-4 py-3 gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Status dot + number */}
-          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${dotClass}`}>
-            {stage.status === 'complete' ? (
-              stage.zone === 'violet'
-                ? <BrainCircuit className="w-3 h-3 text-[#1A1030]" />
-                : <CheckCircle2 className="w-3 h-3 text-[#071A14]" />
-            ) : (
-              <Circle className="w-3 h-3 text-[#F0F2F5]" />
-            )}
-          </div>
-
-          <div className="min-w-0">
-            {/* Zone label */}
-            <div className="flex items-center gap-2 mb-0.5">
-              <span
-                className={`text-[9px] font-mono uppercase tracking-widest font-semibold ${
-                  stage.zone === 'violet' ? 'text-ai-text' :
-                  stage.zone === 'teal' ? 'text-guard-text' : 'text-[#4B5563]'
-                }`}
-              >
-                {stage.zone === 'violet' ? '⬡ AI ADVISORY' :
-                 stage.zone === 'teal' ? '◆ DETERMINISTIC' : `STAGE ${stage.num}`}
-              </span>
-              <span className="text-[9px] font-mono text-[#4B5563]">·</span>
-              <span className="text-[10px] font-mono text-[#4B5563]">{stage.actor}</span>
-            </div>
-
-            {/* Stage title */}
-            <h4 className="text-[13px] font-semibold text-[#F0F2F5] leading-tight">
-              {stage.title}
-            </h4>
-          </div>
-        </div>
-
-        {/* Stage number badge */}
-        <span className="text-[10px] font-mono text-[#4B5563] shrink-0 mt-1">{stage.num}</span>
-      </div>
-
-      {/* Summary */}
-      <div className="px-4 pb-3">
-        <p className="text-[12px] text-[#9CA3AF] leading-relaxed">{stage.summary}</p>
-        {stage.detail && (
-          <p className="text-[11px] text-[#6B7280] mt-1 leading-relaxed">{stage.detail}</p>
-        )}
-      </div>
-
-      {/* Expandable extra data */}
-      {hasExtra && (
-        <>
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="w-full flex items-center gap-2 px-4 py-2 text-[10px] font-mono text-[#4B5563] hover:text-[#6B7280] hover:bg-white/[0.02] border-t border-white/[0.04] transition-colors"
-          >
-            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            {expanded ? 'Hide evidence' : 'View evidence'}
-          </button>
-          {expanded && (
-            <div className="px-4 pb-3">
-              <pre className="json-block text-[10px]">
-                {JSON.stringify(stage.evidence ?? stage.contextData, null, 2)}
-              </pre>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
-// ─── Audit Event ──────────────────────────────────────────────────────────
-
-const AuditEventRow: React.FC<{ event: AuditEvent }> = ({ event }) => {
-  const [showDetails, setShowDetails] = useState(false);
-
-  const eventZoneClass =
-    event.event_type?.startsWith('AI_') || event.event_type?.includes('LLM')
-      ? 'text-ai-text bg-[rgba(124,58,237,0.10)] border-[rgba(124,58,237,0.25)]'
-      : event.event_type?.startsWith('GUARDRAIL_') || event.event_type?.startsWith('POLICY_')
-      ? 'text-guard-text bg-[rgba(13,148,136,0.10)] border-[rgba(13,148,136,0.25)]'
-      : event.event_type?.startsWith('RECOVERY_') || event.actor === 'attribution'
-      ? 'text-recover-text bg-[rgba(5,150,105,0.10)] border-[rgba(5,150,105,0.25)]'
-      : event.event_type?.startsWith('ERROR')
-      ? 'text-halt-text bg-[rgba(225,29,72,0.08)] border-[rgba(225,29,72,0.25)]'
-      : 'text-[#9CA3AF] bg-[rgba(75,85,99,0.10)] border-[rgba(75,85,99,0.20)]';
-
-  const hasDetails =
-    event.details && Object.keys(event.details).length > 0;
-  const hasGuardrail =
-    event.guardrail_result && Object.keys(event.guardrail_result).length > 0;
-
-  return (
-    <div className="border border-white/[0.06] rounded-lg overflow-hidden bg-surface-base">
-      <div className="flex items-start justify-between gap-4 px-4 py-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-semibold border rounded ${eventZoneClass}`}>
-            {event.event_type}
-          </span>
-          {event.actor && (
-            <span className="text-[11px] text-[#4B5563] font-mono">
-              by {event.actor}
-            </span>
-          )}
-        </div>
-        <span className="text-[10px] font-mono text-[#4B5563] shrink-0 whitespace-nowrap">
-          {formatTime(event.timestamp)}
-        </span>
-      </div>
-
-      {/* Decision / Policy row */}
-      {(event.decision || event.policy || event.action || event.outcome) && (
-        <div className="flex items-center gap-4 px-4 pb-2.5 text-[11px] font-mono flex-wrap">
-          {event.decision && (
-            <span className="text-[#C4B5FD]">decision: <strong>{event.decision}</strong></span>
-          )}
-          {event.policy && (
-            <span className="text-[#5EEAD4]">policy: <strong>{event.policy}</strong></span>
-          )}
-          {event.outcome && (
-            <span className="text-[#6EE7B7]">outcome: <strong>{event.outcome}</strong></span>
-          )}
-        </div>
-      )}
-
-      {/* Toggle details */}
-      {(hasDetails || hasGuardrail) && (
-        <>
-          <button
-            onClick={() => setShowDetails((v) => !v)}
-            className="w-full flex items-center gap-2 px-4 py-2 text-[10px] font-mono text-[#4B5563] hover:text-[#6B7280] hover:bg-white/[0.02] border-t border-white/[0.04] transition-colors"
-          >
-            {showDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            {showDetails ? 'Hide details' : 'View details'}
-          </button>
-          {showDetails && (
-            <div className="px-4 pb-3 space-y-2">
-              {hasDetails && (
-                <pre className="json-block">{JSON.stringify(event.details, null, 2)}</pre>
-              )}
-              {hasGuardrail && (
-                <div>
-                  <div className="text-[9px] font-mono uppercase text-guard-text tracking-widest mb-1">
-                    Guardrail Result
-                  </div>
-                  <pre className="json-block">{JSON.stringify(event.guardrail_result, null, 2)}</pre>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
-// ─── AI vs Guardrail Panel ────────────────────────────────────────────────
-
-const AiGuardrailPanel: React.FC<{ c: CaseDetailResponse['case'] }> = ({ c }) => {
-  const aiProposed = c.ai_policy_id;
-  const guardrailAuthorized = c.validated_policy_id;
-  const wasOverridden = aiProposed && guardrailAuthorized && aiProposed !== guardrailAuthorized;
-  const wasAccepted = aiProposed && guardrailAuthorized && aiProposed === guardrailAuthorized;
-
-  return (
-    <div className="space-y-3">
-      {/* AI Proposal */}
-      <div className="bg-surface-base border border-[rgba(124,58,237,0.20)] rounded-lg overflow-hidden accent-ai">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(124,58,237,0.12)]">
-          <Bot className="w-4 h-4 text-ai-text" />
-          <span className="text-[11px] font-semibold text-ai-text uppercase tracking-wider font-mono">
-            AI Advisory
-          </span>
-          <span className="ml-auto text-[9px] font-mono text-[#7C3AED]/60 uppercase tracking-widest">
-            LLM · MCP
-          </span>
-        </div>
-        <div className="px-4 py-3 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-[#6B7280]">Proposed policy</span>
-            <PolicyBadge policy={c.ai_policy_id} context="ai" />
-          </div>
-          {c.failure_category && (
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-[#6B7280]">Classified as</span>
-              <CategoryBadge category={c.failure_category} />
-            </div>
-          )}
-          {c.ai_explanation && (
-            <div className="mt-2 p-3 rounded-md bg-[rgba(124,58,237,0.06)] border border-[rgba(124,58,237,0.15)]">
-              <p className="text-[11px] text-[#C4B5FD] italic leading-relaxed">
-                &ldquo;{c.ai_explanation}&rdquo;
-              </p>
-            </div>
-          )}
-          {!c.ai_policy_id && (
-            <p className="text-[11px] text-[#4B5563] italic">AI advisory pending — run triage to invoke</p>
-          )}
-        </div>
-      </div>
-
-      {/* Override indicator */}
-      {wasOverridden && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-[rgba(217,119,6,0.08)] border border-[rgba(217,119,6,0.25)] rounded-lg">
-          <AlertTriangle className="w-3.5 h-3.5 text-risk-text shrink-0" />
-          <span className="text-[11px] font-mono text-risk-text font-semibold uppercase tracking-wider">
-            Proposal overridden
-          </span>
-          <span className="text-[10px] text-[#6B7280] ml-auto font-mono">
-            {c.ai_policy_id} → {c.validated_policy_id}
-          </span>
-        </div>
-      )}
-
-      {wasAccepted && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-[rgba(13,148,136,0.08)] border border-[rgba(13,148,136,0.20)] rounded-lg">
-          <CheckCircle2 className="w-3.5 h-3.5 text-guard-text shrink-0" />
-          <span className="text-[11px] font-mono text-guard-text font-semibold uppercase tracking-wider">
-            Proposal accepted
-          </span>
-        </div>
-      )}
-
-      {/* Guardrail enforcement */}
-      <div className="bg-surface-base border border-[rgba(13,148,136,0.20)] rounded-lg overflow-hidden accent-guard">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[rgba(13,148,136,0.10)]">
-          <ShieldCheck className="w-4 h-4 text-guard-text" />
-          <span className="text-[11px] font-semibold text-guard-text uppercase tracking-wider font-mono">
-            Guardrail Enforcement
-          </span>
-          <span className="ml-auto px-1.5 py-0.5 text-[9px] font-mono text-guard-text bg-[rgba(13,148,136,0.12)] border border-[rgba(13,148,136,0.25)] rounded uppercase">
-            {c.validated_policy_id ? 'verified' : 'pending'}
-          </span>
-        </div>
-        <div className="px-4 py-3 space-y-2">
-          {[
-            { label: 'Amount', value: c.amount_inr > 0 ? `₹${c.amount_inr.toFixed(2)} immutable` : 'Pending', ok: c.amount_inr > 0 },
-            { label: 'Currency', value: `${c.currency || 'INR'} immutable`, ok: true },
-            { label: 'Cooldown', value: 'Satisfied', ok: !!c.validated_policy_id },
-            { label: 'Link limit', value: 'Max 1 per case', ok: true },
-          ].map((inv) => (
-            <div key={inv.label} className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${inv.ok ? 'text-guard-text' : 'text-[#4B5563]'}`} />
-                <span className="text-[11px] text-[#6B7280]">{inv.label}</span>
-              </div>
-              <span className="text-[11px] font-mono text-[#9CA3AF]">{inv.value}</span>
-            </div>
-          ))}
-
-          <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between">
-            <span className="text-[11px] text-[#6B7280]">Authorized policy</span>
-            <PolicyBadge policy={c.validated_policy_id} context="guard" />
-          </div>
-        </div>
-      </div>
-
-      {/* Payment link card */}
-      {c.payment_link_id && (
-        <div className="bg-surface-base border border-white/[0.08] rounded-lg overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06]">
-            <Lock className="w-3.5 h-3.5 text-recover-text" />
-            <span className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider font-mono">
-              Payment Link
-            </span>
-            {c.payment_link_status && (
-              <span className="ml-auto text-[9px] font-mono text-[#4B5563] uppercase">{c.payment_link_status}</span>
-            )}
-          </div>
-          <div className="px-4 py-3 space-y-2.5 font-mono text-[11px]">
-            <div>
-              <div className="text-[9px] text-[#4B5563] uppercase tracking-widest mb-1">Link ID</div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-recover-text truncate">{c.payment_link_id}</span>
-                <button
-                  onClick={() => copyText(c.payment_link_id!)}
-                  className="shrink-0 text-[#4B5563] hover:text-[#9CA3AF] transition-colors"
-                  aria-label="Copy payment link ID"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {c.payment_link_short_url && (
-              <div>
-                <div className="text-[9px] text-[#4B5563] uppercase tracking-widest mb-1">Short URL</div>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={c.payment_link_short_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-ai-text hover:underline truncate text-[11px]"
-                  >
-                    {c.payment_link_short_url}
-                  </a>
-                  <a
-                    href={c.payment_link_short_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 text-[#4B5563] hover:text-[#9CA3AF]"
-                    aria-label="Open payment link"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── Main Page ────────────────────────────────────────────────────────────
+type Tab = 'story' | 'audit' | 'telemetry';
 
 export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
   caseId,
@@ -509,445 +56,733 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
   const [activeTab, setActiveTab] = useState<Tab>('story');
 
   const handleCopy = (text: string, label: string) => {
-    copyText(text);
-    showToast('info', 'Copied', `${label}: ${text.slice(0, 40)}…`);
+    navigator.clipboard.writeText(text).catch(() => {});
+    showToast('info', 'Copied to Clipboard', `${label}: ${text.slice(0, 36)}…`);
   };
 
-  if (!caseId) {
-    return (
-      <EmptyState
-        icon={GitMerge}
-        title="No case selected"
-        description="Select a recovery case from the Cases explorer to view its full decision story and audit trail."
-        actionText="Go to Cases"
-        onAction={onBack}
-      />
+  const c = detail?.case;
+  const audits = detail?.audit_trail || [];
+
+  // Determine Guardrail vs AI Relationship
+  const guardrailAnalysis = useMemo(() => {
+    if (!c) return null;
+    const aiProposed = c.ai_policy_id;
+    const guardrailAuth = c.validated_policy_id;
+
+    const isOverridden = Boolean(aiProposed && guardrailAuth && aiProposed !== guardrailAuth);
+    const isApproved = Boolean(aiProposed && guardrailAuth && aiProposed === guardrailAuth);
+    const isEscalated = c.state === 'ESCALATED' || guardrailAuth === 'P_ESCALATE_ONLY';
+    const isHalted = c.state === 'TERMINAL_NO_ACTION' || guardrailAuth === 'P_NO_ACTION';
+
+    // Find guardrail validation audit event
+    const validationEvent = audits.find(
+      (a) => a.event_type === 'POLICY_GUARDRAIL_VALIDATED' || a.actor === 'policy_engine'
     );
-  }
+    const reasons = (validationEvent?.details?.reasons as string[]) || [];
 
-  if (error) {
-    return <ErrorBanner title={`Failed to load case ${caseId}`} message={error} onRetry={onRefresh} />;
-  }
+    return {
+      aiProposed,
+      guardrailAuth,
+      isOverridden,
+      isApproved,
+      isEscalated,
+      isHalted,
+      reasons,
+      decision: validationEvent?.decision || (isOverridden ? 'DOWNGRADE' : isApproved ? 'APPROVE' : 'EVALUATE'),
+    };
+  }, [c, audits]);
 
-  if (loading || !detail) {
+  // Dynamic "Why this happened" narrative derivation
+  const causalNarrative = useMemo(() => {
+    if (!c) return '';
+    const cat = c.failure_category || 'Unclassified';
+    const desc = c.failure_description || 'Payment failure detected at checkout.';
+
+    if (c.state === 'RECOVERED') {
+      return `Transaction failed due to ${cat} (${desc}). The AI advisory proposed immediate recovery via ${c.ai_policy_id}. Deterministic guardrails verified all 10 safety invariants (amount & currency lock, cooldown, single-link limit) and authorized link creation. The customer completed checkout, and Razorpay captured webhook verified authentic revenue of ₹${c.recovered_amount_inr.toLocaleString('en-IN')}.`;
+    }
+    if (c.state === 'ESCALATED') {
+      return `Transaction failed with code ${c.failure_code || 'RISK_CHECK_FAILED'} (${cat}: ${desc}). Although the AI proposed ${c.ai_policy_id || 'recovery'}, the deterministic policy engine enforced compliance invariants (${c.eligibility_reason || 'AML / Fraud Gate'}), downgraded the policy to P_ESCALATE_ONLY, and safely halted automated writes to protect merchant risk.`;
+    }
+    if (c.state === 'TERMINAL_NO_ACTION') {
+      return `Transaction failed with ${cat} (${desc}). The eligibility engine determined this case is non-recoverable (${c.eligibility_reason || 'Terminal defect'}). Guardrails enforced P_NO_ACTION, preventing wasteful customer messaging or duplicate payment links.`;
+    }
+    if (c.state === 'ACTION_EXECUTED') {
+      return `Transaction failed with ${cat} (${desc}). The AI proposed ${c.ai_policy_id}, which was verified and authorized by deterministic guardrails. A genuine Razorpay Hosted Payment Link was generated and dispatched. Currently in-flight awaiting customer checkout.`;
+    }
+    return `Transaction failed with ${cat} (${desc}). Ingested and awaiting automated or manual triage evaluation.`;
+  }, [c]);
+
+  // Loading State
+  if (loading) {
     return (
-      <div className="space-y-4 animate-fade-in">
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-9 w-24" />
-          <Skeleton className="h-5 w-64" />
+      <div className="space-y-6 animate-fade-in" aria-busy="true">
+        <div className="h-10 w-48 skeleton-shimmer rounded" />
+        <div className="h-28 w-full skeleton-shimmer rounded-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-20 skeleton-shimmer rounded-lg" />
+          ))}
         </div>
-        <div className="grid grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
-        </div>
-        <Skeleton className="h-16 rounded-lg" />
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2 space-y-3">
-            {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-lg" />)}
-          </div>
-          <div className="space-y-3">
-            <Skeleton className="h-48 rounded-lg" />
-            <Skeleton className="h-36 rounded-lg" />
-          </div>
-        </div>
+        <div className="h-72 w-full skeleton-shimmer rounded-lg" />
       </div>
     );
   }
 
-  const { case: c, audit_trail: audits } = detail;
-
-  // Build story stages
-  const storyStages: StoryStageConfig[] = [
-    {
-      num: '01',
-      title: 'Payment Failed',
-      actor: 'Razorpay Gateway',
-      zone: 'neutral',
-      status: 'complete',
-      summary: `${formatInr(c.amount_inr)} payment rejected by gateway`,
-      detail: c.failure_description || c.failure_code || 'Authorization rejected',
-      contextData: c.failure_context,
-    },
-    {
-      num: '02',
-      title: 'Context Retrieved',
-      actor: 'Context Service',
-      zone: 'neutral',
-      status: c.failure_category ? 'complete' : 'pending',
-      summary: `Payment and order context enriched from Razorpay API`,
-      detail: `Method: ${c.payment_method || 'unknown'} · Code: ${c.failure_code || '—'}`,
-    },
-    {
-      num: '03',
-      title: 'Failure Classified',
-      actor: 'Taxonomy Classifier',
-      zone: 'neutral',
-      status: c.failure_category ? 'complete' : 'pending',
-      summary: c.failure_category
-        ? `Classified as ${c.failure_category} — deterministic rule-based mapping`
-        : 'Classification pending',
-      detail: c.failure_description || 'Gateway error code mapped to C1–C5 taxonomy',
-      evidence: c.classification_evidence,
-    },
-    {
-      num: '04',
-      title: 'Eligibility Evaluated',
-      actor: 'Eligibility Engine',
-      zone: 'neutral',
-      status: c.eligibility_status === 'ELIGIBLE'
-        ? 'complete'
-        : c.eligibility_status
-        ? 'halted'
-        : 'pending',
-      summary: c.eligibility_status
-        ? `Status: ${c.eligibility_status} — ${c.eligibility_reason || ''}`
-        : 'Eligibility check pending',
-      detail: 'Checked: amount threshold, currency, customer cooldown, prior links, state validity',
-    },
-    {
-      num: '05',
-      title: 'AI Advisory Proposal',
-      actor: 'LLM Provider (Gemini)',
-      zone: 'violet',   // ← THE KEY VISUAL MOMENT
-      status: c.ai_policy_id ? 'complete' : 'pending',
-      summary: c.ai_policy_id
-        ? `Proposed: ${c.ai_policy_id} based on failure analysis`
-        : 'AI advisory pending — execute triage to invoke',
-      detail: c.ai_explanation || undefined,
-    },
-    {
-      num: '06',
-      title: 'Guardrail Authorization',
-      actor: 'PolicyGuardrailEngine',
-      zone: 'teal',     // ← BACK TO DETERMINISTIC
-      status: c.validated_policy_id ? 'complete' : 'pending',
-      summary: c.validated_policy_id
-        ? `Authorized: ${c.validated_policy_id} — all invariants satisfied`
-        : 'Guardrail gate pending',
-      detail: 'Enforced: amount immutability, currency lock, customer cooldown, single-link limit, state validity',
-    },
-    {
-      num: '07',
-      title: 'Recovery Action',
-      actor: 'RecoveryExecutor',
-      zone: 'neutral',
-      status: c.payment_link_id ? 'complete' : c.state === 'TERMINAL_NO_ACTION' || c.state === 'ESCALATED' ? 'halted' : 'pending',
-      summary: c.payment_link_id
-        ? `Payment Link created: ${c.payment_link_id}`
-        : c.state === 'ESCALATED'
-        ? 'Escalated to manual review — no automated link created'
-        : c.state === 'TERMINAL_NO_ACTION'
-        ? 'No action taken — guardrail determined recovery unsafe'
-        : 'Awaiting authorization',
-      detail: c.payment_link_short_url ? `URL: ${c.payment_link_short_url}` : undefined,
-    },
-    {
-      num: '08',
-      title: 'Revenue Attributed',
-      actor: 'Attribution Service',
-      zone: 'neutral',
-      status: c.state === 'RECOVERED' ? 'complete' : 'pending',
-      summary: c.state === 'RECOVERED'
-        ? `Recovered: ${formatInr(c.recovered_amount_inr)} — captured & verified`
-        : 'Attribution pending customer payment',
-      detail: c.recovered_payment_id
-        ? `Verified payment ID: ${c.recovered_payment_id} — captured-only attribution`
-        : 'Revenue attributed only on confirmed Razorpay capture event',
-    },
-  ];
-
-  const tabs: { id: Tab; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { id: 'story',  label: 'Decision Story', icon: BrainCircuit },
-    { id: 'audit',  label: `Audit Trail (${audits.length})`, icon: ListChecks },
-    { id: 'raw',    label: 'Raw Data',        icon: Lock },
-  ];
+  // Error State
+  if (error || !c) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Case Investigation"
+          description="Trace the recovery decision from failure to verified outcome."
+          actions={
+            <ActionButton
+              label="Back to Cases"
+              variant="secondary"
+              icon={ArrowLeft}
+              onClick={onBack}
+            />
+          }
+        />
+        <ErrorBanner
+          title={error ? `Failed to load case ${caseId}` : 'Case Not Found'}
+          message={error || `Case ID "${caseId}" was not found in the recovery pipeline.`}
+          onRetry={onRefresh}
+        />
+        <EmptyState
+          icon={GitMerge}
+          title="No case details available"
+          description="Return to the Cases Explorer to choose an active recovery case."
+          actionText="Return to Cases"
+          onAction={onBack}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      {/* ── Case Header ──────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 p-4 bg-surface-base border border-white/[0.06] rounded-lg">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
+    <div className="space-y-6 animate-fade-in">
+      {/* ── A. Page Header ─────────────────────────────────────────────────── */}
+      <PageHeader
+        title={`Case Investigation · ${c.case_id}`}
+        description="Trace the complete decision story: failure detection, AI proposal, guardrail authorization, and verified gateway cash."
+        breadcrumbs={[
+          { label: 'Cases', onClick: onBack },
+          { label: c.case_id },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <ActionButton
+              label="Back to Cases"
+              variant="secondary"
+              size="sm"
+              icon={ArrowLeft}
               onClick={onBack}
-              className="p-2 rounded-md bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] text-[#6B7280] hover:text-[#9CA3AF] transition-colors shrink-0"
-              aria-label="Back to cases"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-[14px] font-bold font-mono text-[#F0F2F5] truncate">
-                  {c.case_id}
-                </h2>
-                <StateBadge state={c.state as CaseState} />
-                {c.failure_category && <CategoryBadge category={c.failure_category} />}
-                <button
-                  onClick={() => handleCopy(c.case_id, 'Case ID')}
-                  className="text-[#4B5563] hover:text-[#6B7280] transition-colors"
-                  aria-label="Copy case ID"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="flex items-center gap-3 mt-1 flex-wrap">
-                <span className="text-[10px] font-mono text-[#4B5563]">
-                  Payment: <span className="text-[#6B7280]">{c.failed_payment_id}</span>
-                </span>
-                {c.customer_id && (
-                  <span className="text-[10px] font-mono text-[#4B5563]">
-                    Customer: <span className="text-[#6B7280]">{c.customer_id}</span>
-                  </span>
-                )}
-                {c.order_id && (
-                  <span className="text-[10px] font-mono text-[#4B5563]">
-                    Order: <span className="text-[#6B7280]">{c.order_id}</span>
-                  </span>
-                )}
-                <span className="text-[10px] font-mono text-[#4B5563]">
-                  <Clock className="w-3 h-3 inline mr-1" />
-                  {formatTime(c.created_at)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 shrink-0">
-            {c.state === 'FAILED_INGESTED' && (
-              <button
-                onClick={() => onTriggerTriage(c.case_id)}
-                disabled={triageLoading}
-                className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold text-ai-text bg-[rgba(124,58,237,0.12)] hover:bg-[rgba(124,58,237,0.20)] border border-[rgba(124,58,237,0.35)] hover:border-[rgba(124,58,237,0.55)] rounded-md transition-colors disabled:opacity-50"
-              >
-                <Zap className={`w-3.5 h-3.5 ${triageLoading ? 'animate-spin-slow' : ''}`} />
-                {triageLoading ? 'Executing…' : 'Execute Triage'}
-              </button>
-            )}
-            <button
-              onClick={onRefresh}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-[#6B7280] hover:text-[#9CA3AF] bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.08] rounded-md transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* ── 4 Metric Strip ─────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {/* Transaction amount */}
-          <div className="p-3 bg-surface-raised border border-white/[0.06] rounded-lg">
-            <div className="text-[9px] font-mono text-[#4B5563] uppercase tracking-widest mb-1">Transaction</div>
-            <div className="flex items-center gap-1.5">
-              <IndianRupee className="w-3.5 h-3.5 text-[#6B7280]" />
-              <span className="font-mono font-semibold text-[15px] text-[#F0F2F5]">
-                {c.amount_inr.toFixed(2)}
-              </span>
-            </div>
-            <div className="text-[9px] font-mono text-[#4B5563] mt-0.5">{c.currency} · {c.amount_paise}p</div>
-          </div>
-
-          {/* AI proposed */}
-          <div className="p-3 bg-[rgba(124,58,237,0.06)] border border-[rgba(124,58,237,0.18)] rounded-lg">
-            <div className="text-[9px] font-mono text-ai-text/70 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-              <Bot className="w-2.5 h-2.5" /> AI Proposed
-            </div>
-            <PolicyBadge policy={c.ai_policy_id} context="ai" showIcon={false} />
-          </div>
-
-          {/* Guardrail authorized */}
-          <div className="p-3 bg-[rgba(13,148,136,0.06)] border border-[rgba(13,148,136,0.18)] rounded-lg">
-            <div className="text-[9px] font-mono text-guard-text/70 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-              <ShieldCheck className="w-2.5 h-2.5" /> Authorized
-            </div>
-            <PolicyBadge policy={c.validated_policy_id} context="guard" showIcon={false} />
-          </div>
-
-          {/* Recovered */}
-          <div className={`p-3 border rounded-lg ${
-            c.state === 'RECOVERED'
-              ? 'bg-[rgba(5,150,105,0.08)] border-[rgba(5,150,105,0.25)]'
-              : 'bg-surface-raised border-white/[0.06]'
-          }`}>
-            <div className="text-[9px] font-mono text-[#4B5563] uppercase tracking-widest mb-1">Recovered</div>
-            <div className={`font-mono font-semibold text-[15px] ${
-              c.state === 'RECOVERED' ? 'text-recover-text' : 'text-[#4B5563]'
-            }`}>
-              {c.state === 'RECOVERED' ? `₹${c.recovered_amount_inr.toFixed(2)}` : '₹0.00'}
-            </div>
-            <div className="text-[9px] font-mono text-[#4B5563] mt-0.5">
-              {c.state === 'RECOVERED' ? 'Captured · Attributed' : 'Pending'}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Pipeline Progress ───────────────────────────────────────── */}
-        <div className="p-3 bg-surface-raised border border-white/[0.05] rounded-lg">
-          <PipelineProgress caseData={c} />
-        </div>
-      </div>
-
-      {/* ── Tab Bar ──────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-0 border-b border-white/[0.06]">
-        {tabs.map((tab) => {
-          const { icon: Icon } = tab;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all ${
-                activeTab === tab.id
-                  ? 'border-b-ai-base text-[#F0F2F5]'
-                  : 'border-b-transparent text-[#6B7280] hover:text-[#9CA3AF]'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Tab: Decision Story ───────────────────────────────────────── */}
-      {activeTab === 'story' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-fade-in">
-          {/* Left: Timeline */}
-          <div className="lg:col-span-2 space-y-0">
-            {/* Zone legend */}
-            <div className="flex items-center gap-4 mb-4 px-1">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-guard-base" />
-                <span className="text-[10px] text-[#4B5563] font-mono">Deterministic</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-ai-base" />
-                <span className="text-[10px] text-ai-text font-mono">AI Advisory</span>
-              </div>
-              <span className="text-[9px] text-[#4B5563] font-mono ml-auto">8 pipeline stages</span>
-            </div>
-
-            {/* Stages with connectors */}
-            <div className="relative">
-              {storyStages.map((stage, idx) => {
-                const isAiStage = stage.zone === 'violet';
-                const nextStage = storyStages[idx + 1];
-                const isBeforeAi = nextStage?.zone === 'violet';
-                const isAiStageNow = isAiStage;
-                const isAfterAi = !isAiStage && idx > 4;
-
-                return (
-                  <React.Fragment key={stage.num}>
-                    {/* Zone transition divider: before AI (03→04) */}
-                    {isBeforeAi && (
-                      <div className="flex items-center gap-3 my-2 px-1">
-                        <div className="flex-1 h-px bg-gradient-to-r from-guard-base/40 to-ai-base/40" />
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-[rgba(124,58,237,0.08)] border border-[rgba(124,58,237,0.20)] rounded-full">
-                          <BrainCircuit className="w-3 h-3 text-ai-text" />
-                          <span className="text-[9px] font-mono text-ai-text uppercase tracking-widest">
-                            AI advisory boundary
-                          </span>
-                        </div>
-                        <div className="flex-1 h-px bg-gradient-to-r from-ai-base/40 to-ai-base/20" />
-                      </div>
-                    )}
-
-                    {/* Zone transition divider: after AI (04→05) */}
-                    {isAiStageNow && (
-                      <>
-                        <StoryStageCard stage={stage} />
-                        <div className="flex items-center gap-3 my-2 px-1">
-                          <div className="flex-1 h-px bg-gradient-to-r from-ai-base/40 to-guard-base/40" />
-                          <div className="flex items-center gap-1.5 px-3 py-1 bg-[rgba(13,148,136,0.08)] border border-[rgba(13,148,136,0.20)] rounded-full">
-                            <ShieldCheck className="w-3 h-3 text-guard-text" />
-                            <span className="text-[9px] font-mono text-guard-text uppercase tracking-widest">
-                              Guardrail boundary
-                            </span>
-                          </div>
-                          <div className="flex-1 h-px bg-gradient-to-r from-guard-base/40 to-guard-base/20" />
-                        </div>
-                      </>
-                    )}
-
-                    {!isAiStageNow && (
-                      <>
-                        <StoryStageCard stage={stage} />
-                        {/* Connector line between cards */}
-                        {idx < storyStages.length - 1 && !isBeforeAi && (
-                          <div className="flex justify-center">
-                            <div
-                              className={`w-px h-3 ${
-                                isAfterAi || idx >= 5
-                                  ? 'bg-guard-base/30'
-                                  : idx < 3
-                                  ? 'bg-guard-base/20'
-                                  : 'bg-white/[0.06]'
-                              }`}
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Right: AI vs Guardrail Panel */}
-          <div className="space-y-0">
-            <AiGuardrailPanel c={c} />
-          </div>
-        </div>
-      )}
-
-      {/* ── Tab: Audit Trail ─────────────────────────────────────────── */}
-      {activeTab === 'audit' && (
-        <div className="space-y-2 animate-fade-in">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-[13px] font-semibold text-[#F0F2F5]">Immutable Audit Trail</h3>
-              <p className="text-[11px] text-[#4B5563] mt-0.5">
-                Complete chronological event log — written during each pipeline stage
-              </p>
-            </div>
-            <span className="text-[10px] font-mono px-2 py-1 bg-surface-raised border border-white/[0.06] rounded text-[#6B7280]">
-              {audits.length} events
-            </span>
-          </div>
-
-          {audits.length === 0 ? (
-            <EmptyState
-              title="No audit events"
-              description="Audit events will appear here after the recovery pipeline runs."
             />
-          ) : (
-            <div className="space-y-2">
-              {audits.map((event) => (
-                <AuditEventRow key={event.id} event={event} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+            {c.state === 'FAILED_INGESTED' && (
+              <ActionButton
+                label={triageLoading ? 'Triaging…' : 'Execute Triage'}
+                variant="primary"
+                size="sm"
+                icon={Zap}
+                loading={triageLoading}
+                onClick={() => onTriggerTriage(c.case_id)}
+              />
+            )}
+            <ActionButton
+              label="Refresh"
+              variant="secondary"
+              size="sm"
+              icon={RefreshCw}
+              onClick={onRefresh}
+            />
+          </div>
+        }
+      />
 
-      {/* ── Tab: Raw Data ─────────────────────────────────────────────── */}
-      {activeTab === 'raw' && (
-        <div className="space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-[13px] font-semibold text-[#F0F2F5]">Full Case Record</h3>
-              <p className="text-[11px] text-[#4B5563] mt-0.5 font-mono">
-                GET /cases/{c.case_id}
-              </p>
-            </div>
+      {/* ── B. Case Identity & Outcome Strip ───────────────────────────────── */}
+      <div className="bg-surface-base border border-white/[0.06] rounded-lg p-5 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="font-mono text-[14px] font-bold text-[#F0F2F5]">
+              {c.case_id}
+            </span>
             <button
-              onClick={() => handleCopy(JSON.stringify(c, null, 2), 'Case JSON')}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-[#6B7280] hover:text-[#9CA3AF] bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.08] rounded-md transition-colors"
+              onClick={() => handleCopy(c.case_id, 'Case ID')}
+              className="text-[#4B5563] hover:text-[#9CA3AF] transition-colors p-0.5"
+              aria-label="Copy case ID"
             >
               <Copy className="w-3.5 h-3.5" />
-              Copy JSON
             </button>
+            <StateBadge state={c.state as CaseState} />
+            <CategoryBadge category={c.failure_category} />
+            {c.customer_id && (
+              <span className="text-[11px] font-mono text-[#6B7280]">
+                Customer: <strong className="text-[#9CA3AF]">{c.customer_id}</strong>
+              </span>
+            )}
           </div>
-          <pre className="json-block" style={{ maxHeight: '480px' }}>
+
+          <div className="flex items-center gap-2 font-mono text-[11px] text-[#4B5563]">
+            <Clock className="w-3.5 h-3.5" />
+            <span>Ingested: {new Date(c.created_at || Date.now()).toUTCString()}</span>
+          </div>
+        </div>
+
+        {/* 4 Core Financial & Decision Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Metric 1: Revenue at Risk */}
+          <div className="bg-surface-raised border border-white/[0.06] rounded-md p-3.5 flex flex-col justify-between">
+            <span className="text-[10px] font-mono text-[#6B7280] uppercase tracking-wider">
+              Revenue at Risk
+            </span>
+            <div className="mt-1">
+              <MoneyValue
+                amountInr={c.amount_inr}
+                variant={c.state === 'RECOVERED' ? 'neutral' : 'at-risk'}
+                size="lg"
+              />
+              <div className="text-[10px] font-mono text-[#4B5563] mt-0.5">
+                {c.currency} · {c.amount_paise} paise
+              </div>
+            </div>
+          </div>
+
+          {/* Metric 2: AI Proposal */}
+          <div className="bg-[rgba(124,58,237,0.06)] border border-[rgba(124,58,237,0.20)] rounded-md p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-ai-text uppercase tracking-wider flex items-center gap-1">
+                <Bot className="w-3 h-3" /> AI Advisory
+              </span>
+              <span className="text-[9px] font-mono text-ai-text/60">MCP Read-Only</span>
+            </div>
+            <div className="mt-1">
+              <PolicyBadge policy={c.ai_policy_id} context="ai" />
+              <div className="text-[10px] font-mono text-[#6B7280] mt-1">
+                {c.ai_explanation ? 'Rationale logged' : 'Pending triage'}
+              </div>
+            </div>
+          </div>
+
+          {/* Metric 3: Guardrail Authorized */}
+          <div className="bg-[rgba(13,148,136,0.06)] border border-[rgba(13,148,136,0.20)] rounded-md p-3.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-guard-text uppercase tracking-wider flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" /> Guardrail Gate
+              </span>
+              <span className="text-[9px] font-mono text-guard-text/60">
+                {guardrailAnalysis?.decision || 'DETERMINISTIC'}
+              </span>
+            </div>
+            <div className="mt-1">
+              <PolicyBadge policy={c.validated_policy_id} context="guard" />
+              <div className="text-[10px] font-mono text-[#6B7280] mt-1">
+                {guardrailAnalysis?.isOverridden ? 'Proposal Downgraded' : 'Safety Verified'}
+              </div>
+            </div>
+          </div>
+
+          {/* Metric 4: Verified Recovery Outcome */}
+          <div
+            className={`rounded-md p-3.5 flex flex-col justify-between border ${
+              c.state === 'RECOVERED'
+                ? 'bg-[rgba(5,150,105,0.08)] border-[rgba(5,150,105,0.25)]'
+                : c.state === 'ESCALATED'
+                ? 'bg-[rgba(217,119,6,0.08)] border-[rgba(217,119,6,0.25)]'
+                : 'bg-surface-raised border-white/[0.06]'
+            }`}
+          >
+            <span className="text-[10px] font-mono text-[#6B7280] uppercase tracking-wider">
+              {c.state === 'RECOVERED' ? 'Verified Cash Won' : 'Recovery Outcome'}
+            </span>
+            <div className="mt-1">
+              {c.state === 'RECOVERED' ? (
+                <>
+                  <MoneyValue
+                    amountInr={c.recovered_amount_inr}
+                    variant="recovered"
+                    size="lg"
+                  />
+                  <div className="text-[10px] font-mono text-recover-text mt-0.5 font-medium">
+                    100% Captured & Attributed
+                  </div>
+                </>
+              ) : c.state === 'ESCALATED' ? (
+                <>
+                  <span className="text-[15px] font-mono font-bold text-risk-text">
+                    ESCALATED
+                  </span>
+                  <div className="text-[10px] font-mono text-risk-text mt-0.5">
+                    Gated: Manual Review
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="text-[15px] font-mono font-bold text-[#9CA3AF]">
+                    {c.state.replace(/_/g, ' ')}
+                  </span>
+                  <div className="text-[10px] font-mono text-[#4B5563] mt-0.5">
+                    {c.payment_link_id ? 'In-Flight' : 'No Financial Credit'}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── C. Decision Pipeline (Centerpiece 7-Stage Workflow) ─────────────── */}
+      <section className="bg-surface-base border border-white/[0.06] rounded-lg p-5">
+        <SectionHeader
+          title="End-to-End Decision Pipeline"
+          subtitle="Chronological progression through the bounded recovery workflow"
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2 mt-4">
+          {/* Stage 1: Detect */}
+          <div className="bg-surface-raised border border-white/[0.06] rounded-md p-3 flex flex-col justify-between">
+            <div>
+              <div className="text-[9px] font-mono text-[#6B7280] uppercase">01 DETECTED</div>
+              <div className="text-[12px] font-semibold text-[#F0F2F5] mt-0.5">Failure Ingest</div>
+              <p className="text-[10px] text-[#6B7280] mt-1 leading-snug">
+                {c.failed_payment_id}
+              </p>
+            </div>
+            <div className="mt-2 pt-2 border-t border-white/[0.04] text-[10px] font-mono text-[#4B5563]">
+              {c.payment_method?.toUpperCase() || 'PAYMENT'}
+            </div>
+          </div>
+
+          {/* Stage 2: Diagnose */}
+          <div className="bg-surface-raised border border-white/[0.06] rounded-md p-3 flex flex-col justify-between">
+            <div>
+              <div className="text-[9px] font-mono text-[#6B7280] uppercase">02 DIAGNOSED</div>
+              <div className="text-[12px] font-semibold text-[#F0F2F5] mt-0.5">Taxonomy C1–C5</div>
+              <div className="mt-1">
+                <CategoryBadge category={c.failure_category} />
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-white/[0.04] text-[10px] font-mono text-[#4B5563]">
+              {c.failure_code ? c.failure_code.replace(/_/g, ' ') : 'Taxonomy Mapped'}
+            </div>
+          </div>
+
+          {/* Stage 3: AI Recommendation (Violet Zone) */}
+          <div className="bg-[rgba(124,58,237,0.06)] border border-[rgba(124,58,237,0.25)] rounded-md p-3 flex flex-col justify-between">
+            <div>
+              <div className="text-[9px] font-mono text-ai-text uppercase flex items-center gap-1 font-semibold">
+                <Bot className="w-2.5 h-2.5" /> 03 AI ADVISORY
+              </div>
+              <div className="text-[12px] font-semibold text-ai-text mt-0.5">Policy Proposal</div>
+              <div className="mt-1">
+                <PolicyBadge policy={c.ai_policy_id} context="ai" showIcon={false} />
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-[rgba(124,58,237,0.12)] text-[10px] font-mono text-ai-text/70">
+              Read-Only Proposal
+            </div>
+          </div>
+
+          {/* Stage 4: Guardrail Authorization (Teal Zone) */}
+          <div className="bg-[rgba(13,148,136,0.06)] border border-[rgba(13,148,136,0.25)] rounded-md p-3 flex flex-col justify-between">
+            <div>
+              <div className="text-[9px] font-mono text-guard-text uppercase flex items-center gap-1 font-semibold">
+                <ShieldCheck className="w-2.5 h-2.5" /> 04 GUARDRAIL
+              </div>
+              <div className="text-[12px] font-semibold text-guard-text mt-0.5">Deterministic Gate</div>
+              <div className="mt-1">
+                <PolicyBadge policy={c.validated_policy_id} context="guard" showIcon={false} />
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-[rgba(13,148,136,0.12)] text-[10px] font-mono text-guard-text/70">
+              {guardrailAnalysis?.decision}
+            </div>
+          </div>
+
+          {/* Stage 5: Action */}
+          <div className="bg-surface-raised border border-white/[0.06] rounded-md p-3 flex flex-col justify-between">
+            <div>
+              <div className="text-[9px] font-mono text-[#6B7280] uppercase">05 ACTION</div>
+              <div className="text-[12px] font-semibold text-[#F0F2F5] mt-0.5">Execution</div>
+              <p className="text-[10px] text-[#6B7280] mt-1 leading-snug">
+                {c.payment_link_id ? 'Link Dispatched' : c.state === 'ESCALATED' ? 'Escalated' : 'No Action'}
+              </p>
+            </div>
+            <div className="mt-2 pt-2 border-t border-white/[0.04] text-[10px] font-mono text-[#4B5563]">
+              {c.payment_link_id ? 'Link Active' : c.state === 'ESCALATED' ? 'Safeguarded' : 'No Action'}
+            </div>
+          </div>
+
+          {/* Stage 6: Verification */}
+          <div className="bg-surface-raised border border-white/[0.06] rounded-md p-3 flex flex-col justify-between">
+            <div>
+              <div className="text-[9px] font-mono text-[#6B7280] uppercase">06 VERIFY</div>
+              <div className="text-[12px] font-semibold text-[#F0F2F5] mt-0.5">Gateway Capture</div>
+              <p className="text-[10px] text-[#6B7280] mt-1 leading-snug">
+                {c.recovered_payment_id ? 'Captured Webhook' : 'Unverified'}
+              </p>
+            </div>
+            <div className="mt-2 pt-2 border-t border-white/[0.04] text-[10px] font-mono text-[#4B5563]">
+              {c.recovered_payment_id ? 'Capture Confirmed' : c.state === 'ESCALATED' ? 'Zero Attribution' : 'Awaiting Payment'}
+            </div>
+          </div>
+
+          {/* Stage 7: Outcome */}
+          <div
+            className={`rounded-md p-3 flex flex-col justify-between border ${
+              c.state === 'RECOVERED'
+                ? 'bg-[rgba(5,150,105,0.06)] border-[rgba(5,150,105,0.25)]'
+                : 'bg-surface-raised border-white/[0.06]'
+            }`}
+          >
+            <div>
+              <div className="text-[9px] font-mono text-[#6B7280] uppercase">07 OUTCOME</div>
+              <div className="text-[12px] font-semibold text-[#F0F2F5] mt-0.5">Persisted State</div>
+              <div className="mt-1">
+                <StateBadge state={c.state as CaseState} size="sm" />
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-white/[0.04] text-[10px] font-mono font-semibold">
+              {c.state === 'RECOVERED' ? (
+                <span className="text-recover-text">Attributed</span>
+              ) : (
+                <span className="text-[#6B7280]">Closed</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Sub-navigation Tab Bar ────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 border-b border-white/[0.06]">
+        <button
+          onClick={() => setActiveTab('story')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all ${
+            activeTab === 'story'
+              ? 'border-b-ai-base text-[#F0F2F5]'
+              : 'border-b-transparent text-[#6B7280] hover:text-[#9CA3AF]'
+          }`}
+        >
+          <BrainCircuit className="w-3.5 h-3.5" />
+          Decision Story & Rationale
+        </button>
+
+        <button
+          onClick={() => setActiveTab('audit')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all ${
+            activeTab === 'audit'
+              ? 'border-b-ai-base text-[#F0F2F5]'
+              : 'border-b-transparent text-[#6B7280] hover:text-[#9CA3AF]'
+          }`}
+        >
+          <ListChecks className="w-3.5 h-3.5" />
+          Immutable Audit Stream ({audits.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('telemetry')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all ${
+            activeTab === 'telemetry'
+              ? 'border-b-ai-base text-[#F0F2F5]'
+              : 'border-b-transparent text-[#6B7280] hover:text-[#9CA3AF]'
+          }`}
+        >
+          <Lock className="w-3.5 h-3.5" />
+          Raw JSON Telemetry
+        </button>
+      </div>
+
+      {/* ── Tab Content: Decision Story ───────────────────────────────────── */}
+      {activeTab === 'story' && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Causal Narrative Box ("Why This Happened") */}
+          <div className="bg-surface-base border border-white/[0.06] rounded-lg p-5">
+            <div className="flex items-center gap-2 text-[11px] font-mono text-[#9CA3AF] uppercase tracking-wider mb-2 font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-guard-text" />
+              Decision Transparency Rationale
+            </div>
+            <p className="text-[12px] text-[#D1D5DB] leading-relaxed">
+              {causalNarrative}
+            </p>
+          </div>
+
+          {/* D & E: AI Advisory vs Guardrail Authorization (2-Column High-Contrast Grid) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {/* Violet Zone: AI Advisory */}
+            <ZoneCard
+              zone="ai"
+              label="AI ADVISORY · RECOMMENDATION ONLY"
+              icon={Bot}
+              description="Read-only diagnostic proposal generated via sanitized MCP context"
+            >
+              <div className="space-y-3.5">
+                <div className="p-3 bg-white/[0.02] border border-[rgba(124,58,237,0.15)] rounded-md space-y-2">
+                  <div className="text-[10px] font-mono text-ai-text uppercase font-semibold">
+                    Advisory Policy Proposal
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <PolicyBadge policy={c.ai_policy_id} context="ai" />
+                    <span className="text-[10px] font-mono text-[#6B7280]">
+                      Category: {c.failure_category || 'C1'}
+                    </span>
+                  </div>
+                </div>
+
+                {c.ai_explanation && (
+                  <div className="p-3 bg-[rgba(124,58,237,0.06)] border border-[rgba(124,58,237,0.18)] rounded-md">
+                    <div className="text-[10px] font-mono text-ai-text uppercase font-semibold mb-1">
+                      LLM Reasoning Explanation
+                    </div>
+                    <p className="text-[11px] text-[#C4B5FD] italic leading-relaxed">
+                      &ldquo;{c.ai_explanation}&rdquo;
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-1.5 text-[11px] pt-1">
+                  <DataRow label="Diagnosed Category" value={c.failure_category || 'C1'} mono />
+                  <DataRow label="Diagnosis Rule" value={c.failure_code || 'BAD_REQUEST_ERROR'} mono />
+                  <DataRow label="Advisory Provider" value="gemini-3.5-flash-lite via MCP" mono />
+                </div>
+
+                {/* Explicit Responsibility Boundary Notice */}
+                <div className="p-2.5 rounded bg-black/30 border border-white/[0.04] text-[10px] font-mono text-[#6B7280] leading-snug">
+                  🛡️ <strong>Safety Invariant:</strong> The AI advisory layer operates strictly in read-only mode and has zero write authority to payment gateways.
+                </div>
+              </div>
+            </ZoneCard>
+
+            {/* Teal Zone: Guardrail Authorization */}
+            <ZoneCard
+              zone="guard"
+              label="GUARDRAIL GATE · DETERMINISTIC AUTHORIZATION"
+              icon={ShieldCheck}
+              description="10 hardcoded mathematical invariants enforce merchant risk & compliance rules"
+            >
+              <div className="space-y-3.5">
+                <div className="p-3 bg-white/[0.02] border border-[rgba(13,148,136,0.15)] rounded-md space-y-2">
+                  <div className="text-[10px] font-mono text-guard-text uppercase font-semibold flex items-center justify-between">
+                    <span>Authorized Policy Execution</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-guard-muted text-guard-text border border-guard-border">
+                      {guardrailAnalysis?.decision}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <PolicyBadge policy={c.validated_policy_id} context="guard" />
+                    <span className="text-[10px] font-mono text-guard-text">
+                      {guardrailAnalysis?.isOverridden ? 'AI Proposal Overridden' : 'Authorized as Proposed'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Specific Rule / Reason */}
+                <div className="p-3 bg-[rgba(13,148,136,0.06)] border border-[rgba(13,148,136,0.18)] rounded-md">
+                  <div className="text-[10px] font-mono text-guard-text uppercase font-semibold mb-1">
+                    Authorization Enforcement Rationale
+                  </div>
+                  <p className="text-[11px] text-[#5EEAD4] leading-relaxed">
+                    {guardrailAnalysis?.reasons.length
+                      ? guardrailAnalysis.reasons.join(' · ')
+                      : c.eligibility_reason
+                      ? `Enforced rule: ${c.eligibility_reason}`
+                      : 'All 10 deterministic invariants satisfied without policy downgrade.'}
+                  </p>
+                </div>
+
+                {/* Supported Invariants Checklist */}
+                <div className="space-y-1 text-[11px] pt-1">
+                  <div className="flex items-center justify-between py-1 border-b border-white/[0.04]">
+                    <span className="text-[#6B7280]">Amount Immutability:</span>
+                    <span className="font-mono text-[11px] text-guard-text">
+                      ₹{c.amount_inr.toFixed(2)} Lock
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1 border-b border-white/[0.04]">
+                    <span className="text-[#6B7280]">Currency Lock:</span>
+                    <span className="font-mono text-[11px] text-guard-text">
+                      {c.currency || 'INR'} Constant
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1 border-b border-white/[0.04]">
+                    <span className="text-[#6B7280]">Single-Link Idempotency:</span>
+                    <span className="font-mono text-[11px] text-guard-text">
+                      Max 1 Link Enforced
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-[#6B7280]">High-Value & AML Gate:</span>
+                    <span className="font-mono text-[11px] text-guard-text">
+                      {c.amount_inr > 50000 || c.failure_category === 'C4'
+                        ? 'Mandatory Escalation'
+                        : 'Passed (<₹50k)'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </ZoneCard>
+          </div>
+
+          {/* F & G: Action Execution & Gateway Verification (2-Column Grid) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {/* Panel F: Action / Razorpay Execution */}
+            <div className="bg-surface-base border border-white/[0.06] rounded-lg p-5 space-y-4">
+              <SectionHeader
+                title="Action Execution"
+                subtitle="Gateway write dispatched under deterministic policy"
+                badge={c.payment_link_id ? 'Executed' : c.state === 'ESCALATED' ? 'Escalated' : 'Halted'}
+              />
+
+              <div className="space-y-2 text-[11px]">
+                <DataRow label="Action Status" value={c.action_status || (c.payment_link_id ? 'EXECUTED' : 'SKIPPED')} mono />
+                <DataRow label="Payment Link ID" value={c.payment_link_id || 'None created (safeguarded)'} mono />
+                <DataRow label="Reference ID" value={c.payment_link_reference_id || '—'} mono />
+                <DataRow label="Link State" value={c.payment_link_status?.toUpperCase() || '—'} mono />
+                {c.payment_link_short_url && (
+                  <div className="data-row">
+                    <span className="data-row__label">Payment Link URL</span>
+                    <span className="data-row__value flex items-center gap-2">
+                      <a
+                        href={c.payment_link_short_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-ai-text hover:underline truncate text-[11px] font-mono"
+                      >
+                        {c.payment_link_short_url}
+                      </a>
+                      <a
+                        href={c.payment_link_short_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#6B7280] hover:text-[#F0F2F5] shrink-0"
+                        aria-label="Open payment link"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {c.payment_link_short_url && (
+                <div className="pt-2">
+                  <a
+                    href={c.payment_link_short_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded bg-surface-raised hover:bg-white/[0.06] border border-white/[0.08] text-[11px] font-mono text-[#D1D5DB] transition-colors w-full"
+                  >
+                    Open Hosted Checkout Link <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Panel G: Verification & Revenue Outcome (Emerald if Recovered) */}
+            <div
+              className={`border rounded-lg p-5 space-y-4 ${
+                c.state === 'RECOVERED'
+                  ? 'bg-[rgba(5,150,105,0.04)] border-[rgba(5,150,105,0.22)]'
+                  : 'bg-surface-base border-white/[0.06]'
+              }`}
+            >
+              <SectionHeader
+                title="Gateway Verification & Attribution"
+                subtitle="Independent confirmation of status: captured"
+                badge={c.state === 'RECOVERED' ? 'Verified Cash' : 'Pending'}
+              />
+
+              {c.state === 'RECOVERED' ? (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-md bg-[rgba(5,150,105,0.08)] border border-[rgba(5,150,105,0.20)]">
+                    <span className="text-[10px] font-mono text-recover-text uppercase tracking-wider font-semibold block">
+                      Authoritative Attribution Confirmed
+                    </span>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <MoneyValue
+                        amountInr={c.recovered_amount_inr}
+                        variant="recovered"
+                        size="xl"
+                      />
+                      <span className="text-[11px] text-recover-text font-mono font-medium">
+                        credited to revenue
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 text-[11px]">
+                    <DataRow label="Gateway Payment Status" value="captured" mono />
+                    <DataRow label="Recovered Payment ID" value={c.recovered_payment_id || 'pay_verified'} mono />
+                    <DataRow label="Attributed Amount" value={`₹${c.recovered_amount_inr.toFixed(2)}`} mono />
+                    <DataRow label="Verification Basis" value="Razorpay HMAC SHA-256 Webhook" mono />
+                  </div>
+                </div>
+              ) : c.state === 'ESCALATED' ? (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-md bg-[rgba(217,119,6,0.08)] border border-[rgba(217,119,6,0.20)]">
+                    <span className="text-[10px] font-mono text-risk-text uppercase tracking-wider font-semibold block">
+                      No Financial Credit (Controlled Escalation)
+                    </span>
+                    <p className="text-[11px] text-[#FCD34D] mt-1 leading-snug">
+                      This transaction was blocked from automated link generation. No revenue attributed.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5 text-[11px]">
+                    <DataRow label="Verification Status" value="PAYMENT NOT VERIFIED" mono />
+                    <DataRow label="Captured Amount" value="₹0.00" mono />
+                    <DataRow label="Operations Action" value="Human compliance review required" mono />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-md bg-surface-raised border border-white/[0.04]">
+                    <span className="text-[10px] font-mono text-[#6B7280] uppercase tracking-wider font-semibold block">
+                      Awaiting Customer Payment
+                    </span>
+                    <p className="text-[11px] text-[#9CA3AF] mt-1 leading-snug">
+                      Payment link dispatched. Attributed revenue will register immediately upon confirmed gateway webhook.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5 text-[11px]">
+                    <DataRow label="Verification Status" value="AWAITING CAPTURE" mono />
+                    <DataRow label="Recovered Amount" value="₹0.00 (Pending)" mono />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab Content: Immutable Audit Stream ───────────────────────────── */}
+      {activeTab === 'audit' && (
+        <div className="bg-surface-base border border-white/[0.06] rounded-lg p-5 space-y-4 animate-fade-in">
+          <SectionHeader
+            title="Immutable Chronological Audit Stream"
+            subtitle="Every diagnostic prompt, proposal, guardrail decision, and webhook verified in order"
+            badge={`${audits.length} Records`}
+          />
+          <AuditTimeline events={audits} />
+        </div>
+      )}
+
+      {/* ── Tab Content: Raw JSON Telemetry ───────────────────────────────── */}
+      {activeTab === 'telemetry' && (
+        <div className="bg-surface-base border border-white/[0.06] rounded-lg p-5 space-y-4 animate-fade-in">
+          <SectionHeader
+            title="Full Case Telemetry Payload"
+            subtitle="GET /cases/{case_id} raw state machine and context attributes"
+            action={
+              <ActionButton
+                label="Copy Raw Record"
+                variant="secondary"
+                size="sm"
+                icon={Copy}
+                onClick={() => handleCopy(JSON.stringify(c, null, 2), 'Case Telemetry')}
+              />
+            }
+          />
+          <pre className="json-block" style={{ maxHeight: '440px' }}>
             {JSON.stringify(c, null, 2)}
           </pre>
         </div>

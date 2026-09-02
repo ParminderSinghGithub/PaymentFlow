@@ -1,16 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Filter,
   RefreshCw,
   Clock,
   Zap,
   ArrowRight,
   Timer,
+  ListChecks,
 } from 'lucide-react';
 import type { CaseSummaryItem, CaseState } from '../types';
 import { StateBadge } from '../components/common/StateBadge';
 import { CategoryBadge } from '../components/common/CategoryBadge';
 import { PolicyBadge } from '../components/common/PolicyBadge';
+import { MoneyValue } from '../components/common/MoneyValue';
+import { ActionButton } from '../components/common/ActionButton';
+import { PageHeader } from '../components/common/PageHeader';
 import { TableRowSkeleton } from '../components/common/Skeleton';
 import { EmptyState } from '../components/common/EmptyState';
 
@@ -28,31 +31,28 @@ interface CasesPageProps {
 type StateFilter =
   | 'ALL'
   | 'FAILED_INGESTED'
+  | 'ACTION_EXECUTED'
   | 'RECOVERED'
   | 'ESCALATED'
-  | 'TERMINAL_NO_ACTION'
-  | 'ACTION_EXECUTED';
+  | 'TERMINAL_NO_ACTION';
 
 const STATE_FILTERS: { id: StateFilter; label: string }[] = [
-  { id: 'ALL',               label: 'All' },
-  { id: 'FAILED_INGESTED',   label: 'Ingested' },
-  { id: 'ACTION_EXECUTED',   label: 'In Flight' },
-  { id: 'RECOVERED',         label: 'Recovered' },
-  { id: 'ESCALATED',         label: 'Escalated' },
-  { id: 'TERMINAL_NO_ACTION',label: 'No Action' },
+  { id: 'ALL',                label: 'All Cases' },
+  { id: 'FAILED_INGESTED',    label: 'Ingested' },
+  { id: 'ACTION_EXECUTED',    label: 'Action Executed' },
+  { id: 'RECOVERED',          label: 'Recovered' },
+  { id: 'ESCALATED',          label: 'Escalated' },
+  { id: 'TERMINAL_NO_ACTION', label: 'Terminal / No Action' },
 ];
 
-const FILTER_ACTIVE_CLASSES: Partial<Record<StateFilter, string>> = {
-  FAILED_INGESTED:   'bg-[rgba(217,119,6,0.12)] border-[rgba(217,119,6,0.30)] text-[#FCD34D]',
-  ACTION_EXECUTED:   'bg-[rgba(13,148,136,0.12)] border-[rgba(13,148,136,0.30)] text-guard-text',
-  RECOVERED:         'bg-[rgba(5,150,105,0.12)] border-[rgba(5,150,105,0.30)] text-recover-text',
-  ESCALATED:         'bg-[rgba(217,119,6,0.12)] border-[rgba(217,119,6,0.30)] text-risk-text',
-  TERMINAL_NO_ACTION:'bg-[rgba(225,29,72,0.08)] border-[rgba(225,29,72,0.25)] text-halt-text',
-  ALL:               'bg-[rgba(124,58,237,0.10)] border-[rgba(124,58,237,0.30)] text-ai-text',
+const FILTER_ACTIVE_CLASSES: Record<StateFilter, string> = {
+  ALL:                'bg-white/[0.08] border-white/[0.20] text-[#F0F2F5]',
+  FAILED_INGESTED:    'bg-[rgba(217,119,6,0.12)] border-[rgba(217,119,6,0.30)] text-[#FCD34D]',
+  ACTION_EXECUTED:    'bg-[rgba(13,148,136,0.12)] border-[rgba(13,148,136,0.30)] text-guard-text',
+  RECOVERED:          'bg-[rgba(5,150,105,0.12)] border-[rgba(5,150,105,0.30)] text-recover-text',
+  ESCALATED:          'bg-[rgba(217,119,6,0.12)] border-[rgba(217,119,6,0.30)] text-risk-text',
+  TERMINAL_NO_ACTION: 'bg-[rgba(225,29,72,0.08)] border-[rgba(225,29,72,0.25)] text-halt-text',
 };
-
-const formatInr = (v: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(v);
 
 const formatRelative = (ts: string | null | undefined) => {
   if (!ts) return '—';
@@ -84,101 +84,105 @@ export const CasesPage: React.FC<CasesPageProps> = ({
   const hasDelayed = cases.some((c) => c.scheduled_at !== null && c.state === 'FAILED_INGESTED');
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
+      {/* ── Page Header ─────────────────────────────────────────────────── */}
+      <PageHeader
+        title="Recovery Cases Explorer"
+        description="Explore the authoritative failure lifecycle: from webhook ingestion and taxonomy classification to policy authorization and verified gateway attribution."
+        icon={ListChecks}
+        actions={
+          <div className="flex items-center gap-2">
+            {hasDelayed && (
+              <ActionButton
+                label={delayedProcessing ? 'Processing…' : 'Process Due Delayed'}
+                variant="secondary"
+                size="sm"
+                icon={Timer}
+                loading={delayedProcessing}
+                onClick={onProcessDelayed}
+              />
+            )}
+            <ActionButton
+              label="Refresh Cases"
+              variant="secondary"
+              size="sm"
+              icon={RefreshCw}
+              onClick={onRefresh}
+            />
+          </div>
+        }
+      />
 
-      {/* ── Toolbar ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        {/* State filter pills */}
-        <div className="flex items-center gap-1 flex-wrap">
-          <Filter className="w-3.5 h-3.5 text-[#4B5563] shrink-0 mr-1" />
+      {/* ── Toolbar & State Filters ───────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-surface-base border border-white/[0.06] rounded-lg">
+        {/* State filter buttons */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           {STATE_FILTERS.map((f) => {
             const isActive = activeFilter === f.id;
             const count = f.id === 'ALL' ? cases.length : cases.filter((c) => c.state === f.id).length;
-            const activeClass = FILTER_ACTIVE_CLASSES[f.id] ?? 'bg-surface-raised border-white/[0.12] text-[#9CA3AF]';
+            const activeClass = FILTER_ACTIVE_CLASSES[f.id];
 
             return (
               <button
                 key={f.id}
                 onClick={() => setActiveFilter(f.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium border rounded transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono border rounded transition-colors ${
                   isActive
-                    ? activeClass
-                    : 'bg-transparent border-white/[0.08] text-[#4B5563] hover:border-white/[0.14] hover:text-[#6B7280]'
+                    ? `${activeClass} font-semibold`
+                    : 'bg-surface-raised border-white/[0.06] text-[#6B7280] hover:text-[#9CA3AF] hover:border-white/[0.12]'
                 }`}
               >
-                {f.label}
-                <span className="font-mono text-[10px] opacity-70">{count}</span>
+                <span>{f.label}</span>
+                <span className="text-[10px] opacity-75 font-bold">({count})</span>
               </button>
             );
           })}
         </div>
 
-        {/* Right actions */}
-        <div className="flex items-center gap-2">
-          {hasDelayed && (
-            <button
-              onClick={onProcessDelayed}
-              disabled={delayedProcessing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-guard-text bg-[rgba(13,148,136,0.10)] hover:bg-[rgba(13,148,136,0.18)] border border-[rgba(13,148,136,0.25)] rounded-md transition-colors disabled:opacity-50"
-            >
-              <Timer className={`w-3.5 h-3.5 ${delayedProcessing ? 'animate-spin-slow' : ''}`} />
-              {delayedProcessing ? 'Processing…' : 'Process Delayed'}
-            </button>
-          )}
-          <button
-            onClick={onRefresh}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-[#6B7280] hover:text-[#9CA3AF] bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.08] rounded-md transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
-          </button>
-          <span className="text-[10px] font-mono text-[#4B5563]">
-            {filteredCases.length} cases
-          </span>
-        </div>
+        <span className="text-[11px] font-mono text-[#4B5563] shrink-0 self-end sm:self-auto">
+          Showing {filteredCases.length} of {cases.length} cases
+        </span>
       </div>
 
-      {/* ── Cases Table ──────────────────────────────────────────────── */}
+      {/* ── Cases Table ────────────────────────────────────────────────── */}
       <div className="bg-surface-base border border-white/[0.06] rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse" aria-label="Recovery Cases Registry">
             <thead>
-              <tr className="border-b border-white/[0.06]">
+              <tr className="border-b border-white/[0.06] bg-surface-raised/40">
                 {[
                   { label: 'Case ID',    cls: 'pl-5' },
                   { label: 'Payment ID', cls: '' },
                   { label: 'Amount',     cls: 'text-right' },
                   { label: 'Category',   cls: '' },
                   { label: 'State',      cls: '' },
-                  { label: 'Policy',     cls: '' },
-                  { label: 'Created',    cls: '' },
+                  { label: 'Authorized Policy', cls: '' },
+                  { label: 'Ingested',    cls: '' },
                   { label: 'Actions',    cls: 'pr-5 text-right' },
                 ].map(({ label, cls }) => (
                   <th
                     key={label}
-                    className={`py-3 px-3 text-[10px] font-mono text-[#4B5563] uppercase tracking-wider font-medium ${cls}`}
+                    className={`py-3 px-3 text-[10px] font-mono text-[#6B7280] uppercase tracking-wider font-semibold ${cls}`}
                   >
                     {label}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-white/[0.04]">
               {loading ? (
-                <>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                    <TableRowSkeleton key={i} columns={8} />
-                  ))}
-                </>
+                [1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <TableRowSkeleton key={i} columns={8} />
+                ))
               ) : filteredCases.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={8} className="py-12">
                     <EmptyState
-                      title={activeFilter === 'ALL' ? 'No cases yet' : `No ${activeFilter.toLowerCase().replace('_', ' ')} cases`}
+                      title={activeFilter === 'ALL' ? 'No cases in pipeline' : `No ${activeFilter.toLowerCase().replace(/_/g, ' ')} cases`}
                       description={
                         activeFilter === 'ALL'
-                          ? 'Cases will appear here once payment.failed webhooks are received from Razorpay.'
-                          : 'Try a different state filter to see other cases.'
+                          ? 'Cases will appear here once payment.failed webhooks are ingested or the canonical batch is seeded.'
+                          : 'Try selecting another state filter above to inspect other cases.'
                       }
                     />
                   </td>
@@ -186,31 +190,34 @@ export const CasesPage: React.FC<CasesPageProps> = ({
               ) : (
                 filteredCases.map((c) => {
                   const isTriaging = triageLoadingCaseId === c.case_id;
+
                   return (
                     <tr
                       key={c.case_id}
                       onClick={() => onSelectCase(c.case_id)}
-                      className="border-b border-white/[0.04] hover:bg-surface-raised cursor-pointer transition-colors group"
+                      className="hover:bg-white/[0.02] cursor-pointer transition-colors group"
                     >
                       {/* Case ID */}
                       <td className="py-3 pl-5 px-3">
-                        <span className="font-mono text-[11px] text-ai-text group-hover:underline">
+                        <span className="font-mono text-[11px] text-ai-text group-hover:underline font-medium">
                           {c.case_id}
                         </span>
                       </td>
 
-                      {/* Payment ID */}
+                      {/* Payment ID (Complete, No Arbitrary Slicing) */}
                       <td className="py-3 px-3">
-                        <span className="font-mono text-[10px] text-[#4B5563]">
-                          {c.failed_payment_id ? `${c.failed_payment_id.slice(0, 18)}…` : '—'}
+                        <span className="font-mono text-[11px] text-[#9CA3AF]">
+                          {c.failed_payment_id || '—'}
                         </span>
                       </td>
 
                       {/* Amount */}
                       <td className="py-3 px-3 text-right">
-                        <span className="font-mono text-[12px] font-semibold text-[#F0F2F5]">
-                          {formatInr(c.amount_inr)}
-                        </span>
+                        <MoneyValue
+                          amountInr={c.amount_inr}
+                          variant={c.state === 'RECOVERED' ? 'recovered' : c.amount_inr >= 50000 ? 'at-risk' : 'neutral'}
+                          size="sm"
+                        />
                       </td>
 
                       {/* Category */}
@@ -228,9 +235,9 @@ export const CasesPage: React.FC<CasesPageProps> = ({
                         <PolicyBadge policy={c.validated_policy_id} context="guard" showIcon={false} />
                       </td>
 
-                      {/* Created */}
+                      {/* Ingested Timestamp */}
                       <td className="py-3 px-3">
-                        <div className="flex items-center gap-1 text-[10px] font-mono text-[#4B5563]">
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-[#6B7280]">
                           <Clock className="w-3 h-3 shrink-0" />
                           {formatRelative(c.created_at)}
                         </div>
@@ -252,15 +259,15 @@ export const CasesPage: React.FC<CasesPageProps> = ({
                             <button
                               onClick={() => onTriggerTriage(c.case_id)}
                               disabled={isTriaging}
-                              className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-ai-text bg-[rgba(124,58,237,0.10)] hover:bg-[rgba(124,58,237,0.18)] border border-[rgba(124,58,237,0.25)] rounded transition-colors disabled:opacity-50"
+                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-ai-text bg-ai-muted hover:bg-ai-base/20 border border-ai-border rounded transition-colors disabled:opacity-50"
                             >
-                              <Zap className={`w-3 h-3 ${isTriaging ? 'animate-spin-slow' : ''}`} />
+                              <Zap className={`w-3 h-3 ${isTriaging ? 'animate-spin' : ''}`} />
                               {isTriaging ? '…' : 'Triage'}
                             </button>
                           )}
                           <button
                             onClick={() => onSelectCase(c.case_id)}
-                            className="flex items-center gap-1 text-[10px] text-[#4B5563] hover:text-[#9CA3AF] transition-colors"
+                            className="text-[11px] font-mono text-[#6B7280] group-hover:text-guard-text flex items-center gap-0.5 transition-colors"
                             aria-label={`Investigate case ${c.case_id}`}
                           >
                             Inspect <ArrowRight className="w-3 h-3" />

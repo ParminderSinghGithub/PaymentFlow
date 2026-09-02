@@ -319,7 +319,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <div className="bg-[rgba(13,148,136,0.06)] border border-[rgba(13,148,136,0.22)] rounded-lg p-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-[10px] font-mono text-guard-text mb-1">
-                <span>STAGE 03 · GATEWAY</span>
+                <span>STAGE 03 · GUARDRAIL GATE</span>
                 <span className="font-bold">10 INVARIANTS</span>
               </div>
               <div className="text-[13px] font-semibold text-guard-text">
@@ -592,7 +592,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </span>
                   </div>
                   <h4 className="text-[12px] font-semibold text-[#9CA3AF] mb-1">{meta.name}</h4>
-                  <p className="text-[10px] text-[#4B5563] leading-relaxed line-clamp-2">
+                  <p className="text-[11px] text-[#6B7280] leading-relaxed">
                     {meta.description}
                   </p>
                 </div>
@@ -606,8 +606,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   </div>
                   <div className="flex items-center justify-between text-[#4B5563]">
                     <span>Policy:</span>
-                    <span className="text-guard-text truncate max-w-[110px]" title={meta.defaultPolicy}>
-                      {meta.defaultPolicy.replace('P_', '')}
+                    <span className="text-guard-text font-semibold">
+                      {meta.defaultPolicy === 'P_CREATE_LINK_IMMEDIATE'
+                        ? 'Immediate Link'
+                        : meta.defaultPolicy === 'P_CREATE_LINK_DELAYED'
+                        ? 'Delayed Link'
+                        : meta.defaultPolicy === 'P_ESCALATE_ONLY'
+                        ? 'Escalate Only'
+                        : meta.defaultPolicy === 'P_NO_ACTION'
+                        ? 'No Action'
+                        : meta.defaultPolicy}
                     </span>
                   </div>
                 </div>
