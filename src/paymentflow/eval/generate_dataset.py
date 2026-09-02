@@ -9,8 +9,8 @@ from paymentflow.domain.enums import FailureCategory
 OUTPUT_DIR = Path(__file__).resolve().parent / "data"
 OUTPUT_FILE = OUTPUT_DIR / "evaluation_cases.json"
 
-# Base timestamp: 2026-08-30T10:00:00Z
-BASE_TS = datetime(2026, 8, 30, 10, 0, 0, tzinfo=timezone.utc)
+# Base timestamp: Fresh current UTC time (preventing static test staleness)
+BASE_TS = datetime.now(timezone.utc)
 
 CASES_DEF = [
     # =========================================================================

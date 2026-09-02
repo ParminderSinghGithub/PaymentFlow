@@ -17,7 +17,7 @@
       "customer_tenure_months": 12,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -47,7 +47,7 @@
       "customer_tenure_months": 6,
       "prior_failed_count_24h": 1,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -77,7 +77,7 @@
       "customer_tenure_months": 24,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 5,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -107,7 +107,7 @@
       "customer_tenure_months": 3,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -137,7 +137,7 @@
       "customer_tenure_months": 18,
       "prior_failed_count_24h": 1,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -167,7 +167,7 @@
       "customer_tenure_months": 8,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -197,7 +197,7 @@
       "customer_tenure_months": 36,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 8,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -227,7 +227,7 @@
       "customer_tenure_months": 5,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -257,7 +257,7 @@
       "customer_tenure_months": 10,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -287,7 +287,7 @@
       "customer_tenure_months": 2,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -317,7 +317,7 @@
       "customer_tenure_months": 48,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 12,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -347,7 +347,7 @@
       "customer_tenure_months": 14,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 4,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -377,7 +377,7 @@
       "customer_tenure_months": 7,
       "prior_failed_count_24h": 1,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -407,7 +407,7 @@
       "customer_tenure_months": 9,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -437,7 +437,7 @@
       "customer_tenure_months": 15,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -467,7 +467,7 @@
       "customer_tenure_months": 4,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -497,7 +497,7 @@
       "customer_tenure_months": 1,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -527,7 +527,7 @@
       "customer_tenure_months": 11,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -557,7 +557,7 @@
       "customer_tenure_months": 8,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -587,7 +587,7 @@
       "customer_tenure_months": 16,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 4,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -617,7 +617,7 @@
       "customer_tenure_months": 6,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -647,7 +647,7 @@
       "customer_tenure_months": 3,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -677,7 +677,7 @@
       "customer_tenure_months": 10,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -707,7 +707,7 @@
       "customer_tenure_months": 30,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 7,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -737,7 +737,7 @@
       "customer_tenure_months": 12,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -767,7 +767,7 @@
       "customer_tenure_months": 5,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -797,7 +797,7 @@
       "customer_tenure_months": 14,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -827,7 +827,7 @@
       "customer_tenure_months": 9,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -857,7 +857,7 @@
       "customer_tenure_months": 28,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 6,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -887,7 +887,7 @@
       "customer_tenure_months": 7,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -917,7 +917,7 @@
       "customer_tenure_months": 4,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -947,7 +947,7 @@
       "customer_tenure_months": 11,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -977,7 +977,7 @@
       "customer_tenure_months": 15,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1007,7 +1007,7 @@
       "customer_tenure_months": 18,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 5,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1037,7 +1037,7 @@
       "customer_tenure_months": 6,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1067,7 +1067,7 @@
       "customer_tenure_months": 8,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1097,7 +1097,7 @@
       "customer_tenure_months": 13,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1127,7 +1127,7 @@
       "customer_tenure_months": 5,
       "prior_failed_count_24h": 1,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": "2026-08-30T09:55:00+00:00"
     },
     "ground_truth": {
@@ -1157,7 +1157,7 @@
       "customer_tenure_months": 10,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1187,7 +1187,7 @@
       "customer_tenure_months": 20,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 4,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1217,7 +1217,7 @@
       "customer_tenure_months": 14,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1247,7 +1247,7 @@
       "customer_tenure_months": 7,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1277,7 +1277,7 @@
       "customer_tenure_months": 32,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 9,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1307,7 +1307,7 @@
       "customer_tenure_months": 5,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1337,7 +1337,7 @@
       "customer_tenure_months": 12,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1367,7 +1367,7 @@
       "customer_tenure_months": 18,
       "prior_failed_count_24h": 1,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1397,7 +1397,7 @@
       "customer_tenure_months": 40,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 11,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1427,7 +1427,7 @@
       "customer_tenure_months": 9,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1457,7 +1457,7 @@
       "customer_tenure_months": 4,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1487,7 +1487,7 @@
       "customer_tenure_months": 11,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1517,7 +1517,7 @@
       "customer_tenure_months": 15,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1547,7 +1547,7 @@
       "customer_tenure_months": 13,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1577,7 +1577,7 @@
       "customer_tenure_months": 8,
       "prior_failed_count_24h": 1,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1607,7 +1607,7 @@
       "customer_tenure_months": 16,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 4,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1637,7 +1637,7 @@
       "customer_tenure_months": 1,
       "prior_failed_count_24h": 2,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1667,7 +1667,7 @@
       "customer_tenure_months": 2,
       "prior_failed_count_24h": 1,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1697,7 +1697,7 @@
       "customer_tenure_months": 0,
       "prior_failed_count_24h": 3,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1727,7 +1727,7 @@
       "customer_tenure_months": 3,
       "prior_failed_count_24h": 1,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1757,7 +1757,7 @@
       "customer_tenure_months": 12,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1787,7 +1787,7 @@
       "customer_tenure_months": 0,
       "prior_failed_count_24h": 2,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1817,7 +1817,7 @@
       "customer_tenure_months": 1,
       "prior_failed_count_24h": 1,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1847,7 +1847,7 @@
       "customer_tenure_months": 0,
       "prior_failed_count_24h": 4,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1877,7 +1877,7 @@
       "customer_tenure_months": 6,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1907,7 +1907,7 @@
       "customer_tenure_months": 0,
       "prior_failed_count_24h": 5,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1937,7 +1937,7 @@
       "customer_tenure_months": 1,
       "prior_failed_count_24h": 2,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1967,7 +1967,7 @@
       "customer_tenure_months": 24,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 5,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -1997,7 +1997,7 @@
       "customer_tenure_months": 8,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -2027,7 +2027,7 @@
       "customer_tenure_months": 12,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 2,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -2057,7 +2057,7 @@
       "customer_tenure_months": 15,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 4,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -2087,7 +2087,7 @@
       "customer_tenure_months": 36,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 10,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -2117,7 +2117,7 @@
       "customer_tenure_months": 2,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -2147,7 +2147,7 @@
       "customer_tenure_months": 1,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 0,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -2177,7 +2177,7 @@
       "customer_tenure_months": 5,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 1,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -2207,7 +2207,7 @@
       "customer_tenure_months": 14,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 3,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
@@ -2237,7 +2237,7 @@
       "customer_tenure_months": 20,
       "prior_failed_count_24h": 0,
       "prior_recovered_count_24h": 6,
-      "created_at": "2026-08-30T10:00:00+00:00",
+      "created_at": "2026-09-02T13:39:07.433745+00:00",
       "last_attempt_at": null
     },
     "ground_truth": {
