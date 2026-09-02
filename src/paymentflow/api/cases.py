@@ -296,3 +296,19 @@ async def process_due_delayed_cases() -> dict[str, Any]:
         "processed_count": len(results),
         "results": [r.model_dump() for r in results],
     }
+
+
+@router.post(
+    "/demo/seed",
+    summary="Seed Canonical 15-Case Demonstration Batch",
+)
+async def seed_demo_batch(
+    reset_first: bool = Query(default=True, description="Reset previous demo cases before seeding"),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Seed the canonical 15-case demonstration batch into PostgreSQL."""
+    from paymentflow.eval.canonical_batch import seed_canonical_demonstration_batch
+
+    result = await seed_canonical_demonstration_batch(session=db, reset_first=reset_first)
+    return result
+
