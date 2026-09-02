@@ -7,7 +7,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
 from paymentflow.adapters.razorpay_adapter import RazorpayAdapter
-from paymentflow.db.models import RecoveryCaseModel
+from paymentflow.db.models import AuditEventModel, RecoveryCaseModel
 from paymentflow.db.session import get_sessionmaker
 from paymentflow.domain.enums import CaseState
 from paymentflow.eval.canonical_batch import seed_canonical_demonstration_batch
@@ -61,7 +61,6 @@ async def test_interactive_launch_creates_isolated_case(mock_razorpay_adapter):
     assert res["failure_category"] == "C1"
     assert res["payment_link_id"] == "plink_mock_live_cs01"
     assert res["payment_link_url"] == "https://rzp.io/rzp/mockCS01"
-    assert res["audit_trail_count"] >= 7
 
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
@@ -70,6 +69,13 @@ async def test_interactive_launch_creates_isolated_case(mock_razorpay_adapter):
         assert case.amount == 250000
         assert case.failed_payment_id.startswith("pay_interactive_cs01")
         assert case.payment_link_id == "plink_mock_live_cs01"
+
+        actual_audit_count = await session.scalar(
+            select(func.count(AuditEventModel.id)).where(
+                AuditEventModel.case_id == INTERACTIVE_CASE_ID
+            )
+        )
+        assert res["audit_trail_count"] == actual_audit_count
 
 
 @pytest.mark.asyncio
@@ -83,7 +89,15 @@ async def test_interactive_status_query(mock_razorpay_adapter):
     assert status_data["case_id"] == INTERACTIVE_CASE_ID
     assert status_data["amount_inr"] == 2500.0
     assert status_data["payment_link_url"] == "https://rzp.io/rzp/mockCS01"
-    assert len(status_data["audit_trail"]) >= 7
+
+    sessionmaker = get_sessionmaker()
+    async with sessionmaker() as session:
+        actual_audit_count = await session.scalar(
+            select(func.count(AuditEventModel.id)).where(
+                AuditEventModel.case_id == INTERACTIVE_CASE_ID
+            )
+        )
+    assert len(status_data["audit_trail"]) == actual_audit_count
 
 
 @pytest.mark.asyncio
@@ -148,6 +162,13 @@ async def test_interactive_verify_captured_payment(mock_razorpay_adapter):
         assert case.state == CaseState.RECOVERED.value
         assert case.recovered_amount == 250000
         assert case.recovered_payment_id == "pay_mock_rec_cs01"
+
+        actual_audit_count = await session.scalar(
+            select(func.count(AuditEventModel.id)).where(
+                AuditEventModel.case_id == INTERACTIVE_CASE_ID
+            )
+        )
+        assert ver_res["audit_trail_count"] == actual_audit_count
 
 
 @pytest.mark.asyncio
