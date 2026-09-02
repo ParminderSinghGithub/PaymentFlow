@@ -7,6 +7,8 @@ import {
   ArrowRight,
   BrainCircuit,
   Zap,
+  Sparkles,
+  Database,
 } from 'lucide-react';
 import type { CaseSummaryItem, MetricsSummary } from '../types';
 import { KpiCard, KpiCardSkeleton } from '../components/common/KpiCard';
@@ -25,8 +27,11 @@ interface OverviewPageProps {
   onSelectCase: (id: string) => void;
   onNavigateToCases: () => void;
   onNavigateToArchitecture: () => void;
+  onNavigateToInteractive?: () => void;
   onTriggerTriage: (id: string) => void;
   triageLoadingCaseId: string | null;
+  onSeedDemoBatch?: () => void;
+  seedingBatch?: boolean;
 }
 
 const formatInr = (v: number) =>
@@ -54,9 +59,9 @@ const FunnelStageCard: React.FC<{ stage: FunnelStage }> = ({ stage }) => {
     <div className={`border rounded-lg p-3 flex flex-col gap-1 ${zoneColors[stage.zone]}`}>
       <div className="flex items-center justify-between">
         <span className="text-[9px] font-mono text-[#4B5563]">{stage.num}</span>
-        <span className={`text-[11px] font-mono font-bold`}>{stage.count}</span>
+        <span className="text-[11px] font-mono font-bold">{stage.count}</span>
       </div>
-      <div className={`text-[11px] font-mono font-semibold uppercase tracking-tight`}>
+      <div className="text-[11px] font-mono font-semibold uppercase tracking-tight">
         {stage.label}
       </div>
       <p className="text-[10px] text-[#4B5563] leading-snug">{stage.desc}</p>
@@ -109,8 +114,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   onSelectCase,
   onNavigateToCases,
   onNavigateToArchitecture,
+  onNavigateToInteractive,
   onTriggerTriage,
   triageLoadingCaseId,
+  onSeedDemoBatch,
+  seedingBatch = false,
 }) => {
   const m = metrics;
 
@@ -150,14 +158,40 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   return (
     <div className="space-y-6 animate-fade-in">
 
-      {/* ── Section label ────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-[#4B5563]">
-          Recovery Performance
-        </span>
-        <span className="text-[10px] font-mono text-[#4B5563]">
-          Captured-only attribution
-        </span>
+      {/* ── Section Header with Quick Actions ─────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1 border-b border-white/[0.06]">
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-mono uppercase tracking-widest text-[#6B7280]">
+            Autonomous Recovery Command Center
+          </span>
+          <span className="text-[#4B5563] text-xs hidden sm:inline">·</span>
+          <span className="text-[11px] font-mono text-guard-text hidden sm:inline">
+            Captured-only attribution
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          {onSeedDemoBatch && (
+            <button
+              onClick={onSeedDemoBatch}
+              disabled={seedingBatch}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-[#D1D5DB] bg-surface-raised hover:bg-white/[0.06] border border-white/[0.08] rounded-md transition-colors disabled:opacity-50"
+            >
+              <Database className={`w-3.5 h-3.5 text-guard-text ${seedingBatch ? 'animate-spin' : ''}`} />
+              {seedingBatch ? 'Seeding...' : 'Seed 15-Case Batch'}
+            </button>
+          )}
+
+          {onNavigateToInteractive && (
+            <button
+              onClick={onNavigateToInteractive}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-[11px] font-semibold text-white bg-ai-base hover:bg-purple-600 rounded-md transition-colors shadow-sm shadow-ai-base/20"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Launch Live Demo
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── KPI Cards ────────────────────────────────────────────────── */}
@@ -248,21 +282,20 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <ShieldCheck className="w-3.5 h-3.5 text-guard-text" />
-            <span className="text-[10px] text-[#4B5563] font-mono">PolicyGuardrailEngine enforces after AI</span>
+            <span className="text-[10px] text-guard-text font-mono">10 Safety Invariants Active</span>
           </div>
         </div>
       </section>
 
-      {/* ── Failure Intelligence (C1–C5) ─────────────────────────────── */}
-      <section className="bg-surface-base border border-white/[0.06] rounded-lg p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-[13px] font-semibold text-[#F0F2F5]">Failure Intelligence</h3>
-            <p className="text-[11px] text-[#4B5563] mt-0.5">
-              C1–C5 normalized taxonomy · deterministic category mapping
-            </p>
-          </div>
-          <span className="text-[10px] font-mono text-[#4B5563]">5 classes</span>
+      {/* ── Category Matrix ───────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[13px] font-semibold text-[#F0F2F5]">
+            Failure Taxonomy (C1–C5)
+          </h3>
+          <span className="text-[11px] text-[#4B5563]">
+            {m ? `${Object.values(m.category_breakdown).reduce((a, b) => a + b, 0)} classified events` : 'Loading…'}
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -270,62 +303,62 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             <CategoryCard
               key={cat}
               cat={cat}
-              count={m?.category_breakdown?.[cat] ?? 0}
+              count={m?.category_breakdown[cat] ?? 0}
             />
           ))}
         </div>
       </section>
 
-      {/* ── Live Cases Feed ───────────────────────────────────────────── */}
+      {/* ── Recent Cases ──────────────────────────────────────────────── */}
       <section className="bg-surface-base border border-white/[0.06] rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-[13px] font-semibold text-[#F0F2F5]">Pipeline Stream</h3>
+            <h3 className="text-[13px] font-semibold text-[#F0F2F5]">Recent Recovery Cases</h3>
             <p className="text-[11px] text-[#4B5563] mt-0.5">
-              Recent failed payment cases · click any case to investigate
+              Live cases across all states
             </p>
           </div>
           <button
             onClick={onNavigateToCases}
             className="flex items-center gap-1 text-[11px] text-[#6B7280] hover:text-[#9CA3AF] transition-colors"
           >
-            All cases <ArrowRight className="w-3.5 h-3.5" />
+            All cases ({recentCases.length}) <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse" aria-label="Recent recovery cases">
             <thead>
-              <tr className="border-b border-white/[0.06]">
-                {['Case ID', 'Amount', 'Category', 'State', 'Policy', 'Actions'].map((h) => (
-                  <th key={h} className="pb-2.5 px-2 text-[10px] font-mono text-[#4B5563] uppercase tracking-wider font-medium">
-                    {h}
-                  </th>
-                ))}
+              <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#4B5563]">
+                <th className="py-2 px-2">Case ID</th>
+                <th className="py-2 px-2">Amount</th>
+                <th className="py-2 px-2">Category</th>
+                <th className="py-2 px-2">State</th>
+                <th className="py-2 px-2">Validated Policy</th>
+                <th className="py-2 px-2 text-right">Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-white/[0.04]">
               {casesLoading ? (
-                <>
-                  {[1, 2, 3, 4, 5].map((i) => <TableRowSkeleton key={i} columns={6} />)}
-                </>
+                [1, 2, 3, 4, 5].map((i) => <TableRowSkeleton key={i} />)
               ) : recentCases.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={6} className="py-8">
                     <EmptyState
-                      title="No cases yet"
-                      description="Cases will appear here once payment.failed webhooks are received from Razorpay."
+                      title="No cases in pipeline"
+                      description="Ingest a payment.failed webhook or seed the demo batch to begin."
                     />
                   </td>
                 </tr>
               ) : (
                 recentCases.slice(0, 8).map((c) => {
                   const isTriaging = triageLoadingCaseId === c.case_id;
+
                   return (
                     <tr
                       key={c.case_id}
                       onClick={() => onSelectCase(c.case_id)}
-                      className="border-b border-white/[0.04] hover:bg-surface-raised cursor-pointer transition-colors group"
+                      className="hover:bg-white/[0.02] cursor-pointer transition-colors group"
                     >
                       <td className="py-3 px-2 font-mono text-[11px] text-ai-text group-hover:underline">
                         {c.case_id}

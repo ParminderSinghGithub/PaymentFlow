@@ -1,6 +1,6 @@
 /**
  * PaymentFlow Recovery Intelligence Console — TypeScript Domain & API Types
- * Matched strictly to the frozen Layer 5G backend REST schema.
+ * Strictly aligned to the frozen FastAPI backend REST schema and Product Spec v2.0.
  */
 
 export type CaseState =
@@ -128,6 +128,87 @@ export interface DelayedProcessResult {
   results: Array<Record<string, unknown>>;
 }
 
+export interface DemoSeedResponse {
+  status: string;
+  seeded_cases_count: number;
+  total_revenue_at_risk_inr: number;
+  total_recovered_inr: number;
+  recovery_rate_pct: number;
+  cases: string[];
+}
+
+export interface LaunchScenarioRequest {
+  scenario_id?: string;
+  amount_paise?: number;
+  customer_email?: string;
+  customer_contact?: string;
+  reset_previous?: boolean;
+}
+
+export interface LaunchScenarioResponse {
+  status: 'success' | 'error' | string;
+  case_id: string;
+  scenario_id: string;
+  state: string;
+  failure_category: string;
+  amount_paise: number;
+  amount_inr: number;
+  ai_policy?: string | null;
+  validated_policy?: string | null;
+  action_status?: string | null;
+  payment_link_id?: string | null;
+  payment_link_url?: string | null;
+  audit_trail_count: number;
+  orchestrator_result?: Record<string, unknown>;
+}
+
+export interface InteractiveStatusResponse {
+  case_id: string;
+  exists: boolean;
+  state?: string | null;
+  failure_category?: string | null;
+  failure_code?: string | null;
+  failure_description?: string | null;
+  amount_paise?: number;
+  amount_inr?: number;
+  currency?: string;
+  payment_link_id?: string | null;
+  payment_link_url?: string | null;
+  payment_link_status?: string | null;
+  recovered_payment_id?: string | null;
+  recovered_amount_paise?: number | null;
+  recovered_amount_inr?: number;
+  ai_policy?: string | null;
+  ai_explanation?: string | null;
+  validated_policy?: string | null;
+  scheduled_at?: string | null;
+  audit_trail?: AuditEvent[];
+  created_at?: string | null;
+  updated_at?: string | null;
+  message?: string;
+}
+
+export interface InteractiveVerifyResponse {
+  case_id: string;
+  verified: boolean;
+  already_recovered?: boolean;
+  state?: string;
+  payment_status?: string;
+  payment_link_id?: string;
+  payment_link_status?: string;
+  recovered_payment_id?: string;
+  recovered_amount_inr?: number;
+  audit_trail_count?: number;
+  message?: string;
+  error?: string;
+}
+
+export interface InteractiveResetResponse {
+  status: string;
+  message: string;
+  case_id?: string;
+}
+
 export interface CategoryMetadata {
   code: FailureCategory;
   name: string;
@@ -148,42 +229,42 @@ export const CATEGORY_INFO: Record<FailureCategory, CategoryMetadata> = {
   },
   C2: {
     code: 'C2',
-    name: 'Soft Infrastructure / Gateway',
-    description: 'Bank switch down, gateway timeout, or temporary network failure.',
-    defaultPolicy: 'P_CREATE_LINK_DELAYED',
-    badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    recoveryLikelihood: 'High (50-70% after cooldown)',
+    name: 'Network / User Dropout',
+    description: 'PSP gateway timeout, interrupted network connectivity, app switch dropout.',
+    defaultPolicy: 'P_CREATE_LINK_IMMEDIATE',
+    badgeClass: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
+    recoveryLikelihood: 'High (60-75%)',
   },
   C3: {
     code: 'C3',
-    name: 'Hard Instrument / Card Limit',
-    description: 'Card expired, insufficient balance, or credit limit exceeded.',
-    defaultPolicy: 'P_CREATE_LINK_IMMEDIATE',
-    badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-    recoveryLikelihood: 'Moderate (alternate payment instrument required)',
+    name: 'Soft Infrastructure / Balance Limit',
+    description: 'Card limit exceeded, balance friction; benefits from delayed retry scheduling.',
+    defaultPolicy: 'P_CREATE_LINK_DELAYED',
+    badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    recoveryLikelihood: 'Moderate (35-50%)',
   },
   C4: {
     code: 'C4',
-    name: 'Business / Risk / Compliance',
-    description: 'Transaction flagged by fraud rules, velocity limit, or AML check.',
+    name: 'Risk / Compliance Rejection',
+    description: 'Card risk filter, AML blacklist, card stolen; automated retry strictly forbidden.',
     defaultPolicy: 'P_ESCALATE_ONLY',
-    badgeClass: 'bg-red-500/10 text-red-400 border-red-500/30',
-    recoveryLikelihood: 'None (automated link creation strictly forbidden)',
+    badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+    recoveryLikelihood: 'Zero (Escalate Only)',
   },
   C5: {
     code: 'C5',
-    name: 'Technical / Integration Defect',
-    description: 'Payload schema mismatch, bad parameter, or API contract violation.',
+    name: 'Technical / Gateway Defect',
+    description: 'Malformed payload, 500 internal gateway defect; customer retry unrecoverable.',
     defaultPolicy: 'P_NO_ACTION',
     badgeClass: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30',
-    recoveryLikelihood: 'None (requires engineering fix)',
+    recoveryLikelihood: 'Zero (Halt)',
   },
   UNKNOWN: {
     code: 'UNKNOWN',
-    name: 'Unclassified Failure',
-    description: 'Uncategorized gateway error code; evaluated via fallback heuristics.',
+    name: 'Unclassified',
+    description: 'Unclassified failure mode.',
     defaultPolicy: 'P_NO_ACTION',
     badgeClass: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30',
-    recoveryLikelihood: 'Low',
+    recoveryLikelihood: 'Unknown',
   },
 };

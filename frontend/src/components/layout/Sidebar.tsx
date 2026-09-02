@@ -3,26 +3,27 @@ import {
   LayoutDashboard,
   ListChecks,
   Search,
-  Network,
+  Sparkles,
   Activity,
   ChevronRight,
 } from 'lucide-react';
 
-export type ActivePage = 'overview' | 'cases' | 'investigation' | 'architecture' | 'system';
+export type ActivePage = 'overview' | 'cases' | 'investigation' | 'interactive' | 'system';
 
 interface NavItem {
   id: ActivePage;
   label: string;
   Icon: React.FC<{ className?: string }>;
   description: string;
+  badge?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'overview',      label: 'Overview',       Icon: LayoutDashboard, description: 'Recovery performance' },
   { id: 'cases',         label: 'Cases',           Icon: ListChecks,      description: 'Pipeline explorer' },
   { id: 'investigation', label: 'Investigation',   Icon: Search,          description: 'Decision story' },
-  { id: 'architecture',  label: 'Architecture',    Icon: Network,         description: 'AI + guardrail system' },
-  { id: 'system',        label: 'System',          Icon: Activity,        description: 'Health + diagnostics' },
+  { id: 'interactive',   label: 'Interactive Demo',Icon: Sparkles,        description: 'Live CS01 recovery', badge: 'DEMO' },
+  { id: 'system',        label: 'System & Trust',  Icon: Activity,        description: 'Architecture & health' },
 ];
 
 interface SidebarProps {
@@ -50,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       className={`
         flex flex-col shrink-0 bg-void border-r border-white/[0.06]
         transition-all duration-200
-        ${collapsed ? 'w-14' : 'w-[220px]'}
+        ${collapsed ? 'w-14' : 'w-[230px]'}
       `}
     >
       {/* Wordmark */}
@@ -65,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               PaymentFlow
             </div>
             <div className="text-[10px] text-[#4B5563] mt-0.5 font-sans">
-              Recovery Intelligence
+              AI Revenue Recovery Agent
             </div>
           </div>
         )}
@@ -101,8 +102,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {!collapsed && (
                 <>
                   <div className="flex-1 text-left">
-                    <div className={`text-[13px] font-medium leading-none ${isActive ? 'text-[#F0F2F5]' : ''}`}>
-                      {item.label}
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[13px] font-medium leading-none ${isActive ? 'text-[#F0F2F5]' : ''}`}>
+                        {item.label}
+                      </span>
+                      {item.badge && (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-ai-base/20 text-ai-text border border-ai-base/30">
+                          {item.badge}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[10px] text-[#4B5563] mt-0.5 leading-none">
                       {item.description}

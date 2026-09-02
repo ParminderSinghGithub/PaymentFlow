@@ -4,8 +4,8 @@ import type { ActivePage } from './components/layout/Sidebar';
 import { OverviewPage } from './pages/OverviewPage';
 import { CasesPage } from './pages/CasesPage';
 import { CaseInvestigationPage } from './pages/CaseInvestigationPage';
-import { ArchitecturePage } from './pages/ArchitecturePage';
-import { SystemHealthPage } from './pages/SystemHealthPage';
+import { InteractivePage } from './pages/InteractivePage';
+import { SystemPage } from './pages/SystemPage';
 import { ToastProvider, useToast } from './components/common/Toast';
 import {
   fetchCases,
@@ -14,11 +14,12 @@ import {
   fetchMetricsSummary,
   processDueDelayedCases,
   triggerCaseTriage,
+  seedDemoBatch,
   ApiError,
 } from './api/client';
 import type { CaseDetailResponse, CaseSummaryItem, HealthResponse, MetricsSummary } from './types';
 
-// ─── Page title map ───────────────────────────────────────────────────
+// ─── Page Title & Subtitle Mapping ─────────────────────────────────────────
 
 const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
   overview: {
@@ -33,17 +34,17 @@ const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
     title: 'Case Investigation',
     subtitle: 'Decision story — from gateway failure to revenue attribution',
   },
-  architecture: {
-    title: 'System Architecture',
-    subtitle: 'AI advisory + MCP boundary + deterministic guardrails',
+  interactive: {
+    title: 'Interactive Demonstration',
+    subtitle: 'Live CS01 recovery journey with genuine Razorpay Test Mode checkout',
   },
   system: {
-    title: 'System Diagnostics',
-    subtitle: 'Backend health, layer status, and API contract reference',
+    title: 'System & Trust',
+    subtitle: 'AI boundary, deterministic guardrails, MCP contracts, and diagnostics',
   },
 };
 
-// ─── App Content ──────────────────────────────────────────────────────
+// ─── App Content ───────────────────────────────────────────────────────────
 
 const AppContent: React.FC = () => {
   const { showToast } = useToast();
@@ -70,8 +71,9 @@ const AppContent: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [triageLoadingCaseId, setTriageLoadingCaseId] = useState<string | null>(null);
   const [delayedProcessing, setDelayedProcessing] = useState(false);
+  const [seedingBatch, setSeedingBatch] = useState(false);
 
-  // ── Hash routing ──────────────────────────────────────────────────
+  // ── Hash Routing ─────────────────────────────────────────────────────────
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -81,7 +83,7 @@ const AppContent: React.FC = () => {
         const id = params.get('id');
         setActivePage('investigation');
         if (id) setSelectedCaseId(id);
-      } else if (['overview', 'cases', 'investigation', 'architecture', 'system'].includes(hash)) {
+      } else if (['overview', 'cases', 'investigation', 'interactive', 'system'].includes(hash)) {
         setActivePage(hash as ActivePage);
       }
     };
@@ -104,7 +106,7 @@ const AppContent: React.FC = () => {
     }
   }, [selectedCaseId]);
 
-  // ── Data fetchers ─────────────────────────────────────────────────
+  // ── Data Fetchers ────────────────────────────────────────────────────────
 
   const loadHealth = useCallback(async () => {
     setHealthLoading(true);
@@ -169,7 +171,7 @@ const AppContent: React.FC = () => {
     loadCases();
   }, [loadHealth, loadMetrics, loadCases]);
 
-  // ── Actions ───────────────────────────────────────────────────────
+  // ── Actions ──────────────────────────────────────────────────────────────
 
   const handleGlobalRefresh = async () => {
     setIsRefreshing(true);
@@ -227,6 +229,23 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const handleSeedCanonicalBatch = async () => {
+    setSeedingBatch(true);
+    try {
+      const result = await seedDemoBatch(true);
+      showToast(
+        'success',
+        'Canonical Batch Seeded',
+        `${result.seeded_cases_count} cases seeded. ₹${result.total_recovered_inr.toLocaleString('en-IN')} recovered (${result.recovery_rate_pct}%).`
+      );
+      await Promise.all([loadMetrics(), loadCases()]);
+    } catch (err) {
+      showToast('error', 'Seeding Error', err instanceof ApiError ? err.detail : 'Seeding failed');
+    } finally {
+      setSeedingBatch(false);
+    }
+  };
+
   const handleSelectCase = (caseId: string) => navigateTo('investigation', caseId);
 
   const { title, subtitle } = PAGE_TITLES[activePage];
@@ -251,9 +270,12 @@ const AppContent: React.FC = () => {
           casesLoading={casesLoading}
           onSelectCase={handleSelectCase}
           onNavigateToCases={() => navigateTo('cases')}
-          onNavigateToArchitecture={() => navigateTo('architecture')}
+          onNavigateToArchitecture={() => navigateTo('system')}
+          onNavigateToInteractive={() => navigateTo('interactive')}
           onTriggerTriage={handleTriggerTriage}
           triageLoadingCaseId={triageLoadingCaseId}
+          onSeedDemoBatch={handleSeedCanonicalBatch}
+          seedingBatch={seedingBatch}
         />
       )}
 
@@ -283,10 +305,15 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      {activePage === 'architecture' && <ArchitecturePage />}
+      {activePage === 'interactive' && (
+        <InteractivePage
+          onNavigateToInvestigation={handleSelectCase}
+          onRefreshGlobalMetrics={loadMetrics}
+        />
+      )}
 
       {activePage === 'system' && (
-        <SystemHealthPage
+        <SystemPage
           health={health}
           loading={healthLoading}
           onRefresh={loadHealth}
@@ -296,7 +323,7 @@ const AppContent: React.FC = () => {
   );
 };
 
-// ─── Root ─────────────────────────────────────────────────────────────
+// ─── Root ──────────────────────────────────────────────────────────────────
 
 export const App: React.FC = () => (
   <ToastProvider>
