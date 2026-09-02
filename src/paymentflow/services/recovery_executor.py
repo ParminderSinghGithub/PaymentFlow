@@ -194,18 +194,19 @@ class RecoveryExecutor:
                     details={
                         "amount_paise": case.amount,
                         "currency": case.currency,
-                        "reference_id": case.case_id,
+                        "reference_id": case.payment_link_reference_id or case.case_id,
                     },
                 )
             )
 
             # 7. Call Razorpay API to Create Payment Link
             try:
+                link_ref_id = case.payment_link_reference_id or case.case_id
                 link_response = await self.razorpay_adapter.create_payment_link(
                     amount=case.amount,
                     currency=case.currency,
                     description=f"Recovery link for failed payment {case.failed_payment_id}",
-                    reference_id=case.case_id,
+                    reference_id=link_ref_id,
                     notes={
                         "case_id": case.case_id,
                         "failed_payment_id": case.failed_payment_id,
@@ -224,7 +225,7 @@ class RecoveryExecutor:
 
                 # 8. Persist Payment Link Identity & Transition State
                 case.payment_link_id = link_id
-                case.payment_link_reference_id = case.case_id
+                case.payment_link_reference_id = link_ref_id
                 case.payment_link_short_url = short_url
                 case.payment_link_status = status
                 case.state = CaseState.ACTION_EXECUTED.value
