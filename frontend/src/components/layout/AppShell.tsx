@@ -20,6 +20,7 @@ interface AppShellProps {
 export const AppShell: React.FC<AppShellProps> = ({
   activePage,
   onNavigate,
+  selectedCaseId,
   pageTitle,
   pageSubtitle,
   health,
@@ -32,27 +33,21 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   return (
     <div className="flex h-screen overflow-hidden bg-void">
-      {/* Sidebar — hidden on small screens */}
+      {/* Persistent Sidebar */}
       <div className="hidden md:flex">
         <Sidebar
           activePage={activePage}
           onNavigate={onNavigate}
+          selectedCaseId={selectedCaseId}
           healthStatus={health?.status}
           collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         />
       </div>
 
       {/* Main content area */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        {/* Collapse toggle — subtle */}
-        <div className="absolute left-0 top-1/2 z-10 hidden md:block">
-          <button
-            onClick={() => setSidebarCollapsed((v) => !v)}
-            className="w-3 h-8 bg-white/[0.04] hover:bg-white/[0.08] border-r border-y border-white/[0.06] rounded-r flex items-center justify-center transition-colors"
-            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          />
-        </div>
-
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden bg-void">
+        {/* Global Operational Header */}
         <Header
           title={pageTitle}
           subtitle={pageSubtitle}
@@ -62,12 +57,14 @@ export const AppShell: React.FC<AppShellProps> = ({
           isRefreshing={isRefreshing}
         />
 
-        {/* Scrollable content */}
+        {/* Scrollable Main Content with responsive padding and maximum width */}
         <main
-          className="flex-1 overflow-y-auto p-6 animate-fade-in"
+          className="flex-1 overflow-y-auto animate-fade-in"
           key={activePage}
         >
-          {children}
+          <div className="max-w-[1440px] mx-auto w-full p-6 lg:p-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>

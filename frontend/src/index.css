@@ -2,44 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design System: CSS Custom Properties ──────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   PaymentFlow — Design System CSS Foundation
+   Visual Semantic System:
+     Violet  → AI Advisory (LLM recommends)
+     Teal    → Guardrail Authorization (deterministic policy authorizes)
+     Emerald → Verified Recovery (money recovered & attributed)
+     Amber   → Risk / Escalation (attention required)
+     Rose    → Hard Failure (terminal / blocked)
+     Neutral → Pending / informational states (no semantic color hijacking)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── CSS Custom Properties ──────────────────────────────────────────────── */
 :root {
   color-scheme: dark;
 
-  /* Zone colors as CSS variables for dynamic usage */
-  --color-ai-base:     #7C3AED;
-  --color-ai-text:     #C4B5FD;
-  --color-ai-muted:    rgba(124, 58, 237, 0.12);
-  --color-ai-border:   rgba(124, 58, 237, 0.25);
+  /* ── Zone: AI Advisory (Violet) ── */
+  --color-ai-base:      #7C3AED;
+  --color-ai-text:      #C4B5FD;
+  --color-ai-muted:     rgba(124, 58, 237, 0.10);
+  --color-ai-border:    rgba(124, 58, 237, 0.22);
+  --color-ai-border-str:rgba(124, 58, 237, 0.40);
+  --shadow-ai: 0 0 0 1px rgba(124, 58, 237, 0.20), 0 4px 16px -4px rgba(124, 58, 237, 0.12);
 
-  --color-guard-base:  #0D9488;
-  --color-guard-text:  #5EEAD4;
-  --color-guard-muted: rgba(13, 148, 136, 0.12);
-  --color-guard-border:rgba(13, 148, 136, 0.25);
+  /* ── Zone: Guardrail Authorization (Teal) ── */
+  --color-guard-base:   #0D9488;
+  --color-guard-text:   #5EEAD4;
+  --color-guard-muted:  rgba(13, 148, 136, 0.10);
+  --color-guard-border: rgba(13, 148, 136, 0.22);
+  --shadow-guard: 0 0 0 1px rgba(13, 148, 136, 0.20), 0 4px 16px -4px rgba(13, 148, 136, 0.10);
 
-  --color-recover-base:#059669;
-  --color-recover-text:#6EE7B7;
+  /* ── Zone: Verified Recovery (Emerald) ── */
+  --color-recover-base:  #059669;
+  --color-recover-text:  #6EE7B7;
+  --color-recover-muted: rgba(5, 150, 105, 0.10);
+  --color-recover-border:rgba(5, 150, 105, 0.22);
+  --shadow-recover: 0 0 0 1px rgba(5, 150, 105, 0.20), 0 4px 16px -4px rgba(5, 150, 105, 0.10);
 
+  /* ── Zone: Risk / Escalation (Amber) ── */
   --color-risk-base:   #D97706;
   --color-risk-text:   #FCD34D;
+  --color-risk-muted:  rgba(217, 119, 6, 0.10);
+  --color-risk-border: rgba(217, 119, 6, 0.22);
 
+  /* ── Zone: Hard Failure (Rose) ── */
   --color-halt-base:   #E11D48;
   --color-halt-text:   #FDA4AF;
+  --color-halt-muted:  rgba(225, 29, 72, 0.08);
+  --color-halt-border: rgba(225, 29, 72, 0.22);
 
-  --surface-void:      #07090C;
-  --surface-base:      #0D1017;
-  --surface-raised:    #131820;
-  --surface-overlay:   #1A2030;
-  --border-subtle:     rgba(255, 255, 255, 0.06);
-  --border-med:        rgba(255, 255, 255, 0.10);
-  --border-str:        rgba(255, 255, 255, 0.18);
+  /* ── Surface Hierarchy ── */
+  --surface-void:    #07090C;   /* deepest — app background */
+  --surface-base:    #0D1017;   /* cards, panels */
+  --surface-raised:  #131820;   /* elevated cards, selected rows */
+  --surface-overlay: #1A2030;   /* modals, popovers, dropdowns */
 
-  --text-primary:      #F0F2F5;
-  --text-secondary:    #9CA3AF;
-  --text-tertiary:     #4B5563;
+  /* ── Borders ── */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-med:    rgba(255, 255, 255, 0.09);
+  --border-str:    rgba(255, 255, 255, 0.16);
+
+  /* ── Text ── */
+  --text-primary:   #F0F2F5;
+  --text-secondary: #9CA3AF;
+  --text-tertiary:  #4B5563;
+  --text-disabled:  #374151;
+
+  /* ── Monetary / Financial ── */
+  --money-recovered:  #6EE7B7;  /* emerald — verified captured revenue */
+  --money-at-risk:    #FCD34D;  /* amber   — revenue at risk, unrecovered */
+  --money-neutral:    #F0F2F5;  /* white   — neutral amount display */
+  --money-negative:   #FDA4AF;  /* rose    — losses, failed amounts */
 }
 
-/* ── Base Reset ────────────────────────────────────────────────────── */
+/* ── Base Reset ─────────────────────────────────────────────────────────── */
 *,
 *::before,
 *::after {
@@ -48,10 +84,12 @@
 
 html {
   scroll-behavior: smooth;
+  height: 100%;
 }
 
 body {
   margin: 0;
+  height: 100%;
   background-color: var(--surface-void);
   color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -62,7 +100,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Scrollbar ─────────────────────────────────────────────────────── */
+#root {
+  height: 100%;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -71,88 +113,230 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.13);
 }
 
-/* ── Typography: Monospace ─────────────────────────────────────────── */
+/* ── Typography ─────────────────────────────────────────────────────────── */
 code, pre, .font-mono {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
 
-/* ── Focus States ──────────────────────────────────────────────────── */
+/* Financial/Monetary Values — strong hierarchy, not flashy */
+.money-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.money-value--recovered {
+  color: var(--money-recovered);
+}
+.money-value--at-risk {
+  color: var(--money-at-risk);
+}
+.money-value--neutral {
+  color: var(--money-neutral);
+}
+.money-value--negative {
+  color: var(--money-negative);
+}
+
+/* ID / Reference strings — distinguishable but not distracting */
+.id-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.01em;
+}
+
+/* ── Focus States ───────────────────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--color-ai-text);
+  outline: 2px solid rgba(124, 58, 237, 0.60);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* ── Shimmer Skeleton ──────────────────────────────────────────────── */
+/* ── Animations ─────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes fadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes slideUp {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInRight {
+  0%   { opacity: 0; transform: translateX(12px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+@keyframes stateEnter {
+  0%   { opacity: 0; transform: translateY(4px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Shimmer Skeleton ───────────────────────────────────────────────────── */
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
     var(--surface-raised) 25%,
-    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.035) 50%,
     var(--surface-raised) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.6s ease-in-out infinite;
 }
 
-/* ── Zone accent borders (left strip) ─────────────────────────────── */
+/* ── Zone Semantic Card System ──────────────────────────────────────────── */
+/* Left-strip accent — anchors content to its semantic zone */
 .accent-ai {
-  border-left: 3px solid var(--color-ai-base);
+  border-left: 2px solid var(--color-ai-base);
 }
 .accent-guard {
-  border-left: 3px solid var(--color-guard-base);
+  border-left: 2px solid var(--color-guard-base);
 }
 .accent-recover {
-  border-left: 3px solid var(--color-recover-base);
+  border-left: 2px solid var(--color-recover-base);
 }
 .accent-risk {
-  border-left: 3px solid var(--color-risk-base);
+  border-left: 2px solid var(--color-risk-base);
 }
 .accent-halt {
-  border-left: 3px solid var(--color-halt-base);
+  border-left: 2px solid var(--color-halt-base);
 }
 .accent-neutral {
-  border-left: 3px solid var(--border-med);
+  border-left: 2px solid var(--border-med);
 }
 
-/* ── Timeline connector ─────────────────────────────────────────────── */
-.timeline-connector-teal {
-  background: linear-gradient(
-    to bottom,
-    var(--color-guard-base),
-    var(--color-guard-base)
-  );
+/* Zone header banners — used as card/section headings */
+.zone-header-ai {
+  background: var(--color-ai-muted);
+  border-bottom: 1px solid var(--color-ai-border);
+  color: var(--color-ai-text);
 }
-.timeline-connector-violet {
-  background: linear-gradient(
-    to bottom,
-    var(--color-ai-base),
-    var(--color-ai-base)
-  );
+.zone-header-guard {
+  background: var(--color-guard-muted);
+  border-bottom: 1px solid var(--color-guard-border);
+  color: var(--color-guard-text);
 }
-.timeline-connector-transition-to-violet {
-  background: linear-gradient(
-    to bottom,
-    var(--color-guard-base),
-    var(--color-ai-base)
-  );
-}
-.timeline-connector-transition-to-teal {
-  background: linear-gradient(
-    to bottom,
-    var(--color-ai-base),
-    var(--color-guard-base)
-  );
+.zone-header-recover {
+  background: var(--color-recover-muted);
+  border-bottom: 1px solid var(--color-recover-border);
+  color: var(--color-recover-text);
 }
 
-/* ── JSON block ────────────────────────────────────────────────────── */
+/* Full-zone card backgrounds */
+.zone-card-ai {
+  background: var(--color-ai-muted);
+  border: 1px solid var(--color-ai-border);
+}
+.zone-card-guard {
+  background: var(--color-guard-muted);
+  border: 1px solid var(--color-guard-border);
+}
+.zone-card-recover {
+  background: var(--color-recover-muted);
+  border: 1px solid var(--color-recover-border);
+}
+.zone-card-risk {
+  background: var(--color-risk-muted);
+  border: 1px solid var(--color-risk-border);
+}
+.zone-card-halt {
+  background: var(--color-halt-muted);
+  border: 1px solid var(--color-halt-border);
+}
+
+/* ── Timeline / Audit Primitives ────────────────────────────────────────── */
+.timeline-connector {
+  width: 1px;
+  background: var(--border-subtle);
+  flex-shrink: 0;
+}
+.timeline-connector-ai {
+  background: linear-gradient(to bottom, var(--color-ai-base), transparent);
+}
+.timeline-connector-guard {
+  background: linear-gradient(to bottom, var(--color-guard-base), transparent);
+}
+.timeline-connector-recover {
+  background: linear-gradient(to bottom, var(--color-recover-base), transparent);
+}
+.timeline-connector-neutral {
+  background: var(--border-subtle);
+}
+
+/* ── Data Table Primitives ──────────────────────────────────────────────── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table thead tr {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.data-table thead th {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 8px 12px;
+  text-align: left;
+}
+.data-table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.08s;
+}
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.018);
+}
+.data-table tbody tr:last-child {
+  border-bottom: none;
+}
+.data-table tbody td {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+/* Data row — labeled field display (key: value layout) */
+.data-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.data-row:last-child {
+  border-bottom: none;
+}
+.data-row__label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  min-width: 160px;
+  flex-shrink: 0;
+}
+.data-row__value {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+/* ── JSON Block ─────────────────────────────────────────────────────────── */
 .json-block {
   background: var(--surface-overlay);
   border: 1px solid var(--border-subtle);
@@ -160,14 +344,28 @@ code, pre, .font-mono {
   padding: 12px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--text-secondary);
   overflow-x: auto;
-  max-height: 320px;
+  max-height: 360px;
   overflow-y: auto;
 }
 
-/* ── Reduced motion ────────────────────────────────────────────────── */
+/* ── Page Content Width Constraint ─────────────────────────────────────── */
+/* Pages that benefit from constrained line-lengths use .page-content */
+.page-content {
+  max-width: 1280px;
+  width: 100%;
+}
+
+/* ── Section Divider ────────────────────────────────────────────────────── */
+.section-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 24px 0;
+}
+
+/* ── Reduced Motion ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
