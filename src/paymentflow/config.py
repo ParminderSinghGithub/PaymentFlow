@@ -74,6 +74,16 @@ class Settings(BaseSettings):
         description="Allowed CORS origins for external frontend service",
     )
 
+    # Merchant Server-to-Server Integration (Layer 6: Merchant Integration Boundary)
+    paymentflow_api_key: str = Field(
+        default="pf_live_test_merchant_key_2026",
+        description="PaymentFlow Server-to-Server API Key for Merchant Integration",
+    )
+    paymentflow_api_url: str = Field(
+        default="http://localhost:8000",
+        description="Base URL for PaymentFlow API service",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
