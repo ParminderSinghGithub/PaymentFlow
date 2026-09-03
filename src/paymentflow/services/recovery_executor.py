@@ -3,6 +3,7 @@ and idempotent Payment Link execution.
 """
 
 import logging
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -202,16 +203,37 @@ class RecoveryExecutor:
             # 7. Call Razorpay API to Create Payment Link
             try:
                 link_ref_id = case.payment_link_reference_id or case.case_id
-                link_response = await self.razorpay_adapter.create_payment_link(
-                    amount=case.amount,
-                    currency=case.currency,
-                    description=f"Recovery link for failed payment {case.failed_payment_id}",
-                    reference_id=link_ref_id,
-                    notes={
+                customer_data = None
+                if case.failure_context and isinstance(case.failure_context, dict):
+                    c_email = case.failure_context.get("email")
+                    c_contact = case.failure_context.get("contact")
+                    if c_email or c_contact:
+                        customer_data = {
+                            "name": case.customer_id or "Customer",
+                            "email": c_email or "customer@example.com",
+                            "contact": c_contact or "+919876543210",
+                        }
+
+                create_kwargs: dict[str, Any] = {
+                    "amount": case.amount,
+                    "currency": case.currency,
+                    "description": f"Recovery link for failed payment {case.failed_payment_id}",
+                    "reference_id": link_ref_id,
+                    "notes": {
                         "case_id": case.case_id,
                         "failed_payment_id": case.failed_payment_id,
                     },
-                )
+                }
+                if customer_data:
+                    import inspect
+
+                    sig = inspect.signature(self.razorpay_adapter.create_payment_link)
+                    if "customer" in sig.parameters or any(
+                        p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
+                    ):
+                        create_kwargs["customer"] = customer_data
+
+                link_response = await self.razorpay_adapter.create_payment_link(**create_kwargs)
 
                 link_id = link_response.get("id")
                 short_url = link_response.get("short_url")

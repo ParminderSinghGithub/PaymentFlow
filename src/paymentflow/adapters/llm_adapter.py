@@ -1,5 +1,6 @@
 """LLM adapter for advisory recovery reasoning and structured output enforcement."""
 
+import asyncio
 import json
 import logging
 import time
@@ -145,15 +146,32 @@ class LLMClient:
                 },
             }
 
-            response = await client.post(url, json=payload)
+            response = None
+            for attempt in range(3):
+                try:
+                    response = await client.post(url, json=payload)
+                    if response.status_code == 200:
+                        break
+                    if response.status_code in (429, 500, 503, 504) and attempt < 2:
+                        await asyncio.sleep(1.0 * (attempt + 1))
+                        continue
+                    break
+                except (httpx.TimeoutException, httpx.RequestError) as net_err:
+                    if attempt < 2:
+                        await asyncio.sleep(1.0 * (attempt + 1))
+                        continue
+                    raise net_err
+
             elapsed_ms = (time.perf_counter() - start_time) * 1000
             metadata["latency_ms"] = elapsed_ms
 
-            if response.status_code != 200:
+            if not response or response.status_code != 200:
                 metadata["is_fallback"] = True
-                metadata["error"] = f"LLM HTTP Error {response.status_code}: {response.text}"
+                err_text = response.text if response else "No response"
+                status_code = response.status_code if response else "unknown"
+                metadata["error"] = f"LLM HTTP Error {status_code}: {err_text}"
                 return (
-                    self._fallback_proposal(f"Provider returned status {response.status_code}"),
+                    self._fallback_proposal(f"Provider returned status {status_code}"),
                     metadata,
                 )
 
