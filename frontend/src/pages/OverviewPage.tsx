@@ -320,7 +320,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             <div>
               <div className="flex items-center justify-between text-[10px] font-mono text-guard-text mb-1">
                 <span>STAGE 03 · GUARDRAIL GATE</span>
-                <span className="font-bold">10 INVARIANTS</span>
+                <span className="font-bold">GUARDRAIL CHECKS</span>
               </div>
               <div className="text-[13px] font-semibold text-guard-text">
                 3. Bounded Action
@@ -549,7 +549,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <span className="text-[11px] font-mono text-[#6B7280] uppercase tracking-wider">
                 Safety Invariants
               </span>
-              <span className="text-[10px] font-mono text-guard-text font-bold">10 / 10 ACTIVE</span>
+              <span className="text-[10px] font-mono text-guard-text font-bold">ACTIVE & ENFORCED</span>
             </div>
             <p className="text-[11px] text-[#4B5563] leading-snug">
               Strictly enforces ₹50k escalation threshold, 1-link limit, and constant-time HMAC webhook verification.

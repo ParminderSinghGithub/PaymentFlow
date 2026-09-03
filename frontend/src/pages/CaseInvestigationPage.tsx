@@ -99,7 +99,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
     const desc = c.failure_description || 'Payment failure detected at checkout.';
 
     if (c.state === 'RECOVERED') {
-      return `Transaction failed due to ${cat} (${desc}). The AI advisory proposed immediate recovery via ${c.ai_policy_id}. Deterministic guardrails verified all 10 safety invariants (amount & currency lock, cooldown, single-link limit) and authorized link creation. The customer completed checkout, and Razorpay captured webhook verified authentic revenue of ₹${c.recovered_amount_inr.toLocaleString('en-IN')}.`;
+      return `Transaction failed due to ${cat} (${desc}). The AI advisory proposed immediate recovery via ${c.ai_policy_id}. Deterministic guardrails verified all safety checks (amount & currency lock, cooldown, single-link limit) and authorized link creation. The customer completed checkout, and Razorpay captured webhook verified authentic revenue of ₹${c.recovered_amount_inr.toLocaleString('en-IN')}.`;
     }
     if (c.state === 'ESCALATED') {
       return `Transaction failed with code ${c.failure_code || 'RISK_CHECK_FAILED'} (${cat}: ${desc}). Although the AI proposed ${c.ai_policy_id || 'recovery'}, the deterministic policy engine enforced compliance invariants (${c.eligibility_reason || 'AML / Fraud Gate'}), downgraded the policy to P_ESCALATE_ONLY, and safely halted automated writes to protect merchant risk.`;
@@ -558,7 +558,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
               zone="guard"
               label="GUARDRAIL GATE · DETERMINISTIC AUTHORIZATION"
               icon={ShieldCheck}
-              description="10 hardcoded mathematical invariants enforce merchant risk & compliance rules"
+              description="Deterministic mathematical invariants enforce merchant risk & compliance rules"
             >
               <div className="space-y-3.5">
                 <div className="p-3 bg-white/[0.02] border border-[rgba(13,148,136,0.15)] rounded-md space-y-2">
@@ -586,7 +586,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                       ? guardrailAnalysis.reasons.join(' · ')
                       : c.eligibility_reason
                       ? `Enforced rule: ${c.eligibility_reason}`
-                      : 'All 10 deterministic invariants satisfied without policy downgrade.'}
+                      : 'Deterministic guardrail checks satisfied without policy downgrade.'}
                   </p>
                 </div>
 

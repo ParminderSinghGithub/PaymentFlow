@@ -443,7 +443,7 @@ export const InteractivePage: React.FC<InteractivePageProps> = ({
                   <ShieldCheck className="w-2.5 h-2.5" /> 04 GUARDRAIL
                 </div>
                 <div className="font-semibold text-guard-text mt-1">APPROVE</div>
-                <div className="text-[9px] text-guard-text/70 mt-1">10 Invariants</div>
+                <div className="text-[9px] text-guard-text/70 mt-1">Guardrail Checks</div>
               </div>
 
               {/* Stage 5 */}

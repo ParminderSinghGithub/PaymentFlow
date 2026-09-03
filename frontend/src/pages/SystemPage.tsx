@@ -119,7 +119,7 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <PageHeader
         title="System Architecture & Trust Engine"
-        description="Inspect the zero-trust recovery architecture: strict AI advisory boundaries, 10 deterministic financial invariants, and standardized Model Context Protocol (MCP) contracts."
+        description="Inspect the zero-trust recovery architecture: strict AI advisory boundaries, deterministic guardrail invariants, and standardized Model Context Protocol (MCP) contracts."
         icon={Layers}
         actions={
           <ActionButton
