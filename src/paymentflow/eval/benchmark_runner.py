@@ -136,7 +136,7 @@ class EvaluationRecoveryExecutor:
                     timestamp=now + timedelta(minutes=2),
                     details={
                         "evaluation_outcome": "NOT_RECOVERED",
-                        "reason": "Recovery link dispatched but unpaid during evaluation window",
+                        "reason": "Recovery action validated and scheduled; payment not completed during evaluation window",
                     },
                 )
                 session.add(audit_unrec)

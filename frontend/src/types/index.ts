@@ -37,6 +37,8 @@ export interface CaseSummaryItem {
   payment_link_short_url: string | null;
   recovered_amount_paise: number | null;
   recovered_amount_inr: number;
+  case_source?: string | null;
+  eval_run_id?: string | null;
   created_at: string | null;
   scheduled_at: string | null;
 }
@@ -74,6 +76,8 @@ export interface CaseDetail {
   ai_explanation: string | null;
   validated_policy_id: RecoveryPolicy | string | null;
   action_status: string | null;
+  case_source?: string | null;
+  eval_run_id?: string | null;
   payment_link_id: string | null;
   payment_link_reference_id: string | null;
   payment_link_short_url: string | null;
@@ -102,6 +106,44 @@ export interface MetricsSummary {
   terminal_no_action_cases: number;
   category_breakdown: Record<string, number>;
   policy_breakdown: Record<string, number>;
+  eval_run_id?: string | null;
+  case_source?: string | null;
+  total_at_risk_amount_inr?: number;
+  eligible_cases?: number;
+  eligible_opportunity_amount_inr?: number;
+  evaluation_recovered_cases?: number;
+  evaluation_recovered_amount_inr?: number;
+  escalated_amount_inr?: number;
+  terminal_amount_inr?: number;
+  overall_case_recovery_rate_pct?: number;
+  eligible_case_recovery_rate_pct?: number;
+  portfolio_revenue_recovery_rate_pct?: number;
+  eligible_opportunity_recovery_rate_pct?: number;
+}
+
+export interface BenchmarkLatestResponse {
+  eval_run_id: string;
+  case_source: string;
+  status: string;
+  total_cases: number;
+  total_at_risk_amount_inr: number;
+  eligible_cases: number;
+  eligible_opportunity_amount_inr: number;
+  recovery_actions_executed: number;
+  recovery_actions_blocked: number;
+  evaluation_recovered_cases: number;
+  evaluation_recovered_amount_inr: number;
+  escalated_cases: number;
+  escalated_amount_inr: number;
+  terminal_cases: number;
+  terminal_amount_inr: number;
+  overall_case_recovery_rate_pct: number;
+  eligible_case_recovery_rate_pct: number;
+  portfolio_revenue_recovery_rate_pct: number;
+  eligible_opportunity_recovery_rate_pct: number;
+  category_breakdown: Record<string, number>;
+  policy_breakdown: Record<string, number>;
+  created_at: string | null;
 }
 
 export interface HealthResponse {

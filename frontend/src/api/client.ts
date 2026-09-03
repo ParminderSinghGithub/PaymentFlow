@@ -4,6 +4,7 @@
  */
 
 import type {
+  BenchmarkLatestResponse,
   BenchmarkRunResponse,
   CaseDetailResponse,
   CaseSummaryItem,
@@ -108,8 +109,22 @@ export async function fetchCaseDetail(caseId: string): Promise<CaseDetailRespons
 /**
  * Get aggregated recovery performance metrics (GET /cases/metrics/summary)
  */
-export async function fetchMetricsSummary(): Promise<MetricsSummary> {
-  return request<MetricsSummary>('/cases/metrics/summary');
+export async function fetchMetricsSummary(params?: {
+  case_source?: string;
+  eval_run_id?: string;
+}): Promise<MetricsSummary> {
+  const searchParams = new URLSearchParams();
+  if (params?.case_source) searchParams.set('case_source', params.case_source);
+  if (params?.eval_run_id) searchParams.set('eval_run_id', params.eval_run_id);
+  const queryStr = searchParams.toString() ? `?${searchParams.toString()}` : '';
+  return request<MetricsSummary>(`/cases/metrics/summary${queryStr}`);
+}
+
+/**
+ * Get latest canonical benchmark evaluation metrics (GET /cases/benchmark/latest)
+ */
+export async function fetchBenchmarkLatest(): Promise<BenchmarkLatestResponse> {
+  return request<BenchmarkLatestResponse>('/cases/benchmark/latest');
 }
 
 /**

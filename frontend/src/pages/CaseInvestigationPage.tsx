@@ -99,6 +99,9 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
     const desc = c.failure_description || 'Payment failure detected at checkout.';
 
     if (c.state === 'RECOVERED') {
+      if (c.case_source === 'CANONICAL_EVALUATION') {
+        return `Transaction failed due to ${cat} (${desc}). Evaluated under canonical benchmark: AI proposed ${c.ai_policy_id || 'recovery'}, deterministic guardrails validated all policy invariants, and simulated customer recovery attribution succeeded for ₹${c.recovered_amount_inr.toLocaleString('en-IN')}.`;
+      }
       return `Transaction failed due to ${cat} (${desc}). The AI advisory proposed immediate recovery via ${c.ai_policy_id}. Deterministic guardrails verified all safety checks (amount & currency lock, cooldown, single-link limit) and authorized link creation. The customer completed checkout, and Razorpay captured webhook verified authentic revenue of ₹${c.recovered_amount_inr.toLocaleString('en-IN')}.`;
     }
     if (c.state === 'ESCALATED') {
@@ -108,6 +111,9 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
       return `Transaction failed with ${cat} (${desc}). The eligibility engine determined this case is non-recoverable (${c.eligibility_reason || 'Terminal defect'}). Guardrails enforced P_NO_ACTION, preventing wasteful customer messaging or duplicate payment links.`;
     }
     if (c.state === 'ACTION_EXECUTED') {
+      if (c.case_source === 'CANONICAL_EVALUATION') {
+        return `Transaction failed with ${cat} (${desc}). Evaluated under canonical benchmark: AI proposed ${c.ai_policy_id || 'recovery'}, and deterministic guardrails validated recovery action. Recovery action was executed for evaluation, but payment was not completed during the evaluation window.`;
+      }
       return `Transaction failed with ${cat} (${desc}). The AI proposed ${c.ai_policy_id}, which was verified and authorized by deterministic guardrails. A genuine Razorpay Hosted Payment Link was generated and dispatched. Currently in-flight awaiting customer checkout.`;
     }
     return `Transaction failed with ${cat} (${desc}). Ingested and awaiting automated or manual triage evaluation.`;
@@ -200,6 +206,20 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
           </div>
         }
       />
+
+      {/* ── Provenance Banner for Canonical Benchmark Evaluation ─────── */}
+      {c.case_source === 'CANONICAL_EVALUATION' && (
+        <div className="bg-[rgba(217,119,6,0.06)] border border-[rgba(217,119,6,0.25)] rounded-lg p-3 px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px]">
+          <div className="flex items-center gap-2">
+            <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.15)] text-amber-300 font-mono text-[10px] font-bold uppercase tracking-wider">
+              Canonical Benchmark Evaluation
+            </span>
+            <span className="text-[#D1D5DB]">
+              Executed in benchmark run <span className="font-mono text-amber-200">{c.eval_run_id || 'run'}</span>. Measured recovery workflow evaluated safely without merchant side-effects.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* ── B. Case Identity & Outcome Strip ───────────────────────────────── */}
       <div className="bg-surface-base border border-white/[0.06] rounded-lg p-5 space-y-4">
@@ -629,7 +649,11 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
             <div className="bg-surface-base border border-white/[0.06] rounded-lg p-5 space-y-4">
               <SectionHeader
                 title="Action Execution"
-                subtitle="Gateway write dispatched under deterministic policy"
+                subtitle={
+                  c.case_source === 'CANONICAL_EVALUATION'
+                    ? 'Safe evaluation execution under deterministic policy'
+                    : 'Gateway write dispatched under deterministic policy'
+                }
                 badge={c.payment_link_id ? 'Executed' : c.state === 'ESCALATED' ? 'Escalated' : 'Halted'}
               />
 
@@ -688,7 +712,11 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
             >
               <SectionHeader
                 title="Gateway Verification & Attribution"
-                subtitle="Independent confirmation of status: captured"
+                subtitle={
+                  c.case_source === 'CANONICAL_EVALUATION'
+                    ? 'Benchmark evaluation attribution'
+                    : 'Independent confirmation of status: captured'
+                }
                 badge={c.state === 'RECOVERED' ? 'Verified Cash' : 'Pending'}
               />
 
@@ -714,7 +742,15 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                     <DataRow label="Gateway Payment Status" value="captured" mono />
                     <DataRow label="Recovered Payment ID" value={c.recovered_payment_id || 'pay_verified'} mono />
                     <DataRow label="Attributed Amount" value={`₹${c.recovered_amount_inr.toFixed(2)}`} mono />
-                    <DataRow label="Verification Basis" value="Razorpay HMAC SHA-256 Webhook" mono />
+                    <DataRow
+                      label="Verification Basis"
+                      value={
+                        c.case_source === 'CANONICAL_EVALUATION'
+                          ? 'Benchmark Verification Engine'
+                          : 'Razorpay HMAC SHA-256 Webhook'
+                      }
+                      mono
+                    />
                   </div>
                 </div>
               ) : c.state === 'ESCALATED' ? (
@@ -737,10 +773,14 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                 <div className="space-y-3">
                   <div className="p-3 rounded-md bg-surface-raised border border-white/[0.04]">
                     <span className="text-[10px] font-mono text-[#6B7280] uppercase tracking-wider font-semibold block">
-                      Awaiting Customer Payment
+                      {c.case_source === 'CANONICAL_EVALUATION'
+                        ? 'Evaluation Window Complete'
+                        : 'Awaiting Customer Payment'}
                     </span>
                     <p className="text-[11px] text-[#9CA3AF] mt-1 leading-snug">
-                      Payment link dispatched. Attributed revenue will register immediately upon confirmed gateway webhook.
+                      {c.case_source === 'CANONICAL_EVALUATION'
+                        ? 'Recovery action safely validated and executed during benchmark; customer payment was not completed within evaluation run.'
+                        : 'Payment link dispatched. Attributed revenue will register immediately upon confirmed gateway webhook.'}
                     </p>
                   </div>
                   <div className="space-y-1.5 text-[11px]">

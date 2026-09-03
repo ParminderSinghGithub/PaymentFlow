@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from paymentflow.db.models import AuditEventModel, RecoveryCaseModel
+from paymentflow.db.models import AuditEventModel, EvaluationRunModel, RecoveryCaseModel
 from paymentflow.db.session import get_db_session, get_sessionmaker
 from paymentflow.services.recovery_orchestrator import RecoveryOrchestrator
 
@@ -56,7 +56,7 @@ class CaseDetailResponse(BaseModel):
 
 
 class MetricsSummaryResponse(BaseModel):
-    """Aggregated recovery metrics summary."""
+    """Aggregated recovery metrics summary with explicit semantic rates."""
 
     total_cases: int
     recovered_cases: int
@@ -69,6 +69,13 @@ class MetricsSummaryResponse(BaseModel):
     policy_breakdown: dict[str, int]
     eval_run_id: str | None = None
     case_source: str | None = None
+    total_at_risk_amount_inr: float | None = None
+    eligible_cases: int | None = None
+    eligible_opportunity_amount_inr: float | None = None
+    evaluation_recovered_cases: int | None = None
+    evaluation_recovered_amount_inr: float | None = None
+    escalated_amount_inr: float | None = None
+    terminal_amount_inr: float | None = None
     overall_case_recovery_rate_pct: float | None = None
     eligible_case_recovery_rate_pct: float | None = None
     portfolio_revenue_recovery_rate_pct: float | None = None
@@ -100,6 +107,35 @@ class BenchmarkRunResponse(BaseModel):
     cases: list[dict[str, Any]]
 
 
+class BenchmarkLatestResponse(BaseModel):
+    """Schema for latest benchmark evaluation metrics."""
+
+    eval_run_id: str
+    case_source: str
+    status: str
+    total_cases: int
+    total_at_risk_amount_inr: float
+    eligible_cases: int
+    eligible_opportunity_amount_inr: float
+    recovery_actions_executed: int
+    recovery_actions_blocked: int
+    evaluation_recovered_cases: int
+    evaluation_recovered_amount_inr: float
+    recovered_cases: int = 0
+    total_recovered_amount_inr: float = 0.0
+    escalated_cases: int
+    escalated_amount_inr: float
+    terminal_cases: int
+    terminal_amount_inr: float
+    overall_case_recovery_rate_pct: float
+    eligible_case_recovery_rate_pct: float
+    portfolio_revenue_recovery_rate_pct: float
+    eligible_opportunity_recovery_rate_pct: float
+    category_breakdown: dict[str, int]
+    policy_breakdown: dict[str, int]
+    created_at: str | None = None
+
+
 @router.get(
     "",
     response_model=list[dict[str, Any]],
@@ -117,10 +153,29 @@ async def list_cases(
     query = select(RecoveryCaseModel).order_by(RecoveryCaseModel.created_at.desc())
     if state:
         query = query.where(RecoveryCaseModel.state == state)
-    if case_source:
-        query = query.where(RecoveryCaseModel.case_source == case_source)
     if eval_run_id:
         query = query.where(RecoveryCaseModel.eval_run_id == eval_run_id)
+    elif case_source:
+        query = query.where(RecoveryCaseModel.case_source == case_source)
+    else:
+        # If no provenance or run specified, scope canonical evaluation data to the latest run
+        from sqlalchemy import and_, or_
+
+        latest_eval_q = (
+            select(EvaluationRunModel).order_by(EvaluationRunModel.created_at.desc()).limit(1)
+        )
+        latest_eval = (await db.execute(latest_eval_q)).scalar_one_or_none()
+        if latest_eval:
+            query = query.where(
+                or_(
+                    and_(
+                        RecoveryCaseModel.case_source == "CANONICAL_EVALUATION",
+                        RecoveryCaseModel.eval_run_id == latest_eval.eval_run_id,
+                        RecoveryCaseModel.case_id.like(f"eval_case_{latest_eval.eval_run_id}_%"),
+                    ),
+                    RecoveryCaseModel.case_source != "CANONICAL_EVALUATION",
+                )
+            )
     query = query.offset(offset).limit(limit)
 
     result = await db.execute(query)
@@ -135,18 +190,24 @@ async def list_cases(
             "amount_paise": c.amount,
             "amount_inr": c.amount / 100.0,
             "currency": c.currency,
-            "payment_method": c.payment_method,
-            "failure_category": c.failure_category,
             "state": c.state,
+            "failure_code": c.failure_code,
+            "failure_category": c.failure_category,
             "case_source": c.case_source,
             "eval_run_id": c.eval_run_id,
+            "eligibility_status": c.eligibility_status,
+            "eligibility_reason": c.eligibility_reason,
+            "ai_policy_id": c.ai_policy_id,
+            "ai_explanation": c.ai_explanation,
             "validated_policy_id": c.validated_policy_id,
+            "action_status": c.action_status,
             "payment_link_id": c.payment_link_id,
             "payment_link_short_url": c.payment_link_short_url,
-            "recovered_amount_paise": c.recovered_amount,
+            "payment_link_status": c.payment_link_status,
+            "recovered_payment_id": c.recovered_payment_id,
             "recovered_amount_inr": (c.recovered_amount / 100.0) if c.recovered_amount else 0.0,
             "created_at": c.created_at.isoformat() if c.created_at else None,
-            "scheduled_at": c.scheduled_at.isoformat() if c.scheduled_at else None,
+            "updated_at": c.updated_at.isoformat() if c.updated_at else None,
         }
         for c in cases
     ]
@@ -155,7 +216,7 @@ async def list_cases(
 @router.get(
     "/metrics/summary",
     response_model=MetricsSummaryResponse,
-    summary="Get Recovery Performance Metrics",
+    summary="Get Recovery Metrics Summary",
 )
 async def get_metrics_summary(
     case_source: str | None = Query(default=None, description="Scope by case provenance"),
@@ -177,6 +238,17 @@ async def get_metrics_summary(
             select(EvaluationRunModel).order_by(EvaluationRunModel.created_at.desc()).limit(1)
         )
         target_eval_run = (await db.execute(latest_eval_q)).scalar_one_or_none()
+    elif clean_case_source is None:
+        # Check if the current environment has only canonical evaluation cases
+        non_canon_count_q = select(func.count(RecoveryCaseModel.case_id)).where(
+            RecoveryCaseModel.case_source != "CANONICAL_EVALUATION"
+        )
+        non_canon_count = (await db.execute(non_canon_count_q)).scalar_one()
+        if non_canon_count == 0:
+            latest_eval_q = (
+                select(EvaluationRunModel).order_by(EvaluationRunModel.created_at.desc()).limit(1)
+            )
+            target_eval_run = (await db.execute(latest_eval_q)).scalar_one_or_none()
 
     if target_eval_run:
         # Category breakdown for this run
@@ -209,7 +281,7 @@ async def get_metrics_summary(
             total_recovered_amount_inr=round(
                 float(target_eval_run.evaluation_recovered_amount) / 100.0, 2
             ),
-            recovery_rate_pct=target_eval_run.overall_case_recovery_rate_pct,
+            recovery_rate_pct=target_eval_run.eligible_opportunity_recovery_rate_pct,
             active_recovery_links=target_eval_run.recovery_actions_executed,
             escalated_cases=target_eval_run.escalated_cases,
             terminal_no_action_cases=target_eval_run.terminal_cases,
@@ -217,6 +289,17 @@ async def get_metrics_summary(
             policy_breakdown=pol_breakdown,
             eval_run_id=target_eval_run.eval_run_id,
             case_source="CANONICAL_EVALUATION",
+            total_at_risk_amount_inr=round(float(target_eval_run.total_at_risk_amount) / 100.0, 2),
+            eligible_cases=target_eval_run.eligible_cases,
+            eligible_opportunity_amount_inr=round(
+                float(target_eval_run.eligible_opportunity_amount) / 100.0, 2
+            ),
+            evaluation_recovered_cases=target_eval_run.evaluation_recovered_cases,
+            evaluation_recovered_amount_inr=round(
+                float(target_eval_run.evaluation_recovered_amount) / 100.0, 2
+            ),
+            escalated_amount_inr=round(float(target_eval_run.escalated_amount) / 100.0, 2),
+            terminal_amount_inr=round(float(target_eval_run.terminal_amount) / 100.0, 2),
             overall_case_recovery_rate_pct=target_eval_run.overall_case_recovery_rate_pct,
             eligible_case_recovery_rate_pct=target_eval_run.eligible_case_recovery_rate_pct,
             portfolio_revenue_recovery_rate_pct=target_eval_run.portfolio_revenue_recovery_rate_pct,
@@ -248,6 +331,7 @@ async def get_metrics_summary(
             )
 
     total_q = select(func.count(RecoveryCaseModel.case_id))
+    at_risk_q = select(func.sum(RecoveryCaseModel.amount))
     rec_q = select(func.count(RecoveryCaseModel.case_id)).where(
         RecoveryCaseModel.state == "RECOVERED"
     )
@@ -267,6 +351,7 @@ async def get_metrics_summary(
 
     for cond in base_filter:
         total_q = total_q.where(cond)
+        at_risk_q = at_risk_q.where(cond)
         rec_q = rec_q.where(cond)
         rev_q = rev_q.where(cond)
         links_q = links_q.where(cond)
@@ -274,13 +359,16 @@ async def get_metrics_summary(
         no_act_q = no_act_q.where(cond)
 
     total_cases = (await db.scalar(total_q)) or 0
+    at_risk_paise = (await db.scalar(at_risk_q)) or 0
+    total_at_risk_inr = float(at_risk_paise) / 100.0
     recovered_cases = (await db.scalar(rec_q)) or 0
     recovered_paise = (await db.scalar(rev_q)) or 0
     recovered_inr = float(recovered_paise) / 100.0
     active_links = (await db.scalar(links_q)) or 0
     escalated_cases = (await db.scalar(esc_q)) or 0
     terminal_no_act = (await db.scalar(no_act_q)) or 0
-    recovery_rate = (recovered_cases / total_cases * 100.0) if total_cases > 0 else 0.0
+    case_recovery_rate = (float(recovered_cases) / float(total_cases) * 100.0) if total_cases > 0 else 0.0
+    rev_recovery_rate = (float(recovered_paise) / float(at_risk_paise) * 100.0) if at_risk_paise > 0 else 0.0
 
     cat_q = select(
         RecoveryCaseModel.failure_category, func.count(RecoveryCaseModel.case_id)
@@ -302,13 +390,16 @@ async def get_metrics_summary(
         total_cases=total_cases,
         recovered_cases=recovered_cases,
         total_recovered_amount_inr=round(recovered_inr, 2),
-        recovery_rate_pct=round(recovery_rate, 2),
+        recovery_rate_pct=round(case_recovery_rate, 2),
         active_recovery_links=active_links,
         escalated_cases=escalated_cases,
         terminal_no_action_cases=terminal_no_act,
         category_breakdown=cat_breakdown,
         policy_breakdown=pol_breakdown,
         case_source=case_source,
+        total_at_risk_amount_inr=round(total_at_risk_inr, 2),
+        overall_case_recovery_rate_pct=round(case_recovery_rate, 2),
+        portfolio_revenue_recovery_rate_pct=round(rev_recovery_rate, 2),
     )
 
 
@@ -417,14 +508,81 @@ async def run_benchmark_batch(
 
 @router.get(
     "/benchmark/latest",
-    response_model=MetricsSummaryResponse,
+    response_model=BenchmarkLatestResponse,
     summary="Get Latest Canonical Benchmark Run Metrics",
 )
 async def get_latest_benchmark_metrics(
     db: AsyncSession = Depends(get_db_session),
-) -> MetricsSummaryResponse:
+) -> BenchmarkLatestResponse:
     """Retrieve run-scoped metrics for the most recent benchmark evaluation run."""
-    return await get_metrics_summary(case_source="CANONICAL_EVALUATION", eval_run_id=None, db=db)
+    from paymentflow.db.models import EvaluationRunModel
+
+    latest_eval_q = (
+        select(EvaluationRunModel).order_by(EvaluationRunModel.created_at.desc()).limit(1)
+    )
+    latest_eval = (await db.execute(latest_eval_q)).scalar_one_or_none()
+    if not latest_eval:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No canonical benchmark evaluation runs exist.",
+        )
+
+    # Category breakdown for this run
+    cat_q = (
+        select(RecoveryCaseModel.failure_category, func.count(RecoveryCaseModel.case_id))
+        .where(
+            RecoveryCaseModel.eval_run_id == latest_eval.eval_run_id,
+            RecoveryCaseModel.case_id.like(f"eval_case_{latest_eval.eval_run_id}_%"),
+        )
+        .group_by(RecoveryCaseModel.failure_category)
+    )
+    cat_res = await db.execute(cat_q)
+    cat_breakdown = {str(row[0] or "UNKNOWN"): int(row[1]) for row in cat_res.fetchall()}
+
+    # Policy breakdown for this run
+    pol_q = (
+        select(RecoveryCaseModel.validated_policy_id, func.count(RecoveryCaseModel.case_id))
+        .where(
+            RecoveryCaseModel.eval_run_id == latest_eval.eval_run_id,
+            RecoveryCaseModel.case_id.like(f"eval_case_{latest_eval.eval_run_id}_%"),
+        )
+        .group_by(RecoveryCaseModel.validated_policy_id)
+    )
+    pol_res = await db.execute(pol_q)
+    pol_breakdown = {str(row[0] or "NONE"): int(row[1]) for row in pol_res.fetchall()}
+
+    return BenchmarkLatestResponse(
+        eval_run_id=latest_eval.eval_run_id,
+        case_source="CANONICAL_EVALUATION",
+        status="COMPLETED",
+        total_cases=latest_eval.total_cases,
+        total_at_risk_amount_inr=round(float(latest_eval.total_at_risk_amount) / 100.0, 2),
+        eligible_cases=latest_eval.eligible_cases,
+        eligible_opportunity_amount_inr=round(
+            float(latest_eval.eligible_opportunity_amount) / 100.0, 2
+        ),
+        recovery_actions_executed=latest_eval.recovery_actions_executed,
+        recovery_actions_blocked=latest_eval.recovery_actions_blocked,
+        evaluation_recovered_cases=latest_eval.evaluation_recovered_cases,
+        evaluation_recovered_amount_inr=round(
+            float(latest_eval.evaluation_recovered_amount) / 100.0, 2
+        ),
+        recovered_cases=latest_eval.evaluation_recovered_cases,
+        total_recovered_amount_inr=round(
+            float(latest_eval.evaluation_recovered_amount) / 100.0, 2
+        ),
+        escalated_cases=latest_eval.escalated_cases,
+        escalated_amount_inr=round(float(latest_eval.escalated_amount) / 100.0, 2),
+        terminal_cases=latest_eval.terminal_cases,
+        terminal_amount_inr=round(float(latest_eval.terminal_amount) / 100.0, 2),
+        overall_case_recovery_rate_pct=latest_eval.overall_case_recovery_rate_pct,
+        eligible_case_recovery_rate_pct=latest_eval.eligible_case_recovery_rate_pct,
+        portfolio_revenue_recovery_rate_pct=latest_eval.portfolio_revenue_recovery_rate_pct,
+        eligible_opportunity_recovery_rate_pct=latest_eval.eligible_opportunity_recovery_rate_pct,
+        category_breakdown=cat_breakdown,
+        policy_breakdown=pol_breakdown,
+        created_at=latest_eval.created_at.isoformat() if latest_eval.created_at else None,
+    )
 
 
 @router.post(
