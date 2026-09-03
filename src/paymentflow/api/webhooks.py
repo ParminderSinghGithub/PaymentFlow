@@ -31,6 +31,11 @@ async def handle_razorpay_webhook(
 ) -> WebhookProcessingResult:
     """Ingest, verify, and process Razorpay webhooks idempotently."""
     raw_body = await request.body()
+    logger.info(
+        "Incoming webhook request received: size_bytes=%d, signature_present=%s",
+        len(raw_body),
+        bool(x_razorpay_signature),
+    )
 
     # 1. Verify webhook signature against raw request body
     if not x_razorpay_signature:
@@ -52,6 +57,8 @@ async def handle_razorpay_webhook(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid webhook signature.",
         )
+
+    logger.info("Webhook HMAC-SHA256 signature verified successfully.")
 
     # 2. Parse JSON payload
     try:
