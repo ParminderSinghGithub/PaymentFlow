@@ -185,3 +185,44 @@ async def test_llm_adapter_placeholder_key_fallback():
 
     assert proposal.policy_id == RecoveryPolicy.P_NO_ACTION
     assert metadata["is_fallback"] is True
+
+
+@pytest.mark.asyncio
+async def test_llm_adapter_transient_retry_success():
+    """Verify LLMClient recovers from transient 503 via retry loop."""
+    attempts = 0
+    mock_payload = {
+        "failure_category": "C1",
+        "policy_id": "P_CREATE_LINK_IMMEDIATE",
+        "template_id": "TPL_RECOVERY_STANDARD",
+        "explanation": "Recovered after retry.",
+    }
+    gemini_response = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": json.dumps(mock_payload)}],
+                    "role": "model",
+                }
+            }
+        ]
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(503, text="Service Unavailable")
+        return httpx.Response(200, json=gemini_response)
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        llm = LLMClient(
+            settings=Settings(llm_api_key="real_test_key"),
+            http_client=client,
+        )
+        proposal, metadata = await llm.generate_proposal(make_test_context())
+
+        assert attempts == 2
+        assert proposal.policy_id == RecoveryPolicy.P_CREATE_LINK_IMMEDIATE
+        assert metadata["is_fallback"] is False

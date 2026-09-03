@@ -203,6 +203,9 @@ class RecoveryExecutor:
             # 7. Call Razorpay API to Create Payment Link
             try:
                 link_ref_id = case.payment_link_reference_id or case.case_id
+                # Propagate customer identity to Razorpay Payment Link for notification targeting
+                # and recovery audit context. Note: Hosted Razorpay Checkout may still prompt
+                # the customer to confirm or enter contact details on screen.
                 customer_data = None
                 if case.failure_context and isinstance(case.failure_context, dict):
                     c_email = case.failure_context.get("email")
