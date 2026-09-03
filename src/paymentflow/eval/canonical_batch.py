@@ -808,6 +808,7 @@ async def seed_canonical_demonstration_batch(
             recovered_payment_id=sc["recovered_payment_id"],
             recovered_amount=sc["recovered_amount"],
             state=sc["state"],
+            case_source="CANONICAL_EVALUATION",
             scheduled_at=datetime.fromisoformat(sc["scheduled_at"]) if sc["scheduled_at"] else None,
             created_at=created_at,
             updated_at=updated_at,

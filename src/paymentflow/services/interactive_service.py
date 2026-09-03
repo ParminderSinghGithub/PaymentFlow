@@ -96,6 +96,7 @@ class InteractiveRecoveryService:
                     "contact": customer_contact,
                 },
                 eligibility_status="PENDING",
+                case_source="INTERACTIVE_DEMO",
                 payment_link_reference_id=f"FP-{failed_pay_id}",
                 state=CaseState.FAILED_INGESTED.value,
                 created_at=now,

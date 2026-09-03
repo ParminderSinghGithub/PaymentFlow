@@ -82,6 +82,10 @@ class RecoveryCaseModel(Base):
     state: Mapped[str] = mapped_column(
         String(32), nullable=False, default="FAILED_INGESTED", index=True
     )
+    case_source: Mapped[str] = mapped_column(
+        String(32), default="LIVE_CHECKOUT", index=True, nullable=False
+    )
+    eval_run_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     scheduled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
@@ -113,6 +117,7 @@ class AuditEventModel(Base):
         index=True,
         nullable=True,
     )
+    eval_run_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     actor: Mapped[str] = mapped_column(String(32), nullable=False)  # system, llm, policy_engine
     decision: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -130,3 +135,32 @@ class AuditEventModel(Base):
     case: Mapped[RecoveryCaseModel | None] = relationship(
         "RecoveryCaseModel", back_populates="audit_events"
     )
+
+
+class EvaluationRunModel(Base):
+    """Tracks run-scoped metrics and lifecycle of a benchmark execution."""
+
+    __tablename__ = "evaluation_runs"
+
+    eval_run_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(32), default="COMPLETED", nullable=False)
+    total_cases: Mapped[int] = mapped_column(nullable=False)
+    total_at_risk_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)  # in paise
+    eligible_cases: Mapped[int] = mapped_column(nullable=False)
+    eligible_opportunity_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)  # in paise
+    recovery_actions_executed: Mapped[int] = mapped_column(nullable=False)
+    recovery_actions_blocked: Mapped[int] = mapped_column(nullable=False)
+    evaluation_recovered_cases: Mapped[int] = mapped_column(nullable=False)
+    evaluation_recovered_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)  # in paise
+    escalated_cases: Mapped[int] = mapped_column(nullable=False)
+    escalated_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)  # in paise
+    terminal_cases: Mapped[int] = mapped_column(nullable=False)
+    terminal_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)  # in paise
+    overall_case_recovery_rate_pct: Mapped[float] = mapped_column(nullable=False)
+    eligible_case_recovery_rate_pct: Mapped[float] = mapped_column(nullable=False)
+    portfolio_revenue_recovery_rate_pct: Mapped[float] = mapped_column(nullable=False)
+    eligible_opportunity_recovery_rate_pct: Mapped[float] = mapped_column(nullable=False)
+    summary_metadata: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)

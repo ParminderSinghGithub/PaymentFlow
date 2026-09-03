@@ -4,6 +4,7 @@
  */
 
 import type {
+  BenchmarkRunResponse,
   CaseDetailResponse,
   CaseSummaryItem,
   DelayedProcessResult,
@@ -112,7 +113,17 @@ export async function fetchMetricsSummary(): Promise<MetricsSummary> {
 }
 
 /**
+ * Run Canonical Recovery Workflow Benchmark Execution (POST /cases/benchmark/run)
+ */
+export async function runBenchmarkBatch(): Promise<BenchmarkRunResponse> {
+  return request<BenchmarkRunResponse>('/cases/benchmark/run', {
+    method: 'POST',
+  });
+}
+
+/**
  * Seed Canonical 15-Case Demonstration Batch (POST /cases/demo/seed)
+ * @deprecated Use runBenchmarkBatch instead
  */
 export async function seedDemoBatch(resetFirst: boolean = true): Promise<DemoSeedResponse> {
   return request<DemoSeedResponse>(`/cases/demo/seed?reset_first=${resetFirst}`, {

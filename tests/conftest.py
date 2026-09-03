@@ -47,7 +47,19 @@ async def cleanup_db_tables():
             )
             await conn.execute(
                 text(
-                    "TRUNCATE TABLE audit_events, recovery_cases, webhook_events "
+                    "ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS "
+                    "case_source VARCHAR(32) DEFAULT 'LIVE_CHECKOUT';"
+                )
+            )
+            await conn.execute(
+                text("ALTER TABLE recovery_cases ADD COLUMN IF NOT EXISTS eval_run_id VARCHAR(64);")
+            )
+            await conn.execute(
+                text("ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS eval_run_id VARCHAR(64);")
+            )
+            await conn.execute(
+                text(
+                    "TRUNCATE TABLE audit_events, recovery_cases, webhook_events, evaluation_runs "
                     "RESTART IDENTITY CASCADE;"
                 )
             )

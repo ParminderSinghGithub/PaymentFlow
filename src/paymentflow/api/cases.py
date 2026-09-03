@@ -67,6 +67,37 @@ class MetricsSummaryResponse(BaseModel):
     terminal_no_action_cases: int
     category_breakdown: dict[str, int]
     policy_breakdown: dict[str, int]
+    eval_run_id: str | None = None
+    case_source: str | None = None
+    overall_case_recovery_rate_pct: float | None = None
+    eligible_case_recovery_rate_pct: float | None = None
+    portfolio_revenue_recovery_rate_pct: float | None = None
+    eligible_opportunity_recovery_rate_pct: float | None = None
+
+
+class BenchmarkRunResponse(BaseModel):
+    """Schema for benchmark batch execution response."""
+
+    eval_run_id: str
+    case_source: str
+    status: str
+    total_cases: int
+    total_at_risk_amount_inr: float
+    eligible_cases: int
+    eligible_opportunity_amount_inr: float
+    recovery_actions_executed: int
+    recovery_actions_blocked: int
+    evaluation_recovered_cases: int
+    evaluation_recovered_amount_inr: float
+    escalated_cases: int
+    escalated_amount_inr: float
+    terminal_cases: int
+    terminal_amount_inr: float
+    overall_case_recovery_rate_pct: float
+    eligible_case_recovery_rate_pct: float
+    portfolio_revenue_recovery_rate_pct: float
+    eligible_opportunity_recovery_rate_pct: float
+    cases: list[dict[str, Any]]
 
 
 @router.get(
@@ -76,14 +107,20 @@ class MetricsSummaryResponse(BaseModel):
 )
 async def list_cases(
     state: str | None = Query(default=None, description="Filter by case state"),
+    case_source: str | None = Query(default=None, description="Filter by case provenance"),
+    eval_run_id: str | None = Query(default=None, description="Filter by evaluation run ID"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db_session),
 ) -> list[dict[str, Any]]:
-    """List recovery cases with optional state filtering."""
+    """List recovery cases with optional state, provenance, and run filtering."""
     query = select(RecoveryCaseModel).order_by(RecoveryCaseModel.created_at.desc())
     if state:
         query = query.where(RecoveryCaseModel.state == state)
+    if case_source:
+        query = query.where(RecoveryCaseModel.case_source == case_source)
+    if eval_run_id:
+        query = query.where(RecoveryCaseModel.eval_run_id == eval_run_id)
     query = query.offset(offset).limit(limit)
 
     result = await db.execute(query)
@@ -101,6 +138,8 @@ async def list_cases(
             "payment_method": c.payment_method,
             "failure_category": c.failure_category,
             "state": c.state,
+            "case_source": c.case_source,
+            "eval_run_id": c.eval_run_id,
             "validated_policy_id": c.validated_policy_id,
             "payment_link_id": c.payment_link_id,
             "payment_link_short_url": c.payment_link_short_url,
@@ -119,53 +158,143 @@ async def list_cases(
     summary="Get Recovery Performance Metrics",
 )
 async def get_metrics_summary(
+    case_source: str | None = Query(default=None, description="Scope by case provenance"),
+    eval_run_id: str | None = Query(default=None, description="Scope by benchmark run ID"),
     db: AsyncSession = Depends(get_db_session),
 ) -> MetricsSummaryResponse:
-    """Compute aggregate recovery revenue and conversion performance."""
-    # 1. Basic counts
-    total_q = select(func.count(RecoveryCaseModel.case_id))
-    total_cases = (await db.scalar(total_q)) or 0
+    """Compute aggregate recovery revenue and conversion performance with run isolation."""
+    from paymentflow.db.models import EvaluationRunModel
 
+    clean_eval_run_id = eval_run_id if isinstance(eval_run_id, str) and eval_run_id else None
+    clean_case_source = case_source if isinstance(case_source, str) and case_source else None
+
+    # Case A: Scoped by eval_run_id or canonical benchmark
+    target_eval_run: EvaluationRunModel | None = None
+    if clean_eval_run_id:
+        target_eval_run = await db.get(EvaluationRunModel, clean_eval_run_id)
+    elif clean_case_source == "CANONICAL_EVALUATION":
+        latest_eval_q = (
+            select(EvaluationRunModel).order_by(EvaluationRunModel.created_at.desc()).limit(1)
+        )
+        target_eval_run = (await db.execute(latest_eval_q)).scalar_one_or_none()
+
+    if target_eval_run:
+        # Category breakdown for this run
+        cat_q = (
+            select(RecoveryCaseModel.failure_category, func.count(RecoveryCaseModel.case_id))
+            .where(
+                RecoveryCaseModel.eval_run_id == target_eval_run.eval_run_id,
+                RecoveryCaseModel.case_id.like(f"eval_case_{target_eval_run.eval_run_id}_%"),
+            )
+            .group_by(RecoveryCaseModel.failure_category)
+        )
+        cat_res = await db.execute(cat_q)
+        cat_breakdown = {str(row[0] or "UNKNOWN"): int(row[1]) for row in cat_res.fetchall()}
+
+        # Policy breakdown for this run
+        pol_q = (
+            select(RecoveryCaseModel.validated_policy_id, func.count(RecoveryCaseModel.case_id))
+            .where(
+                RecoveryCaseModel.eval_run_id == target_eval_run.eval_run_id,
+                RecoveryCaseModel.case_id.like(f"eval_case_{target_eval_run.eval_run_id}_%"),
+            )
+            .group_by(RecoveryCaseModel.validated_policy_id)
+        )
+        pol_res = await db.execute(pol_q)
+        pol_breakdown = {str(row[0] or "NONE"): int(row[1]) for row in pol_res.fetchall()}
+
+        return MetricsSummaryResponse(
+            total_cases=target_eval_run.total_cases,
+            recovered_cases=target_eval_run.evaluation_recovered_cases,
+            total_recovered_amount_inr=round(
+                float(target_eval_run.evaluation_recovered_amount) / 100.0, 2
+            ),
+            recovery_rate_pct=target_eval_run.overall_case_recovery_rate_pct,
+            active_recovery_links=target_eval_run.recovery_actions_executed,
+            escalated_cases=target_eval_run.escalated_cases,
+            terminal_no_action_cases=target_eval_run.terminal_cases,
+            category_breakdown=cat_breakdown,
+            policy_breakdown=pol_breakdown,
+            eval_run_id=target_eval_run.eval_run_id,
+            case_source="CANONICAL_EVALUATION",
+            overall_case_recovery_rate_pct=target_eval_run.overall_case_recovery_rate_pct,
+            eligible_case_recovery_rate_pct=target_eval_run.eligible_case_recovery_rate_pct,
+            portfolio_revenue_recovery_rate_pct=target_eval_run.portfolio_revenue_recovery_rate_pct,
+            eligible_opportunity_recovery_rate_pct=target_eval_run.eligible_opportunity_recovery_rate_pct,
+        )
+
+    # Case B: Live/Interactive or general overview metrics query
+    base_filter = []
+    if clean_case_source:
+        base_filter.append(RecoveryCaseModel.case_source == clean_case_source)
+    else:
+        # If no provenance specified, check if evaluation runs exist.
+        # Scope canonical evaluation data to only the latest run to prevent accumulation.
+        latest_eval_q = (
+            select(EvaluationRunModel).order_by(EvaluationRunModel.created_at.desc()).limit(1)
+        )
+        latest_eval = (await db.execute(latest_eval_q)).scalar_one_or_none()
+        if latest_eval:
+            from sqlalchemy import and_, or_
+
+            base_filter.append(
+                or_(
+                    and_(
+                        RecoveryCaseModel.eval_run_id == latest_eval.eval_run_id,
+                        RecoveryCaseModel.case_id.like(f"eval_case_{latest_eval.eval_run_id}_%"),
+                    ),
+                    RecoveryCaseModel.case_source != "CANONICAL_EVALUATION",
+                )
+            )
+
+    total_q = select(func.count(RecoveryCaseModel.case_id))
     rec_q = select(func.count(RecoveryCaseModel.case_id)).where(
         RecoveryCaseModel.state == "RECOVERED"
     )
-    recovered_cases = (await db.scalar(rec_q)) or 0
-
     rev_q = select(func.sum(RecoveryCaseModel.recovered_amount)).where(
         RecoveryCaseModel.state == "RECOVERED"
     )
-    recovered_paise = (await db.scalar(rev_q)) or 0
-    recovered_inr = float(recovered_paise) / 100.0
-
     links_q = select(func.count(RecoveryCaseModel.case_id)).where(
         RecoveryCaseModel.payment_link_id.isnot(None),
         RecoveryCaseModel.state.in_(["ACTION_EXECUTED", "RECOVERED"]),
     )
-    active_links = (await db.scalar(links_q)) or 0
-
     esc_q = select(func.count(RecoveryCaseModel.case_id)).where(
         RecoveryCaseModel.state == "ESCALATED"
     )
-    escalated_cases = (await db.scalar(esc_q)) or 0
-
     no_act_q = select(func.count(RecoveryCaseModel.case_id)).where(
         RecoveryCaseModel.state == "TERMINAL_NO_ACTION"
     )
-    terminal_no_act = (await db.scalar(no_act_q)) or 0
 
+    for cond in base_filter:
+        total_q = total_q.where(cond)
+        rec_q = rec_q.where(cond)
+        rev_q = rev_q.where(cond)
+        links_q = links_q.where(cond)
+        esc_q = esc_q.where(cond)
+        no_act_q = no_act_q.where(cond)
+
+    total_cases = (await db.scalar(total_q)) or 0
+    recovered_cases = (await db.scalar(rec_q)) or 0
+    recovered_paise = (await db.scalar(rev_q)) or 0
+    recovered_inr = float(recovered_paise) / 100.0
+    active_links = (await db.scalar(links_q)) or 0
+    escalated_cases = (await db.scalar(esc_q)) or 0
+    terminal_no_act = (await db.scalar(no_act_q)) or 0
     recovery_rate = (recovered_cases / total_cases * 100.0) if total_cases > 0 else 0.0
 
-    # 2. Category Breakdown
     cat_q = select(
         RecoveryCaseModel.failure_category, func.count(RecoveryCaseModel.case_id)
     ).group_by(RecoveryCaseModel.failure_category)
-    cat_res = await db.execute(cat_q)
-    cat_breakdown = {str(row[0] or "UNKNOWN"): int(row[1]) for row in cat_res.fetchall()}
-
-    # 3. Policy Breakdown
     pol_q = select(
         RecoveryCaseModel.validated_policy_id, func.count(RecoveryCaseModel.case_id)
     ).group_by(RecoveryCaseModel.validated_policy_id)
+
+    for cond in base_filter:
+        cat_q = cat_q.where(cond)
+        pol_q = pol_q.where(cond)
+
+    cat_res = await db.execute(cat_q)
+    cat_breakdown = {str(row[0] or "UNKNOWN"): int(row[1]) for row in cat_res.fetchall()}
     pol_res = await db.execute(pol_q)
     pol_breakdown = {str(row[0] or "NONE"): int(row[1]) for row in pol_res.fetchall()}
 
@@ -179,6 +308,7 @@ async def get_metrics_summary(
         terminal_no_action_cases=terminal_no_act,
         category_breakdown=cat_breakdown,
         policy_breakdown=pol_breakdown,
+        case_source=case_source,
     )
 
 
@@ -230,6 +360,8 @@ async def get_case_detail(
         "ai_explanation": case.ai_explanation,
         "validated_policy_id": case.validated_policy_id,
         "action_status": case.action_status,
+        "case_source": case.case_source,
+        "eval_run_id": case.eval_run_id,
         "payment_link_id": case.payment_link_id,
         "payment_link_reference_id": case.payment_link_reference_id,
         "payment_link_short_url": case.payment_link_short_url,
@@ -246,6 +378,7 @@ async def get_case_detail(
     audit_list = [
         {
             "id": a.id,
+            "eval_run_id": a.eval_run_id,
             "event_type": a.event_type,
             "actor": a.actor,
             "decision": a.decision,
@@ -260,6 +393,38 @@ async def get_case_detail(
     ]
 
     return CaseDetailResponse(case=case_dict, audit_trail=audit_list)
+
+
+@router.post(
+    "/benchmark/run",
+    response_model=BenchmarkRunResponse,
+    summary="Run Canonical Recovery Workflow Benchmark Execution",
+)
+async def run_benchmark_batch(
+    db: AsyncSession = Depends(get_db_session),
+) -> BenchmarkRunResponse:
+    """Execute the canonical 15-scenario recovery workflow benchmark dynamically.
+
+    Runs each scenario through PaymentFlow diagnosis, C1-C5 classification, deterministic
+    eligibility, deterministic evaluation advisory, policy guardrails, and safe evaluation
+    recovery execution. Computes and persists run-scoped metrics.
+    """
+    from paymentflow.eval.benchmark_runner import BenchmarkRunner
+
+    result = await BenchmarkRunner.run_benchmark(session=db)
+    return BenchmarkRunResponse(**result)
+
+
+@router.get(
+    "/benchmark/latest",
+    response_model=MetricsSummaryResponse,
+    summary="Get Latest Canonical Benchmark Run Metrics",
+)
+async def get_latest_benchmark_metrics(
+    db: AsyncSession = Depends(get_db_session),
+) -> MetricsSummaryResponse:
+    """Retrieve run-scoped metrics for the most recent benchmark evaluation run."""
+    return await get_metrics_summary(case_source="CANONICAL_EVALUATION", eval_run_id=None, db=db)
 
 
 @router.post(
@@ -296,13 +461,17 @@ async def process_due_delayed_cases() -> dict[str, Any]:
 
 @router.post(
     "/demo/seed",
-    summary="Seed Canonical 15-Case Demonstration Batch",
+    summary="[DEPRECATED] Seed Canonical Demonstration Batch",
+    deprecated=True,
 )
 async def seed_demo_batch(
     reset_first: bool = Query(default=True, description="Reset previous demo cases before seeding"),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
-    """Seed the canonical 15-case demonstration batch into PostgreSQL."""
+    """DEPRECATED: Use POST /cases/benchmark/run instead.
+
+    Maintained for legacy compatibility with prior static test fixtures.
+    """
     from paymentflow.eval.canonical_batch import seed_canonical_demonstration_batch
 
     result = await seed_canonical_demonstration_batch(session=db, reset_first=reset_first)

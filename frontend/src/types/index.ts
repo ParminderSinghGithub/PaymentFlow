@@ -137,6 +137,29 @@ export interface DemoSeedResponse {
   cases: string[];
 }
 
+export interface BenchmarkRunResponse {
+  eval_run_id: string;
+  case_source: string;
+  status: string;
+  total_cases: number;
+  total_at_risk_amount_inr: number;
+  eligible_cases: number;
+  eligible_opportunity_amount_inr: number;
+  recovery_actions_executed: number;
+  recovery_actions_blocked: number;
+  evaluation_recovered_cases: number;
+  evaluation_recovered_amount_inr: number;
+  escalated_cases: number;
+  escalated_amount_inr: number;
+  terminal_cases: number;
+  terminal_amount_inr: number;
+  overall_case_recovery_rate_pct: number;
+  eligible_case_recovery_rate_pct: number;
+  portfolio_revenue_recovery_rate_pct: number;
+  eligible_opportunity_recovery_rate_pct: number;
+  cases: Array<Record<string, unknown>>;
+}
+
 export interface LaunchScenarioRequest {
   scenario_id?: string;
   amount_paise?: number;

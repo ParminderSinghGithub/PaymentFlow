@@ -14,7 +14,7 @@ import {
   fetchMetricsSummary,
   processDueDelayedCases,
   triggerCaseTriage,
-  seedDemoBatch,
+  runBenchmarkBatch,
   ApiError,
 } from './api/client';
 import type { CaseDetailResponse, CaseSummaryItem, HealthResponse, MetricsSummary } from './types';
@@ -232,15 +232,15 @@ const AppContent: React.FC = () => {
   const handleSeedCanonicalBatch = async () => {
     setSeedingBatch(true);
     try {
-      const result = await seedDemoBatch(true);
+      const result = await runBenchmarkBatch();
       showToast(
         'success',
-        'Canonical Batch Seeded',
-        `${result.seeded_cases_count} cases seeded. ₹${result.total_recovered_inr.toLocaleString('en-IN')} recovered (${result.recovery_rate_pct}%).`
+        'Benchmark Batch Executed',
+        `Run ID: ${result.eval_run_id} · ${result.evaluation_recovered_cases}/${result.total_cases} recovered (₹${result.evaluation_recovered_amount_inr.toLocaleString('en-IN')}).`
       );
       await Promise.all([loadMetrics(), loadCases()]);
     } catch (err) {
-      showToast('error', 'Seeding Error', err instanceof ApiError ? err.detail : 'Seeding failed');
+      showToast('error', 'Benchmark Error', err instanceof ApiError ? err.detail : 'Benchmark execution failed');
     } finally {
       setSeedingBatch(false);
     }

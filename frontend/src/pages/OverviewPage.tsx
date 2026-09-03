@@ -115,13 +115,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <div className="flex items-center gap-2.5">
             {onSeedDemoBatch && (
               <ActionButton
-                label={seedingBatch ? 'Seeding Batch…' : 'Seed Canonical Batch'}
+                label={seedingBatch ? 'Running Benchmark…' : 'Run Benchmark Batch'}
                 variant="secondary"
                 size="sm"
                 icon={Database}
                 loading={seedingBatch}
                 onClick={onSeedDemoBatch}
-                aria-label="Seed 15-case canonical demonstration batch"
+                aria-label="Run 15-scenario canonical benchmark workflow execution"
               />
             )}
             {onNavigateToInteractive && (
