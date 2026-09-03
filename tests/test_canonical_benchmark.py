@@ -248,3 +248,81 @@ async def test_canonical_and_live_metric_isolation():
         assert m_live["total_cases"] == 1
         assert m_live["recovered_cases"] == 1
         assert m_live["total_recovered_amount_inr"] == 999.0
+
+        # Query default metrics endpoint (no params) when live data exists:
+        # MUST return clean live operational data, strictly excluding the 15 benchmark cases!
+        res_default = await client.get("/cases/metrics/summary")
+        m_default = res_default.json()
+        assert m_default["case_source"] == "LIVE_OPERATIONAL"
+        assert m_default["total_cases"] == 1  # strictly 1 live case, not 16!
+        assert m_default["recovered_cases"] == 1  # strictly 1 live recovered, not 7!
+        assert m_default["total_recovered_amount_inr"] == 999.0  # strictly live amount
+
+
+@pytest.mark.asyncio
+async def test_c2_2_evidence_boundary_isolation_audit():
+    """Phase C2.2: Verify evidence boundary isolation between benchmark and live data.
+
+    Confirms:
+    1. Benchmark execution creates exclusively CANONICAL_EVALUATION cases with run-scoped IDs.
+    2. Zero fake Razorpay payment IDs (eval_rec_ prefix used).
+    3. Zero fake payment.captured webhook events created in WebhookEventModel.
+    4. CS12 uses strict benchmark cutoff semantics (no simulated-customer text).
+    5. Evaluation recovery credit never enters live payment attribution ledger.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Trigger benchmark run
+        res = await client.post("/cases/benchmark/run")
+        assert res.status_code == 200
+        data = res.json()
+        eval_run_id = data["eval_run_id"]
+        assert data["case_source"] == "CANONICAL_EVALUATION"
+
+        # 2. Verify all cases created have CANONICAL_EVALUATION and correct eval_run_id
+        sessionmaker = get_sessionmaker()
+        async with sessionmaker() as session:
+            q = select(RecoveryCaseModel).where(RecoveryCaseModel.eval_run_id == eval_run_id)
+            cases = (await session.execute(q)).scalars().all()
+            assert len(cases) == 18  # 15 scenarios + 3 cooldown setup cases
+            for c in cases:
+                assert c.case_source == "CANONICAL_EVALUATION"
+                assert c.eval_run_id == eval_run_id
+                if c.recovered_payment_id:
+                    # Must never use fake live 'pay_' prefix
+                    assert c.recovered_payment_id.startswith(f"eval_rec_{eval_run_id}_")
+
+            # 3. Verify zero fake webhook events created
+            from paymentflow.db.models import WebhookEventModel
+
+            wh_q = select(WebhookEventModel).where(
+                WebhookEventModel.event_type.in_(["payment.captured", "payment_link.paid"])
+            )
+            wh_events = (await session.execute(wh_q)).scalars().all()
+            for wh in wh_events:
+                # No webhook event should reference this benchmark run
+                event_id = wh.payload_json.get("event_id", "") if wh.payload_json else ""
+                assert eval_run_id not in event_id
+
+        # 4. Verify CS12 case detail has strict benchmark cutoff semantics
+        cs12_case_id = f"eval_case_{eval_run_id}_cs12"
+        res_cs12 = await client.get(f"/cases/{cs12_case_id}")
+        assert res_cs12.status_code == 200
+        cs12_detail = res_cs12.json()
+        assert cs12_detail["case"]["state"] == "ACTION_EXECUTED"
+        assert cs12_detail["case"]["recovered_amount_inr"] == 0.0
+
+        # Check audit trail for CS12
+        audit_trail = cs12_detail["audit_trail"]
+        unrec_event = next(
+            (a for a in audit_trail if a.get("event_type") == "EVALUATION_OUTCOME_RECORDED"), None
+        )
+        assert unrec_event is not None
+        reason = unrec_event["details"].get("reason", "")
+        expected_semantic = (
+            "Recovery action executed, but no evaluation recovery credit was assigned "
+            "before the benchmark cutoff"
+        )
+        assert expected_semantic in reason
+        assert "simulated" not in reason.lower()
+        assert "simulation" not in reason.lower()

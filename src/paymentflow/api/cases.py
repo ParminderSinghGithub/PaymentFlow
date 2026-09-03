@@ -239,7 +239,7 @@ async def get_metrics_summary(
         )
         target_eval_run = (await db.execute(latest_eval_q)).scalar_one_or_none()
     elif clean_case_source is None:
-        # Check if the current environment has only canonical evaluation cases
+        # Check if any non-canonical (live/interactive) operational cases exist
         non_canon_count_q = select(func.count(RecoveryCaseModel.case_id)).where(
             RecoveryCaseModel.case_source != "CANONICAL_EVALUATION"
         )
@@ -249,6 +249,13 @@ async def get_metrics_summary(
                 select(EvaluationRunModel).order_by(EvaluationRunModel.created_at.desc()).limit(1)
             )
             target_eval_run = (await db.execute(latest_eval_q)).scalar_one_or_none()
+            if not target_eval_run:
+                canon_count_q = select(func.count(RecoveryCaseModel.case_id)).where(
+                    RecoveryCaseModel.case_source == "CANONICAL_EVALUATION"
+                )
+                canon_count = (await db.execute(canon_count_q)).scalar_one()
+                if canon_count > 0:
+                    clean_case_source = "CANONICAL_EVALUATION"
 
     if target_eval_run:
         # Category breakdown for this run
@@ -306,29 +313,13 @@ async def get_metrics_summary(
             eligible_opportunity_recovery_rate_pct=target_eval_run.eligible_opportunity_recovery_rate_pct,
         )
 
-    # Case B: Live/Interactive or general overview metrics query
+    # Case B: Live/Interactive operational metrics query
     base_filter = []
     if clean_case_source:
         base_filter.append(RecoveryCaseModel.case_source == clean_case_source)
     else:
-        # If no provenance specified, check if evaluation runs exist.
-        # Scope canonical evaluation data to only the latest run to prevent accumulation.
-        latest_eval_q = (
-            select(EvaluationRunModel).order_by(EvaluationRunModel.created_at.desc()).limit(1)
-        )
-        latest_eval = (await db.execute(latest_eval_q)).scalar_one_or_none()
-        if latest_eval:
-            from sqlalchemy import and_, or_
-
-            base_filter.append(
-                or_(
-                    and_(
-                        RecoveryCaseModel.eval_run_id == latest_eval.eval_run_id,
-                        RecoveryCaseModel.case_id.like(f"eval_case_{latest_eval.eval_run_id}_%"),
-                    ),
-                    RecoveryCaseModel.case_source != "CANONICAL_EVALUATION",
-                )
-            )
+        # Live operational metrics strictly exclude all benchmark evaluation data
+        base_filter.append(RecoveryCaseModel.case_source != "CANONICAL_EVALUATION")
 
     total_q = select(func.count(RecoveryCaseModel.case_id))
     at_risk_q = select(func.sum(RecoveryCaseModel.amount))
@@ -348,6 +339,12 @@ async def get_metrics_summary(
     no_act_q = select(func.count(RecoveryCaseModel.case_id)).where(
         RecoveryCaseModel.state == "TERMINAL_NO_ACTION"
     )
+    elig_q = select(func.count(RecoveryCaseModel.case_id)).where(
+        RecoveryCaseModel.eligibility_status == "ELIGIBLE"
+    )
+    elig_amt_q = select(func.sum(RecoveryCaseModel.amount)).where(
+        RecoveryCaseModel.eligibility_status == "ELIGIBLE"
+    )
 
     for cond in base_filter:
         total_q = total_q.where(cond)
@@ -357,6 +354,8 @@ async def get_metrics_summary(
         links_q = links_q.where(cond)
         esc_q = esc_q.where(cond)
         no_act_q = no_act_q.where(cond)
+        elig_q = elig_q.where(cond)
+        elig_amt_q = elig_amt_q.where(cond)
 
     total_cases = (await db.scalar(total_q)) or 0
     at_risk_paise = (await db.scalar(at_risk_q)) or 0
@@ -367,8 +366,22 @@ async def get_metrics_summary(
     active_links = (await db.scalar(links_q)) or 0
     escalated_cases = (await db.scalar(esc_q)) or 0
     terminal_no_act = (await db.scalar(no_act_q)) or 0
-    case_recovery_rate = (float(recovered_cases) / float(total_cases) * 100.0) if total_cases > 0 else 0.0
-    rev_recovery_rate = (float(recovered_paise) / float(at_risk_paise) * 100.0) if at_risk_paise > 0 else 0.0
+    eligible_cases = (await db.scalar(elig_q)) or 0
+    elig_amt_paise = (await db.scalar(elig_amt_q)) or 0
+    eligible_amt_inr = float(elig_amt_paise) / 100.0
+
+    case_recovery_rate = (
+        (float(recovered_cases) / float(total_cases) * 100.0) if total_cases > 0 else 0.0
+    )
+    rev_recovery_rate = (
+        (float(recovered_paise) / float(at_risk_paise) * 100.0) if at_risk_paise > 0 else 0.0
+    )
+    elig_case_rate = (
+        (float(recovered_cases) / float(eligible_cases) * 100.0) if eligible_cases > 0 else 0.0
+    )
+    elig_opportunity_rate = (
+        (float(recovered_paise) / float(elig_amt_paise) * 100.0) if elig_amt_paise > 0 else 0.0
+    )
 
     cat_q = select(
         RecoveryCaseModel.failure_category, func.count(RecoveryCaseModel.case_id)
@@ -396,10 +409,14 @@ async def get_metrics_summary(
         terminal_no_action_cases=terminal_no_act,
         category_breakdown=cat_breakdown,
         policy_breakdown=pol_breakdown,
-        case_source=case_source,
+        case_source=clean_case_source or "LIVE_OPERATIONAL",
         total_at_risk_amount_inr=round(total_at_risk_inr, 2),
+        eligible_cases=eligible_cases,
+        eligible_opportunity_amount_inr=round(eligible_amt_inr, 2),
         overall_case_recovery_rate_pct=round(case_recovery_rate, 2),
+        eligible_case_recovery_rate_pct=round(elig_case_rate, 2),
         portfolio_revenue_recovery_rate_pct=round(rev_recovery_rate, 2),
+        eligible_opportunity_recovery_rate_pct=round(elig_opportunity_rate, 2),
     )
 
 
@@ -568,9 +585,7 @@ async def get_latest_benchmark_metrics(
             float(latest_eval.evaluation_recovered_amount) / 100.0, 2
         ),
         recovered_cases=latest_eval.evaluation_recovered_cases,
-        total_recovered_amount_inr=round(
-            float(latest_eval.evaluation_recovered_amount) / 100.0, 2
-        ),
+        total_recovered_amount_inr=round(float(latest_eval.evaluation_recovered_amount) / 100.0, 2),
         escalated_cases=latest_eval.escalated_cases,
         escalated_amount_inr=round(float(latest_eval.escalated_amount) / 100.0, 2),
         terminal_cases=latest_eval.terminal_cases,

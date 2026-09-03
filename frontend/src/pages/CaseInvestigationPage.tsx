@@ -100,7 +100,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
 
     if (c.state === 'RECOVERED') {
       if (c.case_source === 'CANONICAL_EVALUATION') {
-        return `Transaction failed due to ${cat} (${desc}). Evaluated under canonical benchmark: AI proposed ${c.ai_policy_id || 'recovery'}, deterministic guardrails validated all policy invariants, and simulated customer recovery attribution succeeded for ₹${c.recovered_amount_inr.toLocaleString('en-IN')}.`;
+        return `Transaction failed due to ${cat} (${desc}). Evaluated under canonical benchmark: AI proposed ${c.ai_policy_id || 'recovery'}, deterministic guardrails validated all policy invariants, and evaluation recovery credit of ₹${c.recovered_amount_inr.toLocaleString('en-IN')} was assigned under the benchmark model.`;
       }
       return `Transaction failed due to ${cat} (${desc}). The AI advisory proposed immediate recovery via ${c.ai_policy_id}. Deterministic guardrails verified all safety checks (amount & currency lock, cooldown, single-link limit) and authorized link creation. The customer completed checkout, and Razorpay captured webhook verified authentic revenue of ₹${c.recovered_amount_inr.toLocaleString('en-IN')}.`;
     }
@@ -112,7 +112,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
     }
     if (c.state === 'ACTION_EXECUTED') {
       if (c.case_source === 'CANONICAL_EVALUATION') {
-        return `Transaction failed with ${cat} (${desc}). Evaluated under canonical benchmark: AI proposed ${c.ai_policy_id || 'recovery'}, and deterministic guardrails validated recovery action. Recovery action was executed for evaluation, but payment was not completed during the evaluation window.`;
+        return `Transaction failed with ${cat} (${desc}). Evaluated under canonical benchmark: AI proposed ${c.ai_policy_id || 'recovery'}, and deterministic guardrails validated recovery action. Recovery action executed, but no evaluation recovery credit was assigned before the benchmark cutoff.`;
       }
       return `Transaction failed with ${cat} (${desc}). The AI proposed ${c.ai_policy_id}, which was verified and authorized by deterministic guardrails. A genuine Razorpay Hosted Payment Link was generated and dispatched. Currently in-flight awaiting customer checkout.`;
     }
@@ -774,12 +774,12 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                   <div className="p-3 rounded-md bg-surface-raised border border-white/[0.04]">
                     <span className="text-[10px] font-mono text-[#6B7280] uppercase tracking-wider font-semibold block">
                       {c.case_source === 'CANONICAL_EVALUATION'
-                        ? 'Evaluation Window Complete'
+                        ? 'Benchmark Cutoff Reached'
                         : 'Awaiting Customer Payment'}
                     </span>
                     <p className="text-[11px] text-[#9CA3AF] mt-1 leading-snug">
                       {c.case_source === 'CANONICAL_EVALUATION'
-                        ? 'Recovery action safely validated and executed during benchmark; customer payment was not completed within evaluation run.'
+                        ? 'Recovery action executed, but no evaluation recovery credit was assigned before the benchmark cutoff.'
                         : 'Payment link dispatched. Attributed revenue will register immediately upon confirmed gateway webhook.'}
                     </p>
                   </div>

@@ -421,7 +421,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 </div>
               </div>
               <p className="text-[10px] text-[#6B7280] leading-relaxed pt-2 border-t border-white/[0.06]">
-                6 eligible cases recovered; CS12 recovery payment simulation completed without customer recovery in the evaluation window.
+                6 eligible cases recovered; CS12 recovery action executed, but no evaluation recovery credit was assigned before the benchmark cutoff.
               </p>
             </div>
 

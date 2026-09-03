@@ -136,7 +136,10 @@ class EvaluationRecoveryExecutor:
                     timestamp=now + timedelta(minutes=2),
                     details={
                         "evaluation_outcome": "NOT_RECOVERED",
-                        "reason": "Recovery action validated and scheduled; payment not completed during evaluation window",
+                        "reason": (
+                            "Recovery action executed, but no evaluation recovery credit was "
+                            "assigned before the benchmark cutoff"
+                        ),
                     },
                 )
                 session.add(audit_unrec)
