@@ -18,7 +18,7 @@ class MerchantServerSettings(BaseSettings):
 
     # Merchant Identity
     merchant_id: str = "merchant_demo_store"
-    merchant_name: str = "Acme Fashion Store (Buildathon Demo)"
+    merchant_name: str = "Merchant Store Demo"
 
     # Server-to-Server Razorpay Credentials (SECRET - NEVER EXPOSED TO CLIENT)
     razorpay_key_id: str = os.getenv("RAZORPAY_KEY_ID", "rzp_test_TWkctY0MsbW4Rd")

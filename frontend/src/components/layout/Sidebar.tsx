@@ -10,13 +10,14 @@ import {
   Store,
   ExternalLink,
   Github,
+  Radio,
 } from 'lucide-react';
 import { getMerchantStorefrontUrl } from '../../api/client';
 
-export type ActivePage = 'overview' | 'cases' | 'investigation' | 'system';
+export type ActivePage = 'overview' | 'live' | 'cases' | 'investigation' | 'system';
 
 interface NavItem {
-  id: 'overview' | 'cases' | 'system';
+  id: 'overview' | 'live' | 'cases' | 'system';
   label: string;
   Icon: React.FC<{ className?: string }>;
   description: string;
@@ -25,6 +26,7 @@ interface NavItem {
 
 const PRIMARY_NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Overview',       Icon: LayoutDashboard, description: 'Recovery metrics & KPI' },
+  { id: 'live',     label: 'Live Tracker',   Icon: Radio,           description: 'Active recovery queue' },
   { id: 'cases',    label: 'Cases',          Icon: ListChecks,      description: 'Pipeline state machine' },
   { id: 'system',   label: 'System & Trust', Icon: Activity,        description: 'Guardrails & architecture' },
 ];

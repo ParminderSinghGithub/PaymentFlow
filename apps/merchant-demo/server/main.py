@@ -21,7 +21,7 @@ from .paymentflow_client import MerchantPaymentFlowClient
 from .razorpay_client import MerchantRazorpayClient
 
 app = FastAPI(
-    title="Acme Fashion Store — Merchant Server",
+    title="Merchant Store Demo — Merchant Server",
     description="External Merchant Server consuming PaymentFlow over HTTP",
     version="1.0.0",
 )

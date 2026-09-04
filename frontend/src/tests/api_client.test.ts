@@ -69,6 +69,19 @@ describe('PaymentFlow Frontend API Client', () => {
     );
   });
 
+  it('fetchCases passes case_source filter query param for operational tracking', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    });
+
+    await fetchCases({ case_source: 'MERCHANT_CHECKOUT', limit: 50 });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/cases?case_source=MERCHANT_CHECKOUT&limit=50'),
+      expect.anything()
+    );
+  });
+
   it('fetchCaseDetail retrieves case detail and audit events', async () => {
     const mockDetail = {
       case: {

@@ -271,6 +271,11 @@ async def get_merchant_order_recovery_status(
         "case_id": case.case_id,
         "case_source": case.case_source,
         "state": case.state,
+        "amount": case.amount,
+        "currency": case.currency,
+        "payment_link_sent": bool(case.payment_link_id or case.payment_link_short_url),
+        "payment_link_url": case.payment_link_short_url,
+        "payment_link_status": case.payment_link_status,
         "recovered_amount": case.recovered_amount,
         "recovered_payment_id": case.recovered_payment_id,
         "notification_medium": fc.get("notification_medium", "sms"),
@@ -302,14 +307,12 @@ async def merchant_checkout_page(
     key_id = (ctx.get("razorpay_key_id") if ctx else None) or settings.razorpay_key_id
     amount = (ctx.get("amount") if ctx else None) or 345000
     currency = (ctx.get("currency") if ctx else None) or "INR"
-    external_order_id = (ctx.get("external_order_id") if ctx else None) or "ORD-C32-FAIL-3450"
+    external_order_id = (ctx.get("external_order_id") if ctx else None) or "ORD-DEMO-3450"
     razorpay_order_id = (ctx.get("razorpay_order_id") if ctx else None) or order_id or ""
-    merchant_name = (
-        ctx.get("merchant_name") if ctx else None
-    ) or "Acme Fashion Store (Buildathon Demo)"
-    customer_name = (ctx.get("customer_name") if ctx else None) or "Priya Sharma"
-    customer_email = (ctx.get("customer_email") if ctx else None) or "priya.sharma@example.com"
-    customer_phone = (ctx.get("customer_phone") if ctx else None) or "9876543210"
+    merchant_name = (ctx.get("merchant_name") if ctx else None) or "Merchant Store Demo"
+    customer_name = (ctx.get("customer_name") if ctx else None) or ""
+    customer_email = (ctx.get("customer_email") if ctx else None) or ""
+    customer_phone = (ctx.get("customer_phone") if ctx else None) or ""
 
     # Always ensure context is registered in running process memory for webhook correlation
     if razorpay_order_id:

@@ -93,11 +93,13 @@ export async function fetchHealth(): Promise<HealthResponse> {
  */
 export async function fetchCases(params: {
   state?: string;
+  case_source?: string;
   limit?: number;
   offset?: number;
 } = {}): Promise<CaseSummaryItem[]> {
   const searchParams = new URLSearchParams();
   if (params.state) searchParams.set('state', params.state);
+  if (params.case_source) searchParams.set('case_source', params.case_source);
   if (params.limit !== undefined) searchParams.set('limit', String(params.limit));
   if (params.offset !== undefined) searchParams.set('offset', String(params.offset));
 

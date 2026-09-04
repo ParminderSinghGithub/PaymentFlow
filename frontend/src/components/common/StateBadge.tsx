@@ -45,6 +45,20 @@ const STATE_CONFIG: Record<string, StateConfig> = {
     bgClass: 'bg-[rgba(124,58,237,0.10)]',
     borderClass: 'border-[rgba(124,58,237,0.25)]',
   },
+  AI_TRIAGED: {
+    label: 'AI ADVISED',
+    dotClass: 'bg-ai-base',
+    textClass: 'text-ai-text',
+    bgClass: 'bg-[rgba(124,58,237,0.10)]',
+    borderClass: 'border-[rgba(124,58,237,0.25)]',
+  },
+  POLICY_VALIDATED: {
+    label: 'VALIDATED',
+    dotClass: 'bg-guard-base',
+    textClass: 'text-guard-text',
+    bgClass: 'bg-[rgba(13,148,136,0.10)]',
+    borderClass: 'border-[rgba(13,148,136,0.25)]',
+  },
   ACTION_APPROVED: {
     label: 'APPROVED',
     dotClass: 'bg-guard-base',

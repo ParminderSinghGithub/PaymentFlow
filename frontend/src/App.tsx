@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppShell } from './components/layout/AppShell';
 import type { ActivePage } from './components/layout/Sidebar';
 import { OverviewPage } from './pages/OverviewPage';
+import { LiveTrackerPage } from './pages/LiveTrackerPage';
 import { CasesPage } from './pages/CasesPage';
 import { CaseInvestigationPage } from './pages/CaseInvestigationPage';
 import { SystemPage } from './pages/SystemPage';
@@ -24,6 +25,10 @@ const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
   overview: {
     title: 'Recovery Overview',
     subtitle: 'Revenue recovery performance and pipeline state',
+  },
+  live: {
+    title: 'Live Recovery Tracker',
+    subtitle: 'Real-time operational recovery queue across connected merchants',
   },
   cases: {
     title: 'Cases Explorer',
@@ -96,7 +101,7 @@ const AppContent: React.FC = () => {
         const id = params.get('id');
         setActivePage('investigation');
         if (id) setSelectedCaseId(id);
-      } else if (['overview', 'cases', 'investigation', 'system'].includes(hash)) {
+      } else if (['overview', 'live', 'cases', 'investigation', 'system'].includes(hash)) {
         setActivePage(hash as ActivePage);
       }
     };
@@ -309,6 +314,12 @@ const AppContent: React.FC = () => {
           triageLoadingCaseId={triageLoadingCaseId}
           onSeedDemoBatch={handleSeedCanonicalBatch}
           seedingBatch={seedingBatch}
+        />
+      )}
+
+      {activePage === 'live' && (
+        <LiveTrackerPage
+          onSelectCase={handleSelectCase}
         />
       )}
 

@@ -3,102 +3,560 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acme Fashion Store — Merchant Checkout</title>
+    <title>Merchant Store Demo</title>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; width: 100%; max-width: 480px; padding: 32px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
-        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-        .tag { background: #0284c7; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; }
-        h1 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px; }
-        .subtitle { font-size: 13px; color: #94a3b8; margin-bottom: 24px; }
-        .order-box { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 18px; margin-bottom: 24px; }
-        .order-row { display: flex; justify-content: space-between; font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
-        .order-row:last-child { margin-bottom: 0; padding-top: 8px; border-top: 1px solid #334155; color: #fff; font-size: 15px; font-weight: 600; }
-        .order-row span.val { color: #e2e8f0; font-weight: 500; }
-        .instruction-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
-        .instruction-title { font-size: 13px; font-weight: 700; color: #f87171; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
-        .instruction-text { font-size: 12px; color: #cbd5e1; line-height: 1.5; }
-        .upi-badge { display: inline-block; background: #334155; color: #38bdf8; font-family: monospace; font-size: 13px; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin: 4px 0; }
-        .btn-pay { width: 100%; background: #2563eb; color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .btn-pay:hover { background: #1d4ed8; }
-        .footer { font-size: 11px; color: #64748b; text-align: center; margin-top: 20px; }
+        :root {
+            --bg: #090d16;
+            --card-bg: #111827;
+            --border: #1f2937;
+            --border-hover: #374151;
+            --text: #f9fafb;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --success-bg: rgba(16, 185, 129, 0.08);
+            --warning-bg: rgba(245, 158, 11, 0.08);
+            --warning-border: rgba(245, 158, 11, 0.25);
+            --danger: #ef4444;
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font);
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .header-badge {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: rgba(59, 130, 246, 0.12);
+            color: var(--primary);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+
+        .sys-tag {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        /* Product Box */
+        .product-box {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .product-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .product-name {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .product-price {
+            font-weight: 700;
+            color: #60a5fa;
+            font-size: 16px;
+        }
+
+        /* Form Inputs */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-label span {
+            color: #6b7280;
+            font-weight: 400;
+        }
+
+        .form-input {
+            width: 100%;
+            background: #0b1120;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: #4b5563;
+        }
+
+        /* Neutral Instructions Box */
+        .instruction-box {
+            background: #0d1527;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-top: 18px;
+            margin-bottom: 22px;
+        }
+
+        .instruction-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: #93c5fd;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .instruction-body {
+            font-size: 12px;
+            color: #cbd5e1;
+            line-height: 1.55;
+        }
+
+        .instruction-body ol {
+            margin-left: 18px;
+            margin-top: 4px;
+        }
+
+        .instruction-body li {
+            margin-bottom: 4px;
+        }
+
+        .instruction-note {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            width: 100%;
+            background: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 13px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.15s, transform 0.05s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.99);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            background: #1f2937;
+            color: var(--text);
+            border: 1px solid #374151;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 12px;
+            transition: background 0.15s;
+        }
+
+        .btn-secondary:hover {
+            background: #283548;
+        }
+
+        /* Failure & Recovery Panels */
+        .state-panel {
+            display: none;
+        }
+
+        .state-panel.active {
+            display: block;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+
+        .status-pill.warning {
+            background: rgba(245, 158, 11, 0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-pill.success {
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .info-grid {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 18px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .info-val {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: #f59e0b;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .footer {
+            font-size: 11px;
+            color: #4b5563;
+            text-align: center;
+            margin-top: 24px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="header">
-            <span class="tag">Merchant Storefront</span>
-            <span style="font-size: 12px; color: #38bdf8; font-family: monospace;">External App</span>
-        </div>
-        <h1 id="merchant-name">Acme Fashion Store</h1>
-        <p class="subtitle">Simulate real customer checkout and gateway failure</p>
+    <div class="container">
+        <!-- SCREEN 1: PREPARATION & CUSTOMER DETAILS -->
+        <div id="screen-prep" class="card state-panel active">
+            <div class="header-badge">
+                <span class="badge">Merchant Store Demo</span>
+                <span class="sys-tag">Integration Sandbox</span>
+            </div>
 
-        <div class="order-box">
-            <div class="order-row">
-                <span>Order Reference:</span>
-                <span class="val" id="order-ref">ORD-C33-DEMO-3450</span>
+            <h1>Merchant Store Demo</h1>
+            <p class="subtitle">Controlled merchant storefront integration with PaymentFlow recovery.</p>
+
+            <div class="product-box">
+                <div class="product-row">
+                    <span class="product-name">Product</span>
+                    <span class="product-price">₹2,500.00</span>
+                </div>
             </div>
-            <div class="order-row">
-                <span>Customer:</span>
-                <span class="val" id="customer-name">Priya Sharma</span>
+
+            <!-- Optional Customer Details (Starts completely empty) -->
+            <div class="form-group">
+                <label class="form-label" for="input-name">Name <span>(optional)</span></label>
+                <input type="text" id="input-name" class="form-input" placeholder="Enter customer name" autocomplete="off" />
             </div>
-            <div class="order-row">
-                <span>Amount Due:</span>
-                <span class="val" style="color: #38bdf8;" id="order-amount">₹3,450.00</span>
+
+            <div class="form-group">
+                <label class="form-label" for="input-phone">Phone number <span>(optional)</span></label>
+                <input type="tel" id="input-phone" class="form-input" placeholder="Enter mobile number" autocomplete="off" />
             </div>
+
+            <div class="form-group">
+                <label class="form-label" for="input-email">Email <span>(optional)</span></label>
+                <input type="email" id="input-email" class="form-input" placeholder="Enter email address" autocomplete="off" />
+            </div>
+
+            <!-- Test Mode Failure Instructions (Neutral phrasing) -->
+            <div class="instruction-box">
+                <div class="instruction-header">
+                    <span>ℹ️</span> Test Mode payment
+                </div>
+                <div class="instruction-body">
+                    To demonstrate recovery, intentionally fail the payment during Checkout:
+                    <ol>
+                        <li><b>Netbanking:</b> Choose Netbanking &rarr; choose any bank &rarr; on the mock bank page, choose <b>Failure</b>.</li>
+                        <li><b>Wallet:</b> Choose Wallet &rarr; choose any wallet &rarr; on the mock page, choose <b>Failure</b>.</li>
+                    </ol>
+                    <div class="instruction-note">This is a Razorpay Test Mode simulation. No real money is charged.</div>
+                </div>
+            </div>
+
+            <button id="btn-proceed" class="btn-primary">
+                Proceed to Payment
+            </button>
+
+            <p class="footer">
+                Merchant-Side Integration • Safe HTTP Boundary • No Secrets in Browser
+            </p>
         </div>
 
-        <div class="instruction-box">
-            <div class="instruction-title">⚠️ Test Mode Failure Simulation:</div>
-            <div class="instruction-text">
-                1. Click <b>"Pay with Razorpay"</b> below.<br>
-                2. Select <b>UPI</b> method or <b>Netbanking</b>.<br>
-                3. Enter VPA: <span class="upi-badge">failure@razorpay</span> or select Failure in netbanking.<br>
-                4. Razorpay will trigger a real <code>payment.failed</code> webhook to PaymentFlow.
+        <!-- SCREEN 2: PAYMENT FAILURE & RECOVERY DISPATCHED -->
+        <div id="screen-failed" class="card state-panel">
+            <div class="header-badge">
+                <span class="status-pill warning">
+                    <span class="pulse-dot"></span> Payment Failed &bull; Recovery Initiated
+                </span>
+                <span class="sys-tag" id="label-order-ref"></span>
             </div>
+
+            <h1 style="color: #f87171;">Payment could not be completed</h1>
+            <p class="subtitle" style="margin-bottom: 16px;">
+                PaymentFlow has detected the failed payment and started the recovery process.
+            </p>
+
+            <div class="info-grid">
+                <div class="info-row">
+                    <span>Amount at risk:</span>
+                    <span class="info-val" style="color: #fca5a5; font-weight: 600;" id="risk-amount">₹2,500.00</span>
+                </div>
+                <div class="info-row">
+                    <span>Recovery status:</span>
+                    <span class="info-val" id="recovery-status-label">Detecting failure...</span>
+                </div>
+                <div class="info-row">
+                    <span>Payment Link:</span>
+                    <span class="info-val" id="link-status-label">Creating link...</span>
+                </div>
+                <div class="info-row" id="notif-row" style="display: none;">
+                    <span>Notification:</span>
+                    <span class="info-val" id="notif-text">Recovery link sent by SMS</span>
+                </div>
+            </div>
+
+            <!-- Link CTA -->
+            <div id="link-action-area" style="display: none;">
+                <a id="btn-open-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-primary" style="text-decoration: none;">
+                    Open Recovery Payment Link &rarr;
+                </a>
+
+                <div class="instruction-box" style="margin-top: 16px; margin-bottom: 0;">
+                    <div class="instruction-header">
+                        <span>💳</span> Recovery Payment Link Instructions
+                    </div>
+                    <div class="instruction-body">
+                        To test recovery in Razorpay Test Mode:
+                        <ol>
+                            <li>Open the payment link above in a new tab.</li>
+                            <li>Choose <b>Netbanking</b> or <b>Wallet</b>.</li>
+                            <li>On the Razorpay Test Mode mock page, choose <b>Success</b>.</li>
+                        </ol>
+                        <div class="instruction-note">
+                            This page will automatically detect payment capture and update without refresh.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p class="footer">
+                Authoritative Webhook Verification Active &bull; Polling PaymentFlow API
+            </p>
         </div>
 
-        <button id="rzp-button" class="btn-pay">Pay with Razorpay</button>
-        <p class="footer">
-            External Merchant Consumer • Secrets Kept Server-Side • Zero Internal PaymentFlow Imports
-        </p>
+        <!-- SCREEN 3: SUCCESSFUL RECOVERY CONFIRMATION -->
+        <div id="screen-recovered" class="card state-panel">
+            <div class="header-badge">
+                <span class="status-pill success">
+                    <span>✓</span> Verified Recovery
+                </span>
+                <span class="sys-tag" id="recovered-order-ref"></span>
+            </div>
+
+            <h1 style="color: #34d399;">Payment recovered</h1>
+            <p class="subtitle" style="margin-bottom: 16px;">
+                PaymentFlow authoritatively verified and attributed the captured recovery payment.
+            </p>
+
+            <div class="info-grid" style="border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.05);">
+                <div class="info-row">
+                    <span>Amount Recovered:</span>
+                    <span class="info-val" style="color: #34d399; font-size: 16px; font-weight: 700;" id="recovered-amount">₹2,500.00</span>
+                </div>
+                <div class="info-row">
+                    <span>Recovery State:</span>
+                    <span class="info-val" style="color: #34d399; font-weight: 600;">RECOVERED</span>
+                </div>
+                <div class="info-row">
+                    <span>Verified Payment ID:</span>
+                    <span class="info-val" style="font-family: monospace; font-size: 12px;" id="recovered-payment-id">—</span>
+                </div>
+            </div>
+
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: 12px; padding: 14px; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                ✓ Gateway webhook received and cryptographically verified<br>
+                ✓ Recovery attributed to original checkout order<br>
+                ✓ Closed-loop recovery workflow completed successfully
+            </div>
+
+            <button onclick="window.location.reload();" class="btn-secondary">
+                Simulate Another Order
+            </button>
+
+            <p class="footer">
+                External Merchant Demonstration &bull; Zero Polling Lag
+            </p>
+        </div>
     </div>
 
     <script>
         let merchantConfig = null;
+        let activeOrder = null;
+        let pollTimer = null;
 
+        // Fetch safe public merchant configuration
         async function initConfig() {
             try {
                 const res = await fetch('/api/config');
                 merchantConfig = await res.json();
-                if (merchantConfig.merchant_name) {
-                    document.getElementById('merchant-name').innerText = merchantConfig.merchant_name;
-                }
             } catch (err) {
                 console.error("Failed to load merchant config:", err);
             }
         }
 
-        document.getElementById('rzp-button').onclick = async function(e) {
+        // Generate clean customer-facing order reference (e.g. ORD-2026-8941)
+        function generateOrderReference() {
+            const randomCode = Math.floor(1000 + Math.random() * 9000);
+            return `ORD-2026-${randomCode}`;
+        }
+
+        // Switch active UI card
+        function switchScreen(screenId) {
+            document.querySelectorAll('.state-panel').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(screenId);
+            if (target) target.classList.add('active');
+        }
+
+        document.getElementById('btn-proceed').onclick = async function(e) {
             e.preventDefault();
-            const btn = document.getElementById('rzp-button');
+            const btn = document.getElementById('btn-proceed');
             btn.disabled = true;
-            btn.innerText = "Creating Order...";
+            btn.innerText = "Initiating Checkout...";
+
+            // Retrieve optional customer details - clean and untainted
+            const customerName = document.getElementById('input-name').value.trim() || null;
+            const customerPhone = document.getElementById('input-phone').value.trim() || null;
+            const customerEmail = document.getElementById('input-email').value.trim() || null;
+
+            const orderRef = generateOrderReference();
 
             try {
-                // 1. Merchant frontend calls merchant server to create order
+                // 1. Merchant server creates order with Razorpay and registers context with PaymentFlow
                 const orderRes = await fetch('/api/orders', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        amount: 345000,
+                        amount: 250000, // ₹2,500.00
                         currency: 'INR',
-                        external_order_id: 'ORD-C33-DEMO-3450',
-                        customer_name: 'Priya Sharma',
-                        customer_email: 'priya.sharma@example.com',
-                        customer_phone: '9876543210'
+                        external_order_id: orderRef,
+                        customer_name: customerName,
+                        customer_email: customerEmail,
+                        customer_phone: customerPhone
                     })
                 });
 
@@ -107,55 +565,124 @@
                 }
 
                 const orderData = await orderRes.json();
+                activeOrder = {
+                    ...orderData,
+                    customerName,
+                    customerPhone,
+                    customerEmail
+                };
 
-                // 2. Open Razorpay Checkout with public key ID and order ID
+                // 2. Open standard Razorpay Checkout.js
                 const options = {
                     "key": orderData.razorpay_key_id,
                     "amount": orderData.amount,
                     "currency": orderData.currency,
-                    "name": orderData.merchant_name || "Acme Fashion Store",
+                    "name": orderData.merchant_name || "Merchant Store Demo",
                     "description": "Order " + orderData.external_order_id,
                     "order_id": orderData.razorpay_order_id,
-                    "prefill": {
-                        "name": "Priya Sharma",
-                        "email": "priya.sharma@example.com",
-                        "contact": "9876543210"
-                    },
-                    "theme": { "color": "#2563eb" },
+                    "prefill": {},
+                    "theme": { "color": "#3b82f6" },
                     "modal": {
                         "ondismiss": function() {
                             btn.disabled = false;
-                            btn.innerText = "Pay with Razorpay";
+                            btn.innerText = "Proceed to Payment";
                         }
                     }
                 };
 
+                // Populate prefill only if customer entered details
+                if (customerName) options.prefill.name = customerName;
+                if (customerEmail) options.prefill.email = customerEmail;
+                if (customerPhone) options.prefill.contact = customerPhone;
+
                 const rzp = new Razorpay(options);
+
+                // Listen for genuine payment failure
                 rzp.on('payment.failed', function(response) {
-                    console.log('Payment Failed Response:', response);
-                    const checkoutCard = document.querySelector('.checkout-card');
-                    checkoutCard.innerHTML = `
-                        <div style="font-size: 40px; margin-bottom: 12px; text-align: center;">⚠️</div>
-                        <h2 style="font-size: 18px; font-weight: 700; color: #dc2626; margin-bottom: 10px; text-align: center;">Payment could not be completed.</h2>
-                        <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin-bottom: 18px; text-align: center;">
-                            A secure payment link has been sent to your checkout contact.<br>
-                            Check your SMS/email for the link.
-                        </p>
-                        <div style="padding: 10px; background: #f3f4f6; border-radius: 6px; font-size: 12px; color: #6b7280; text-align: center;">
-                            Order Ref: ${orderData.external_order_id} • Status: Secure Recovery Dispatched
-                        </div>
-                        <p class="footer" style="margin-top: 24px;">
-                            External Merchant Consumer • Direct Razorpay Native Notification • Zero Secret Leakage
-                        </p>
-                    `;
+                    console.log('Payment failure detected:', response);
+                    handlePaymentFailure(activeOrder);
                 });
+
                 rzp.open();
             } catch (err) {
                 alert("Checkout error: " + err.message);
                 btn.disabled = false;
-                btn.innerText = "Pay with Razorpay";
+                btn.innerText = "Proceed to Payment";
             }
         };
+
+        // Transition to failure & recovery tracking
+        function handlePaymentFailure(order) {
+            switchScreen('screen-failed');
+            document.getElementById('label-order-ref').innerText = order.external_order_id;
+            document.getElementById('risk-amount').innerText = `₹${(order.amount / 100).toFixed(2)}`;
+
+            if (order.customerPhone) {
+                document.getElementById('notif-row').style.display = 'flex';
+                document.getElementById('notif-text').innerText = "Recovery link sent by SMS";
+            } else {
+                document.getElementById('notif-row').style.display = 'none';
+            }
+
+            // Start bounded polling (~5 seconds) to detect link creation and eventual recovery
+            startRecoveryPolling(order.external_order_id);
+        }
+
+        function startRecoveryPolling(orderId) {
+            if (pollTimer) clearInterval(pollTimer);
+
+            // Immediate first check
+            checkRecoveryStatus(orderId);
+
+            pollTimer = setInterval(() => {
+                checkRecoveryStatus(orderId);
+            }, 5000);
+        }
+
+        async function checkRecoveryStatus(orderId) {
+            try {
+                const res = await fetch(`/api/recovery-status?order_id=${encodeURIComponent(orderId)}`);
+                if (!res.ok) return;
+
+                const data = await res.json();
+                console.log("Recovery status poll:", data);
+
+                const statusLabel = document.getElementById('recovery-status-label');
+                const linkLabel = document.getElementById('link-status-label');
+                const linkArea = document.getElementById('link-action-area');
+                const btnOpenLink = document.getElementById('btn-open-link');
+
+                if (data.state) {
+                    statusLabel.innerText = data.state;
+                }
+
+                // If payment link is available
+                if (data.payment_link_url) {
+                    linkLabel.innerHTML = `<span style="color: #60a5fa;">Active Link Created</span>`;
+                    linkArea.style.display = 'block';
+                    btnOpenLink.href = data.payment_link_url;
+                } else if (data.state === 'ACTION_EXECUTED' || data.payment_link_id) {
+                    linkLabel.innerText = "Link Generated";
+                }
+
+                // Authoritative RECOVERED check
+                if (data.state === 'RECOVERED') {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                    handleRecoverySuccess(data);
+                }
+            } catch (err) {
+                console.warn("Polling error:", err);
+            }
+        }
+
+        function handleRecoverySuccess(data) {
+            switchScreen('screen-recovered');
+            document.getElementById('recovered-order-ref').innerText = data.order_id || activeOrder?.external_order_id || '';
+            const recAmt = data.recovered_amount ? (data.recovered_amount / 100).toFixed(2) : '2,500.00';
+            document.getElementById('recovered-amount').innerText = `₹${recAmt}`;
+            document.getElementById('recovered-payment-id').innerText = data.recovered_payment_id || 'pay_recovered';
+        }
 
         initConfig();
     </script>
