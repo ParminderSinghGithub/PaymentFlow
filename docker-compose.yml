@@ -25,7 +25,7 @@ services:
     container_name: paymentflow_app
     restart: unless-stopped
     ports:
-      - "${APP_HOST_PORT:-8000}:8000"
+      - "${APP_HOST_PORT:-8001}:8000"
     environment:
       ENVIRONMENT: development
       LOG_LEVEL: INFO
@@ -42,5 +42,25 @@ services:
       db:
         condition: service_healthy
 
+  merchant:
+    build:
+      context: apps/merchant-demo
+      dockerfile: Dockerfile
+    container_name: paymentflow_merchant
+    restart: unless-stopped
+    ports:
+      - "${MERCHANT_HOST_PORT:-8002}:8002"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8002
+      RAZORPAY_KEY_ID: rzp_test_placeholder_key
+      RAZORPAY_KEY_SECRET: placeholder_secret
+      PAYMENTFLOW_API_KEY: pf_live_test_merchant_key_2026
+      PAYMENTFLOW_API_URL: http://app:8000
+    depends_on:
+      app:
+        condition: service_healthy
+
 volumes:
   postgres_data:
+

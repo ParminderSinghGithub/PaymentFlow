@@ -12,17 +12,17 @@ from pydantic_settings import BaseSettings
 class MerchantServerSettings(BaseSettings):
     """Configuration for the external merchant storefront server."""
 
-    # Server binding
-    host: str = "127.0.0.1"
-    port: int = 8002
+    # Server binding (supports Railway PORT and container environments)
+    host: str = os.getenv("HOST", os.getenv("MERCHANT_HOST", "0.0.0.0"))
+    port: int = int(os.getenv("PORT", os.getenv("MERCHANT_PORT", "8002")))
 
     # Merchant Identity
     merchant_id: str = "merchant_demo_store"
     merchant_name: str = "Merchant Store Demo"
 
     # Server-to-Server Razorpay Credentials (SECRET - NEVER EXPOSED TO CLIENT)
-    razorpay_key_id: str = os.getenv("RAZORPAY_KEY_ID", "rzp_test_TWkctY0MsbW4Rd")
-    razorpay_key_secret: str = os.getenv("RAZORPAY_KEY_SECRET", "PWatfW99KA7gH4our6Sfvmoe")
+    razorpay_key_id: str = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder_key")
+    razorpay_key_secret: str = os.getenv("RAZORPAY_KEY_SECRET", "placeholder_secret")
 
     # Server-to-Server PaymentFlow Credentials (SECRET - NEVER EXPOSED TO CLIENT)
     paymentflow_api_key: str = os.getenv("PAYMENTFLOW_API_KEY", "pf_live_test_merchant_key_2026")

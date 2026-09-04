@@ -16,9 +16,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from .config import get_merchant_settings
-from .paymentflow_client import MerchantPaymentFlowClient
-from .razorpay_client import MerchantRazorpayClient
+try:
+    from .config import get_merchant_settings
+    from .paymentflow_client import MerchantPaymentFlowClient
+    from .razorpay_client import MerchantRazorpayClient
+except Exception:
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from config import get_merchant_settings
+    from paymentflow_client import MerchantPaymentFlowClient
+    from razorpay_client import MerchantRazorpayClient
 
 app = FastAPI(
     title="Merchant Store Demo — Merchant Server",

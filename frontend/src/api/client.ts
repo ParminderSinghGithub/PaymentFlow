@@ -15,12 +15,21 @@ import type {
   TriageResult,
 } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const rawApiBase = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_PAYMENTFLOW_API_URL ||
+  ''
+).trim();
+const API_BASE = rawApiBase.endsWith('/') ? rawApiBase.slice(0, -1) : rawApiBase;
 
 export function getApiBaseUrl(): string {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (envUrl && envUrl.trim().length > 0) {
-    return envUrl.trim();
+  const envUrl = (
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_PAYMENTFLOW_API_URL ||
+    ''
+  ).trim();
+  if (envUrl.length > 0) {
+    return envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
   }
   if (typeof window !== 'undefined' && window.location.origin) {
     return window.location.origin;

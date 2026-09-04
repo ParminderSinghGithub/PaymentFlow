@@ -1,9 +1,9 @@
 """Application configuration module."""
 
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,15 +20,26 @@ class Settings(BaseSettings):
     environment: Literal["development", "testing", "staging", "production"] = "development"
     log_level: str = "INFO"
     app_host: str = "0.0.0.0"
-    app_port: int = 8000
+    app_port: int = Field(
+        default=8000,
+        validation_alias=AliasChoices("PORT", "APP_PORT"),
+        description="Application port (supports Railway PORT or APP_PORT)",
+    )
+    public_base_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("PUBLIC_BASE_URL", "PAYMENTFLOW_PUBLIC_BASE_URL"),
+        description="Public base URL (e.g. Railway public domain or zrok tunnel URL)",
+    )
 
     # Database
     database_url: str = Field(
         default="postgresql+asyncpg://paymentflow_user:paymentflow_password@localhost:5432/paymentflow_db",
+        validation_alias=AliasChoices("DATABASE_URL", "APP_DATABASE_URL"),
         description="Async PostgreSQL connection URL",
     )
     sync_database_url: str = Field(
         default="postgresql://paymentflow_user:paymentflow_password@localhost:5432/paymentflow_db",
+        validation_alias=AliasChoices("SYNC_DATABASE_URL", "APP_SYNC_DATABASE_URL"),
         description="Sync PostgreSQL connection URL for migrations and tools",
     )
 
@@ -49,7 +60,8 @@ class Settings(BaseSettings):
     # LLM Configuration (Layer 0 & Layer 5D)
     llm_api_key: str = Field(
         default="placeholder_llm_api_key",
-        description="LLM API Key",
+        validation_alias=AliasChoices("GEMINI_API_KEY", "LLM_API_KEY"),
+        description="LLM API Key (Google Gemini)",
     )
     llm_model: str = Field(
         default="gemini-1.5-flash",
@@ -83,6 +95,54 @@ class Settings(BaseSettings):
         default="http://localhost:8000",
         description="Base URL for PaymentFlow API service",
     )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                import json
+
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
+
+    @model_validator(mode="after")
+    def reconcile_database_urls(self) -> "Settings":
+        # Ensure async database_url uses postgresql+asyncpg:// dialect
+        if self.database_url:
+            db_url = self.database_url
+            if db_url.startswith("postgres://"):
+                db_url = "postgresql+asyncpg://" + db_url[len("postgres://") :]
+            elif db_url.startswith("postgresql://") and not db_url.startswith(
+                "postgresql+asyncpg://"
+            ):
+                db_url = "postgresql+asyncpg://" + db_url[len("postgresql://") :]
+            self.database_url = db_url
+
+        # Ensure sync_database_url is derived or has postgresql:// dialect
+        default_sync = (
+            "postgresql://paymentflow_user:paymentflow_password@localhost:5432/paymentflow_db"
+        )
+        if self.sync_database_url == default_sync and not self.database_url.endswith(
+            "localhost:5432/paymentflow_db"
+        ):
+            sync_url = self.database_url
+            if sync_url.startswith("postgresql+asyncpg://"):
+                sync_url = "postgresql://" + sync_url[len("postgresql+asyncpg://") :]
+            self.sync_database_url = sync_url
+        elif self.sync_database_url and self.sync_database_url.startswith("postgres://"):
+            self.sync_database_url = "postgresql://" + self.sync_database_url[len("postgres://") :]
+        elif self.sync_database_url and self.sync_database_url.startswith("postgresql+asyncpg://"):
+            self.sync_database_url = (
+                "postgresql://" + self.sync_database_url[len("postgresql+asyncpg://") :]
+            )
+
+        return self
 
 
 @lru_cache
