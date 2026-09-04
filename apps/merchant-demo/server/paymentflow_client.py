@@ -68,7 +68,17 @@ class MerchantPaymentFlowClient:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 f"{self.api_url}/merchant/v1/checkout-context",
+                headers=self._headers(),
                 json=payload,
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+    async def get_recovery_status(self, order_id: str) -> dict[str, Any]:
+        """Fetch safe public recovery status for an order from PaymentFlow."""
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{self.api_url}/merchant/v1/orders/{order_id}/recovery-status",
                 headers=self._headers(),
             )
             resp.raise_for_status()

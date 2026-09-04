@@ -122,6 +122,23 @@ async def create_storefront_order(payload: CreateOrderRequest) -> dict[str, Any]
     }
 
 
+@app.get("/api/recovery-status", summary="Poll Safe Order Recovery Status")
+async def get_order_recovery_status(order_id: str) -> dict[str, Any]:
+    """Poll safe recovery status for an order via PaymentFlow API.
+
+    Returns only safe customer status; never exposes secrets or recovery URLs.
+    """
+    pf_client = MerchantPaymentFlowClient()
+    try:
+        return await pf_client.get_recovery_status(order_id)
+    except Exception as exc:
+        return {
+            "order_id": order_id,
+            "status": "AWAITING_INGESTION",
+            "message": f"Recovery status not yet available: {exc}",
+        }
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/checkout", response_class=HTMLResponse)
 async def serve_checkout_page() -> HTMLResponse:

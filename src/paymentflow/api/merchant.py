@@ -8,13 +8,16 @@ without executing recovery actions.
 import html
 import logging
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
+from sqlalchemy import select
 
 from paymentflow.adapters.razorpay_adapter import RazorpayAdapter
 from paymentflow.config import get_settings
-from paymentflow.db.models import utc_now
+from paymentflow.db.models import RecoveryCaseModel, utc_now
+from paymentflow.db.session import get_sessionmaker
 from paymentflow.merchant.auth import get_authenticated_merchant
 from paymentflow.merchant.models import AuthenticatedMerchantContext
 from paymentflow.merchant.schemas import (
@@ -197,6 +200,52 @@ async def create_merchant_order(
     )
 
 
+@router.get(
+    "/orders/{order_id}/recovery-status",
+    summary="Get Safe Merchant Recovery Status",
+)
+async def get_merchant_order_recovery_status(
+    order_id: str,
+    merchant: AuthenticatedMerchantContext = Depends(get_authenticated_merchant),
+) -> dict[str, Any]:
+    """Retrieve safe, public-facing recovery status for an order.
+
+    Never exposes secrets, payment link URLs, or internal LLM reasoning.
+    """
+    sessionmaker = get_sessionmaker()
+    async with sessionmaker() as session:
+        stmt = select(RecoveryCaseModel).where(
+            (RecoveryCaseModel.order_id == order_id)
+            | (RecoveryCaseModel.case_id == f"case_{order_id}")
+        )
+        res = await session.execute(stmt)
+        case = res.scalar_one_or_none()
+
+    if not case:
+        return {
+            "order_id": order_id,
+            "status": "AWAITING_INGESTION",
+            "message": "Payment failure ingestion pending.",
+        }
+
+    fc = case.failure_context or {}
+    notif_status = fc.get("notification_status", "PENDING")
+
+    return {
+        "order_id": order_id,
+        "case_source": case.case_source,
+        "state": case.state,
+        "notification_medium": fc.get("notification_medium", "sms"),
+        "notification_status": notif_status,
+        "masked_contact": fc.get("masked_contact"),
+        "delivery_verified": False,
+        "message": (
+            "Payment could not be completed. A secure payment link has been sent to "
+            "your checkout contact. Check your SMS/email for the link."
+        ),
+    }
+
+
 checkout_router = APIRouter(prefix="/merchant", tags=["Merchant Storefront"])
 
 
@@ -369,8 +418,29 @@ async def merchant_checkout_page(
             const rzp = new Razorpay(options);
             rzp.on('payment.failed', function (response) {{
                 console.log('Payment Failed Response:', response);
-                const pid = response.error.metadata.payment_id;
-                alert('Payment failed in Test Mode! ID: ' + pid + '. Return to agent.');
+                const container = document.querySelector('.checkout-container');
+                container.innerHTML = `
+                    <div class="header">
+                        <div class="store-name">${{options.name}}</div>
+                        <div class="order-ref">${{options.description}}</div>
+                    </div>
+                    <div style="padding: 24px; text-align: center;">
+                        <div style="font-size: 40px; margin-bottom: 12px;">⚠️</div>
+                        <h2 style="font-size: 18px; font-weight: 700; color: #dc2626;">
+                            Payment could not be completed.
+                        </h2>
+                        <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">
+                            A secure payment link has been sent to your checkout contact.<br>
+                            Check your SMS/email for the link.
+                        </p>
+                        <div style="padding: 10px; background: #f3f4f6; font-size: 12px;">
+                            Status: Handed off to secure SMS recovery • ${{options.description}}
+                        </div>
+                    </div>
+                    <p class="footer">
+                        Secured by Razorpay • Key: ${{options.key.substring(0, 12)}}...
+                    </p>
+                `;
             }});
             rzp.open();
             e.preventDefault();

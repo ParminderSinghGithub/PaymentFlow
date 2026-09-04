@@ -153,6 +153,7 @@ class RazorpayAdapter:
         reference_id: str | None = None,
         notes: dict[str, Any] | None = None,
         expire_by: int | None = None,
+        notify: dict[str, bool] | None = None,
     ) -> dict[str, Any]:
         """Create a standard Razorpay Payment Link."""
         if amount <= 0:
@@ -160,12 +161,14 @@ class RazorpayAdapter:
         if currency != "INR":
             raise ValueError("Only INR currency is supported.")
 
+        notify_config = notify if notify is not None else {"sms": False, "email": False}
+
         payload: dict[str, Any] = {
             "amount": amount,
             "currency": currency,
             "description": description or "Payment Recovery Link",
             "reminder_enable": False,
-            "notify": {"sms": False, "email": False},
+            "notify": notify_config,
         }
         if reference_id:
             payload["reference_id"] = reference_id
@@ -176,8 +179,25 @@ class RazorpayAdapter:
         if expire_by:
             payload["expire_by"] = expire_by
 
-        logger.info(f"Creating Razorpay Payment Link: amount={amount}, reference_id={reference_id}")
+        logger.info(
+            f"Creating Razorpay Payment Link: amount={amount}, reference_id={reference_id}, "
+            f"notify={notify_config}"
+        )
         return await self._request("POST", "payment_links", json=payload)
+
+    async def notify_payment_link(
+        self, payment_link_id: str, medium: str = "sms"
+    ) -> dict[str, Any]:
+        """Send explicit notification for a payment link via Razorpay notify_by endpoint.
+
+        Used only as fallback or resend mechanism when primary creation notify did not dispatch.
+        """
+        if not payment_link_id:
+            raise ValueError("payment_link_id must not be empty.")
+        if medium not in ("sms", "email"):
+            raise ValueError("medium must be 'sms' or 'email'.")
+        logger.info(f"Triggering Razorpay fallback notification for {payment_link_id} via {medium}")
+        return await self._request("POST", f"payment_links/{payment_link_id}/notify_by/{medium}")
 
     async def get_payment_link(self, payment_link_id: str) -> dict[str, Any]:
         """Fetch payment link details by ID."""

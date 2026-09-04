@@ -133,7 +133,21 @@
                 const rzp = new Razorpay(options);
                 rzp.on('payment.failed', function(response) {
                     console.log('Payment Failed Response:', response);
-                    alert('Payment failed in Razorpay Test Mode! ID: ' + response.error.metadata.payment_id);
+                    const checkoutCard = document.querySelector('.checkout-card');
+                    checkoutCard.innerHTML = `
+                        <div style="font-size: 40px; margin-bottom: 12px; text-align: center;">⚠️</div>
+                        <h2 style="font-size: 18px; font-weight: 700; color: #dc2626; margin-bottom: 10px; text-align: center;">Payment could not be completed.</h2>
+                        <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin-bottom: 18px; text-align: center;">
+                            A secure payment link has been sent to your checkout contact.<br>
+                            Check your SMS/email for the link.
+                        </p>
+                        <div style="padding: 10px; background: #f3f4f6; border-radius: 6px; font-size: 12px; color: #6b7280; text-align: center;">
+                            Order Ref: ${orderData.external_order_id} • Status: Secure Recovery Dispatched
+                        </div>
+                        <p class="footer" style="margin-top: 24px;">
+                            External Merchant Consumer • Direct Razorpay Native Notification • Zero Secret Leakage
+                        </p>
+                    `;
                 });
                 rzp.open();
             } catch (err) {

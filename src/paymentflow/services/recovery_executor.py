@@ -29,6 +29,16 @@ from paymentflow.domain.policy_engine import PolicyGuardrailEngine
 logger = logging.getLogger(__name__)
 
 
+def mask_phone(phone: str | None) -> str:
+    """Mask phone number for truthful audit trails and logs (e.g. +91******1160)."""
+    if not phone:
+        return "N/A"
+    clean = str(phone).strip()
+    if len(clean) > 6:
+        return clean[:3] + "******" + clean[-4:]
+    return "******"
+
+
 class RecoveryExecutor:
     """Executes approved recovery actions by creating Razorpay Payment Links with strict safety."""
 
@@ -200,22 +210,62 @@ class RecoveryExecutor:
                 )
             )
 
-            # 7. Call Razorpay API to Create Payment Link
+            # 7. Call Razorpay API to Create Payment Link with Merchant Account Binding
             try:
                 link_ref_id = case.payment_link_reference_id or case.case_id
-                # Propagate customer identity to Razorpay Payment Link for notification targeting
-                # and recovery audit context. Note: Hosted Razorpay Checkout may still prompt
-                # the customer to confirm or enter contact details on screen.
+
+                # Deterministically resolve merchant credentials from failure context
+                merchant_id = (
+                    (case.failure_context or {}).get("merchant_id")
+                    if isinstance(case.failure_context, dict)
+                    else None
+                )
+                if (
+                    not merchant_id
+                    and case.failure_context
+                    and isinstance(case.failure_context, dict)
+                ):
+                    merchant_id = (case.failure_context.get("notes") or {}).get("merchant_id")
+
+                adapter_to_use = self.razorpay_adapter
+                if merchant_id:
+                    from paymentflow.merchant.service import MerchantRegistry
+
+                    creds = MerchantRegistry.resolve_razorpay_credentials(merchant_id)
+                    if creds:
+                        key_id, key_secret = creds
+                        adapter_to_use = RazorpayAdapter(
+                            key_id=key_id,
+                            key_secret=key_secret,
+                            settings=self.settings,
+                        )
+
+                # Propagate customer identity and configure native SMS/email notification
                 customer_data = None
+                notify_sms = False
+                notify_email = False
+                c_email = None
+                c_contact = None
+
                 if case.failure_context and isinstance(case.failure_context, dict):
                     c_email = case.failure_context.get("email")
                     c_contact = case.failure_context.get("contact")
+                    c_name = (
+                        case.failure_context.get("customer_name") or case.customer_id or "Customer"
+                    )
                     if c_email or c_contact:
-                        customer_data = {
-                            "name": case.customer_id or "Customer",
-                            "email": c_email or "customer@example.com",
-                            "contact": c_contact or "+919876543210",
-                        }
+                        customer_data = {"name": c_name}
+                        if c_contact:
+                            customer_data["contact"] = c_contact
+                            notify_sms = True
+                        if c_email:
+                            customer_data["email"] = c_email
+                            notify_email = True
+
+                import inspect
+
+                sig = inspect.signature(adapter_to_use.create_payment_link)
+                has_var_kw = any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
 
                 create_kwargs: dict[str, Any] = {
                     "amount": case.amount,
@@ -227,16 +277,16 @@ class RecoveryExecutor:
                         "failed_payment_id": case.failed_payment_id,
                     },
                 }
-                if customer_data:
-                    import inspect
+                if (notify_sms or notify_email) and ("notify" in sig.parameters or has_var_kw):
+                    create_kwargs["notify"] = {"sms": notify_sms, "email": notify_email}
 
-                    sig = inspect.signature(self.razorpay_adapter.create_payment_link)
-                    if "customer" in sig.parameters or any(
-                        p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
-                    ):
-                        create_kwargs["customer"] = customer_data
+                if merchant_id:
+                    create_kwargs["notes"]["merchant_id"] = merchant_id
 
-                link_response = await self.razorpay_adapter.create_payment_link(**create_kwargs)
+                if customer_data and ("customer" in sig.parameters or has_var_kw):
+                    create_kwargs["customer"] = customer_data
+
+                link_response = await adapter_to_use.create_payment_link(**create_kwargs)
 
                 link_id = link_response.get("id")
                 short_url = link_response.get("short_url")
@@ -248,7 +298,7 @@ class RecoveryExecutor:
                         message="Razorpay returned malformed link creation response.",
                     )
 
-                # 8. Persist Payment Link Identity & Transition State
+                # 8. Persist Payment Link Identity & Notification State
                 case.payment_link_id = link_id
                 case.payment_link_reference_id = link_ref_id
                 case.payment_link_short_url = short_url
@@ -256,6 +306,25 @@ class RecoveryExecutor:
                 case.state = CaseState.ACTION_EXECUTED.value
                 case.action_status = "LINK_CREATED"
                 case.updated_at = utc_now()
+
+                # Record notification audit details separately in failure_context
+                failure_ctx = dict(case.failure_context or {})
+                failure_ctx.update(
+                    {
+                        "notification_medium": "sms"
+                        if notify_sms
+                        else ("email" if notify_email else "none"),
+                        "notification_status": "SENT"
+                        if (notify_sms or notify_email)
+                        else "NOT_REQUESTED",
+                        "notification_requested": bool(notify_sms or notify_email),
+                        "notification_api_success": bool(notify_sms or notify_email),
+                        "delivery_verified": False,
+                        "delivery_verification_source": None,
+                        "masked_contact": mask_phone(c_contact) if c_contact else None,
+                    }
+                )
+                case.failure_context = failure_ctx
 
                 session.add(
                     AuditEventModel(
@@ -272,14 +341,44 @@ class RecoveryExecutor:
                             "short_url": short_url,
                             "amount_paise": case.amount,
                             "currency": case.currency,
+                            "merchant_id": merchant_id,
                         },
                     )
                 )
+
+                if notify_sms:
+                    session.add(
+                        AuditEventModel(
+                            case_id=case_id,
+                            event_type="RECOVERY_SMS_NOTIFICATION_SENT",
+                            actor="system",
+                            decision="SUCCESS",
+                            action="notify_sms",
+                            outcome="SENT",
+                            timestamp=utc_now(),
+                            details={
+                                "merchant_id": merchant_id,
+                                "payment_link_id": link_id,
+                                "masked_contact": mask_phone(c_contact),
+                                "notification_medium": "sms",
+                                "notification_status": "SENT",
+                                "notification_requested": True,
+                                "notification_api_success": True,
+                                "delivery_verified": False,
+                                "delivery_verification_source": None,
+                                "statement": (
+                                    "SMS sent via Razorpay; handset delivery not "
+                                    "independently verified."
+                                ),
+                            },
+                        )
+                    )
+
                 await session.commit()
 
                 logger.info(
                     f"RecoveryExecutor: Payment Link created successfully for case '{case_id}': "
-                    f"link_id={link_id}, url={short_url}"
+                    f"link_id={link_id}, url={short_url}, notify_sms={notify_sms}"
                 )
 
                 return RecoveryExecutionResult(
@@ -290,7 +389,11 @@ class RecoveryExecutor:
                     payment_link_id=link_id,
                     payment_link_short_url=short_url,
                     message="Payment Link created and persisted successfully.",
-                    details={"raw_response": link_response},
+                    details={
+                        "raw_response": link_response,
+                        "notification_medium": "sms" if notify_sms else "none",
+                        "notification_status": "SENT" if notify_sms else "NOT_REQUESTED",
+                    },
                 )
 
             except (RazorpayAPIError, RazorpayAuthError, RazorpayRateLimitError) as exc:

@@ -3,18 +3,43 @@
 import json
 import logging
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from paymentflow.adapters.razorpay_adapter import RazorpayAdapter, verify_webhook_signature
 from paymentflow.config import Settings, get_settings
-from paymentflow.db.session import get_db_session
+from paymentflow.db.models import RecoveryCaseModel
+from paymentflow.db.session import get_db_session, get_sessionmaker
 from paymentflow.domain.exceptions import WebhookPayloadError
 from paymentflow.services.webhook_service import WebhookProcessingResult, WebhookService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
+
+
+async def _trigger_recovery_orchestration(case_id: str) -> None:
+    """Execute durable, idempotent recovery orchestration in background after webhook ACK.
+
+    Runs strictly for MERCHANT_CHECKOUT failures to advance the case through diagnosis,
+    eligibility, LLM advisory, guardrails, and Razorpay-native Payment Link creation.
+    """
+    try:
+        sessionmaker = get_sessionmaker()
+        async with sessionmaker() as session:
+            case = await session.get(RecoveryCaseModel, case_id)
+            if not case or case.case_source != "MERCHANT_CHECKOUT":
+                return
+
+        from paymentflow.services.recovery_orchestrator import RecoveryOrchestrator
+
+        orchestrator = RecoveryOrchestrator()
+        await orchestrator.orchestrate_recovery(case_id=case_id, fetch_from_gateway=False)
+        logger.info(f"Background recovery orchestration completed for merchant case {case_id}")
+    except Exception as exc:
+        logger.error(
+            f"Error during background recovery orchestration for merchant case {case_id}: {exc}"
+        )
 
 
 @router.post(
@@ -25,6 +50,7 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 )
 async def handle_razorpay_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_razorpay_signature: str | None = Header(default=None, alias="X-Razorpay-Signature"),
     settings: Settings = Depends(get_settings),
     db: AsyncSession = Depends(get_db_session),
@@ -74,11 +100,14 @@ async def handle_razorpay_webhook(
     try:
         adapter = RazorpayAdapter(settings=settings)
         service = WebhookService(db, razorpay_adapter=adapter)
-        return await service.process_webhook(
+        result = await service.process_webhook(
             raw_body=raw_body,
             payload=payload,
             signature_verified=True,
         )
+        if result.event_type == "payment.failed" and result.case_id and not result.is_duplicate:
+            background_tasks.add_task(_trigger_recovery_orchestration, result.case_id)
+        return result
     except WebhookPayloadError as exc:
         logger.warning(f"Invalid webhook payload: {exc}")
         raise HTTPException(
