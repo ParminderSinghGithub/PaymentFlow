@@ -353,7 +353,7 @@
             <div class="product-box">
                 <div class="product-row">
                     <span class="product-name">Product</span>
-                    <span class="product-price">₹2,500.00</span>
+                    <span class="product-price">₹4,029.00</span>
                 </div>
             </div>
 
@@ -414,7 +414,7 @@
             <div class="info-grid">
                 <div class="info-row">
                     <span>Amount at risk:</span>
-                    <span class="info-val" style="color: #fca5a5; font-weight: 600;" id="risk-amount">₹2,500.00</span>
+                    <span class="info-val" style="color: #fca5a5; font-weight: 600;" id="risk-amount">₹4,029.00</span>
                 </div>
                 <div class="info-row">
                     <span>Recovery status:</span>
@@ -476,7 +476,7 @@
             <div class="info-grid" style="border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.05);">
                 <div class="info-row">
                     <span>Amount Recovered:</span>
-                    <span class="info-val" style="color: #34d399; font-size: 16px; font-weight: 700;" id="recovered-amount">₹2,500.00</span>
+                    <span class="info-val" style="color: #34d399; font-size: 16px; font-weight: 700;" id="recovered-amount">₹4,029.00</span>
                 </div>
                 <div class="info-row">
                     <span>Recovery State:</span>
@@ -551,7 +551,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        amount: 250000, // ₹2,500.00
+                        amount: 402900, // ₹4,029.00
                         currency: 'INR',
                         external_order_id: orderRef,
                         customer_name: customerName,
@@ -679,7 +679,7 @@
         function handleRecoverySuccess(data) {
             switchScreen('screen-recovered');
             document.getElementById('recovered-order-ref').innerText = data.order_id || activeOrder?.external_order_id || '';
-            const recAmt = data.recovered_amount ? (data.recovered_amount / 100).toFixed(2) : '2,500.00';
+            const recAmt = data.recovered_amount ? (data.recovered_amount / 100).toFixed(2) : '4,029.00';
             document.getElementById('recovered-amount').innerText = `₹${recAmt}`;
             document.getElementById('recovered-payment-id').innerText = data.recovered_payment_id || 'pay_recovered';
         }
