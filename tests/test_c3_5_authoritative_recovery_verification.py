@@ -779,6 +779,7 @@ async def test_c3_5_15_merchant_recovery_status_truthfulness():
             payment_link_id="plink_c35_order_01",
             case_source="MERCHANT_CHECKOUT",
             failure_context={
+                "merchant_id": "merchant_demo_store",
                 "external_order_id": order_id,
                 "notification_status": "SENT",
                 "notification_medium": "sms",

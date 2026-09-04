@@ -247,10 +247,6 @@ async def get_merchant_order_recovery_status(
         if case_m == merchant.merchant_id:
             case = c
             break
-        # Support default demo store prototype fallback if unassigned
-        elif case_m is None and merchant.merchant_id == "merchant_demo_store":
-            case = c
-            break
 
     if not case:
         return {

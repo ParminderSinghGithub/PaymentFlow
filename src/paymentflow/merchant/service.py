@@ -103,13 +103,22 @@ class MerchantRegistry:
     def store_checkout_context(cls, context_id: str, data: dict[str, Any]) -> None:
         """Store checkout context indexed by context_id, external_order_id, and rzp order_id."""
         cls._ensure_initialized()
-        cls._checkout_contexts[context_id] = data
         merchant_id = data.get("merchant_id")
+
+        # Primary lookup key (e.g. context_id)
+        cls._checkout_contexts[context_id] = data
+        if merchant_id:
+            cls._checkout_contexts[f"{merchant_id}:{context_id}"] = data
+
+        # Store by external_order_id: strictly tenant-scoped if merchant_id is present
         if "external_order_id" in data and data["external_order_id"]:
             ext_id = str(data["external_order_id"])
             if merchant_id:
                 cls._checkout_contexts[f"{merchant_id}:{ext_id}"] = data
-            cls._checkout_contexts[ext_id] = data
+            else:
+                cls._checkout_contexts[ext_id] = data
+
+        # Store by razorpay_order_id (globally unique gateway ID)
         if "razorpay_order_id" in data and data["razorpay_order_id"]:
             rzp_id = str(data["razorpay_order_id"])
             if merchant_id:
@@ -122,7 +131,7 @@ class MerchantRegistry:
     ) -> dict[str, Any] | None:
         """Look up checkout context by context_id, external_order_id, or razorpay order_id.
 
-        If merchant_id is provided, prefers tenant-scoped entry to prevent cross-merchant collision.
+        Strictly enforces tenant isolation when merchant_id is provided.
         """
         cls._ensure_initialized()
         if not key:
@@ -132,4 +141,12 @@ class MerchantRegistry:
             scoped_key = f"{merchant_id}:{s_key}"
             if scoped_key in cls._checkout_contexts:
                 return cls._checkout_contexts[scoped_key]
+            # If scoped key not found, check global key only if owned by this merchant
+            ctx = cls._checkout_contexts.get(s_key)
+            if ctx and ctx.get("merchant_id") == merchant_id:
+                return ctx
+            # Crucial: Never leak another merchant's context
+            return None
+
+        # Unscoped lookup (e.g. by unique razorpay_order_id or context_id)
         return cls._checkout_contexts.get(s_key)

@@ -17,6 +17,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
 from paymentflow.adapters.razorpay_adapter import RazorpayAdapter
+from paymentflow.config import get_settings
 from paymentflow.db.models import AuditEventModel, RecoveryCaseModel, utc_now
 from paymentflow.db.session import get_sessionmaker
 from paymentflow.domain.enums import CaseState
@@ -918,3 +919,115 @@ async def test_checkout_context_validation():
             json={"external_order_id": "ORD-USD", "amount": 5000, "currency": "USD"},
         )
         assert res_curr.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_checkout_context_cross_merchant_collision_isolation():
+    """Prove Merchant A and Merchant B may use the same external_order_id without context leak.
+
+    Invariant: Neither merchant may retrieve the other's context, and a third merchant
+    gets None.
+    """
+    shared_order_id = "ORD-SHARED-COLLISION-1001"
+    ctx_a = {
+        "context_id": "ctx_A_1001",
+        "merchant_id": MERCHANT_A_ID,
+        "merchant_name": "Store A",
+        "external_order_id": shared_order_id,
+        "amount": 150000,
+        "currency": "INR",
+        "customer_email": "alice@storea.example.com",
+    }
+    ctx_b = {
+        "context_id": "ctx_B_1001",
+        "merchant_id": MERCHANT_B_ID,
+        "merchant_name": "Store B",
+        "external_order_id": shared_order_id,
+        "amount": 290000,
+        "currency": "INR",
+        "customer_email": "bob@storeb.example.com",
+    }
+
+    # Store both contexts
+    MerchantRegistry.store_checkout_context("ctx_A_1001", ctx_a)
+    MerchantRegistry.store_checkout_context("ctx_B_1001", ctx_b)
+
+    # Merchant A retrieval
+    ret_a = MerchantRegistry.get_checkout_context(shared_order_id, merchant_id=MERCHANT_A_ID)
+    assert ret_a is not None
+    assert ret_a["merchant_id"] == MERCHANT_A_ID
+    assert ret_a["amount"] == 150000
+    assert ret_a["customer_email"] == "alice@storea.example.com"
+
+    # Merchant B retrieval
+    ret_b = MerchantRegistry.get_checkout_context(shared_order_id, merchant_id=MERCHANT_B_ID)
+    assert ret_b is not None
+    assert ret_b["merchant_id"] == MERCHANT_B_ID
+    assert ret_b["amount"] == 290000
+    assert ret_b["customer_email"] == "bob@storeb.example.com"
+
+    # Merchant C retrieval (unrelated tenant)
+    ret_c = MerchantRegistry.get_checkout_context(
+        shared_order_id, merchant_id="merchant_unrelated_03"
+    )
+    assert ret_c is None
+
+    # Unscoped query by external_order_id does NOT leak either merchant's context
+    ret_unscoped = MerchantRegistry.get_checkout_context(shared_order_id)
+    assert ret_unscoped is None
+
+
+@pytest.mark.asyncio
+async def test_unassigned_case_without_merchant_id_never_claimed():
+    """Prove unassigned cases lacking merchant_id are rejected for all merchants.
+
+    Ensures zero hardcoded tenant exceptions exist in recovery status authorization.
+    """
+    settings = get_settings()
+    sessionmaker = get_sessionmaker()
+    orphan_order_id = "ORD-ORPHAN-NO-MERCHANT"
+
+    async with sessionmaker() as session:
+        orphan_case = RecoveryCaseModel(
+            case_id=f"case_{orphan_order_id}",
+            failed_payment_id="pay_orphan_01",
+            order_id=orphan_order_id,
+            amount=500000,
+            currency="INR",
+            state=CaseState.ACTION_EXECUTED.value,
+            case_source="MERCHANT_CHECKOUT",
+            failure_context={
+                "external_order_id": orphan_order_id,
+                # Intentionally omitted merchant_id
+            },
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(orphan_case)
+        await session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Query with default demo store key
+        res_demo = await client.get(
+            f"/merchant/v1/orders/{orphan_order_id}/recovery-status",
+            headers={"Authorization": f"Bearer {settings.paymentflow_api_key}"},
+        )
+        assert res_demo.status_code == 200
+        assert res_demo.json()["status"] == "AWAITING_INGESTION"
+
+        # 2. Query with Merchant A
+        res_a = await client.get(
+            f"/merchant/v1/orders/{orphan_order_id}/recovery-status",
+            headers={"Authorization": f"Bearer {MERCHANT_A_KEY}"},
+        )
+        assert res_a.status_code == 200
+        assert res_a.json()["status"] == "AWAITING_INGESTION"
+
+        # 3. Query with Merchant B
+        res_b = await client.get(
+            f"/merchant/v1/orders/{orphan_order_id}/recovery-status",
+            headers={"Authorization": f"Bearer {MERCHANT_B_KEY}"},
+        )
+        assert res_b.status_code == 200
+        assert res_b.json()["status"] == "AWAITING_INGESTION"
