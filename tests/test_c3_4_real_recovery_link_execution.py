@@ -21,11 +21,13 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 
+from paymentflow.adapters.llm_adapter import LLMClient
 from paymentflow.adapters.razorpay_adapter import RazorpayAdapter
 from paymentflow.config import get_settings
 from paymentflow.db.models import AuditEventModel, RecoveryCaseModel, utc_now
 from paymentflow.db.session import get_sessionmaker
-from paymentflow.domain.enums import CaseState, RecoveryPolicy
+from paymentflow.domain.enums import CaseState, FailureCategory, RecoveryPolicy, TemplateId
+from paymentflow.domain.models import RecoveryProposal
 from paymentflow.main import app
 from paymentflow.merchant.models import MerchantProfile, hash_api_key
 from paymentflow.merchant.service import MerchantRegistry
@@ -279,10 +281,22 @@ async def test_end_to_end_orchestration_merchant_checkout_failure():
         short_url="https://rzp.io/rzp/c34_live",
     )
 
-    with patch.object(
-        RazorpayAdapter, "create_payment_link", new_callable=AsyncMock
-    ) as mock_create:
+    mock_proposal = RecoveryProposal(
+        failure_category=FailureCategory.C1,
+        policy_id=RecoveryPolicy.P_CREATE_LINK_IMMEDIATE,
+        template_id=TemplateId.TPL_RECOVERY_STANDARD,
+        explanation="Customer payment dropped off; immediate retry link.",
+    )
+
+    with (
+        patch.object(RazorpayAdapter, "create_payment_link", new_callable=AsyncMock) as mock_create,
+        patch.object(LLMClient, "generate_proposal", new_callable=AsyncMock) as mock_llm,
+    ):
         mock_create.return_value = mock_resp
+        mock_llm.return_value = (
+            mock_proposal,
+            {"model": "mock-llm", "latency_ms": 10.0, "is_fallback": False, "error": None},
+        )
 
         orchestrator = RecoveryOrchestrator(sessionmaker=sessionmaker)
         res = await orchestrator.orchestrate_recovery(case_id=case_id, fetch_from_gateway=False)
@@ -311,6 +325,7 @@ async def test_merchant_order_recovery_status_safe_endpoint():
     sessionmaker = get_sessionmaker()
 
     order_id = "order_c34_status_check"
+    external_order_id = "EXT-ORD-C34-STATUS"
     async with sessionmaker() as session:
         case = RecoveryCaseModel(
             case_id=f"case_{order_id}",
@@ -323,6 +338,7 @@ async def test_merchant_order_recovery_status_safe_endpoint():
             case_source="MERCHANT_CHECKOUT",
             failure_context={
                 "merchant_id": "merchant_demo_store",
+                "external_order_id": external_order_id,
                 "masked_contact": "+91******1160",
                 "notification_medium": "sms",
                 "notification_status": "SENT",
@@ -335,6 +351,7 @@ async def test_merchant_order_recovery_status_safe_endpoint():
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Lookup by Razorpay Order ID
         res = await client.get(
             f"/merchant/v1/orders/{order_id}/recovery-status",
             headers=auth_header,
@@ -346,6 +363,17 @@ async def test_merchant_order_recovery_status_safe_endpoint():
         assert data["notification_status"] == "SENT"
         assert data["masked_contact"] == "+91******1160"
         assert data["delivery_verified"] is False
+
+        # 2. Lookup by Merchant External Order ID
+        res_ext = await client.get(
+            f"/merchant/v1/orders/{external_order_id}/recovery-status",
+            headers=auth_header,
+        )
+        assert res_ext.status_code == 200
+        data_ext = res_ext.json()
+        assert data_ext["order_id"] == external_order_id
+        assert data_ext["case_id"] == f"case_{order_id}"
+        assert data_ext["state"] == CaseState.ACTION_EXECUTED.value
 
         # Strictly assert NO secret leakage
         raw_text = res.text
