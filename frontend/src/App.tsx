@@ -119,17 +119,23 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  const loadMetrics = useCallback(async () => {
-    setMetricsLoading(true);
-    try {
-      setMetrics(await fetchMetricsSummary());
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.detail : 'Metrics unavailable';
-      showToast('error', 'Metrics Error', msg);
-    } finally {
-      setMetricsLoading(false);
-    }
-  }, [showToast]);
+  const loadMetrics = useCallback(
+    async (scope?: { case_source?: string; eval_run_id?: string }) => {
+      setMetricsLoading(true);
+      try {
+        const targetScope =
+          scope ??
+          (activePage === 'overview' ? { case_source: 'CANONICAL_EVALUATION' } : undefined);
+        setMetrics(await fetchMetricsSummary(targetScope));
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.detail : 'Metrics unavailable';
+        showToast('error', 'Metrics Error', msg);
+      } finally {
+        setMetricsLoading(false);
+      }
+    },
+    [activePage, showToast]
+  );
 
   const loadCases = useCallback(async () => {
     setCasesLoading(true);
@@ -229,6 +235,11 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Re-fetch metrics whenever active page changes to ensure appropriate scope
+  useEffect(() => {
+    loadMetrics();
+  }, [activePage, loadMetrics]);
+
   const handleSeedCanonicalBatch = async () => {
     setSeedingBatch(true);
     try {
@@ -238,7 +249,10 @@ const AppContent: React.FC = () => {
         'Benchmark Batch Executed',
         `Run ID: ${result.eval_run_id} · ${result.evaluation_recovered_cases}/${result.total_cases} recovered (₹${result.evaluation_recovered_amount_inr.toLocaleString('en-IN')}).`
       );
-      await Promise.all([loadMetrics(), loadCases()]);
+      await Promise.all([
+        loadMetrics({ case_source: 'CANONICAL_EVALUATION', eval_run_id: result.eval_run_id }),
+        loadCases(),
+      ]);
     } catch (err) {
       showToast('error', 'Benchmark Error', err instanceof ApiError ? err.detail : 'Benchmark execution failed');
     } finally {

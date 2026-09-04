@@ -225,6 +225,12 @@ class RecoveryTriageService:
                 RecoveryCaseModel.created_at >= twenty_four_hours_ago,
                 RecoveryCaseModel.payment_link_id.isnot(None),
             )
+            if case.eval_run_id:
+                count_query = count_query.where(RecoveryCaseModel.eval_run_id == case.eval_run_id)
+            else:
+                count_query = count_query.where(
+                    RecoveryCaseModel.case_source != "CANONICAL_EVALUATION"
+                )
             count_res = await self.session.execute(count_query)
             customer_attempts_today = count_res.scalar() or 0
 

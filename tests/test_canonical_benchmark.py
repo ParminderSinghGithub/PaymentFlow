@@ -4,7 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 
-from paymentflow.db.models import AuditEventModel, EvaluationRunModel, RecoveryCaseModel
+from paymentflow.db.models import AuditEventModel, EvaluationRunModel, RecoveryCaseModel, utc_now
 from paymentflow.db.session import get_sessionmaker
 from paymentflow.domain.enums import CaseState
 from paymentflow.eval.benchmark_runner import BenchmarkRunner
@@ -326,3 +326,97 @@ async def test_c2_2_evidence_boundary_isolation_audit():
         assert expected_semantic in reason
         assert "simulated" not in reason.lower()
         assert "simulation" not in reason.lower()
+
+
+@pytest.mark.asyncio
+async def test_canonical_batch_metrics_regression_isolation():
+    """Verify consecutive benchmark runs retain canonical metrics and merchant isolation.
+
+    Proves:
+    1. POST /cases/benchmark/run produces:
+       - total_cases = 15
+       - eligible_cases = 7
+       - recovered_cases = 6
+       - evaluation_recovered_amount = 28648.0
+       - eligible_opportunity_amount = 31538.0
+       - eligible_opportunity_recovery_rate_pct ≈ 90.84
+    2. Repeated benchmark runs do NOT deplete customer cooldown for CS01/CS02/etc.
+    3. Live MERCHANT_CHECKOUT cases (e.g. ₹4,200 recovery) do not contaminate
+       canonical benchmark metrics.
+    4. GET /cases/metrics/summary?case_source=CANONICAL_EVALUATION reflects exact benchmark metrics.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Run 1
+        res1 = await client.post("/cases/benchmark/run")
+        assert res1.status_code == 200
+        data1 = res1.json()
+        assert data1["total_cases"] == 15
+        assert data1["eligible_cases"] == 7
+        assert data1["evaluation_recovered_cases"] == 6
+        assert data1["evaluation_recovered_amount_inr"] == 28648.0
+        assert data1["eligible_opportunity_amount_inr"] == 31538.0
+        assert round(data1["eligible_opportunity_recovery_rate_pct"], 2) == 90.84
+
+        # Run 2 (proves repeated runs do not deplete cooldown for CS01/CS02)
+        res2 = await client.post("/cases/benchmark/run")
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["total_cases"] == 15
+        assert data2["eligible_cases"] == 7
+        assert data2["evaluation_recovered_cases"] == 6
+        assert data2["evaluation_recovered_amount_inr"] == 28648.0
+        assert data2["eligible_opportunity_amount_inr"] == 31538.0
+        assert round(data2["eligible_opportunity_recovery_rate_pct"], 2) == 90.84
+
+        # Insert a live MERCHANT_CHECKOUT case (simulating C3.4 live recovery evidence)
+        sessionmaker = get_sessionmaker()
+        async with sessionmaker() as session:
+            merchant_case = RecoveryCaseModel(
+                case_id="case_merchant_regression_test",
+                failed_payment_id="pay_merchant_reg_01",
+                amount=420000,
+                currency="INR",
+                # same customer ID to test cross-contamination
+                customer_id="cust_eval_cs01_checkout",
+                state=CaseState.RECOVERED.value,
+                recovered_amount=420000,
+                recovered_payment_id="pay_rec_merchant_01",
+                payment_link_id="plink_merchant_reg_01",
+                case_source="MERCHANT_CHECKOUT",
+                created_at=utc_now(),
+                updated_at=utc_now(),
+            )
+            session.add(merchant_case)
+            await session.commit()
+
+        # Check canonical benchmark endpoint: MUST NOT be contaminated by merchant recovery!
+        res_canon = await client.get("/cases/metrics/summary?case_source=CANONICAL_EVALUATION")
+        assert res_canon.status_code == 200
+        m_canon = res_canon.json()
+        assert m_canon["case_source"] == "CANONICAL_EVALUATION"
+        assert m_canon["total_cases"] == 15
+        assert m_canon["eligible_cases"] == 7
+        assert m_canon["recovered_cases"] == 6
+        assert m_canon["total_recovered_amount_inr"] == 28648.0  # NOT 28648 + 4200
+        assert m_canon["total_at_risk_amount_inr"] == 122117.0  # NOT 122117 + 4200
+        assert round(m_canon["eligible_opportunity_recovery_rate_pct"], 2) == 90.84
+
+        # Check latest benchmark endpoint: MUST ALSO be clean
+        res_latest = await client.get("/cases/benchmark/latest")
+        assert res_latest.status_code == 200
+        m_latest = res_latest.json()
+        assert m_latest["case_source"] == "CANONICAL_EVALUATION"
+        assert m_latest["total_cases"] == 15
+        assert m_latest["eligible_cases"] == 7
+        assert m_latest["recovered_cases"] == 6
+        assert m_latest["total_recovered_amount_inr"] == 28648.0
+        assert round(m_latest["eligible_opportunity_recovery_rate_pct"], 2) == 90.84
+
+        # Check default operational metrics: MUST NOT include the 15 benchmark cases
+        res_op = await client.get("/cases/metrics/summary")
+        assert res_op.status_code == 200
+        m_op = res_op.json()
+        assert m_op["case_source"] == "LIVE_OPERATIONAL"
+        # Total cases in operational scope excludes canonical evaluation cases
+        assert m_op["total_at_risk_amount_inr"] != 122117.0

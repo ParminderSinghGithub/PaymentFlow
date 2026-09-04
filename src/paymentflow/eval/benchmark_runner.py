@@ -294,10 +294,11 @@ class BenchmarkRunner:
             case.ai_policy_id = sc["advisory_policy"]
             case.ai_explanation = sc["advisory_explanation"]
 
-            # Count customer attempts in last 24h
+            # Count customer attempts in last 24h within this benchmark run
             count_q = select(func.count(RecoveryCaseModel.case_id)).where(
                 RecoveryCaseModel.customer_id == case.customer_id,
                 RecoveryCaseModel.case_id != case.case_id,
+                RecoveryCaseModel.eval_run_id == run_id,
                 RecoveryCaseModel.created_at >= (now - timedelta(hours=24)),
                 RecoveryCaseModel.payment_link_id.isnot(None),
             )
