@@ -398,20 +398,21 @@
                 </div>
             </div>
 
-            <!-- Optional Customer Details (Starts completely empty) -->
+            <!-- Customer Details: Phone is compulsory for SMS recovery link dispatch -->
             <div class="form-group">
-                <label class="form-label" for="input-name">Name <span>(optional)</span></label>
-                <input type="text" id="input-name" class="form-input" placeholder="Enter customer name" autocomplete="off" />
+                <label class="form-label" for="input-phone">Phone number <span style="color: #ef4444; font-weight: 600;">* (compulsory for SMS recovery)</span></label>
+                <input type="tel" id="input-phone" class="form-input" placeholder="Enter 10-digit mobile number" autocomplete="tel" required />
+                <div id="phone-error" style="color: #ef4444; font-size: 11.5px; margin-top: 5px; display: none; line-height: 1.4;">⚠️ Mobile number is compulsory for PaymentFlow to dispatch the recovery link via SMS.</div>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="input-phone">Phone number <span>(optional)</span></label>
-                <input type="tel" id="input-phone" class="form-input" placeholder="Enter mobile number" autocomplete="off" />
+                <label class="form-label" for="input-name">Name <span>(optional)</span></label>
+                <input type="text" id="input-name" class="form-input" placeholder="Enter customer name" autocomplete="name" />
             </div>
 
             <div class="form-group">
                 <label class="form-label" for="input-email">Email <span>(optional)</span></label>
-                <input type="email" id="input-email" class="form-input" placeholder="Enter email address" autocomplete="off" />
+                <input type="email" id="input-email" class="form-input" placeholder="Enter email address" autocomplete="email" />
             </div>
 
             <!-- Test Mode Failure Instructions (Neutral phrasing) -->
@@ -576,13 +577,30 @@
         document.getElementById('btn-proceed').onclick = async function(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-proceed');
+
+            // Retrieve customer details
+            const phoneInput = document.getElementById('input-phone');
+            const phoneError = document.getElementById('phone-error');
+            const customerPhone = phoneInput.value.trim() || null;
+            const customerName = document.getElementById('input-name').value.trim() || null;
+            const customerEmail = document.getElementById('input-email').value.trim() || null;
+
+            // Enforce compulsory phone number for SMS recovery
+            const phoneDigits = customerPhone ? customerPhone.replace(/\D/g, '') : '';
+            if (!customerPhone || phoneDigits.length < 10) {
+                phoneError.style.display = 'block';
+                phoneInput.focus();
+                phoneInput.style.borderColor = 'var(--danger)';
+                phoneInput.style.boxShadow = '0 0 0 2px rgba(239, 68, 68, 0.2)';
+                return;
+            } else {
+                phoneError.style.display = 'none';
+                phoneInput.style.borderColor = '';
+                phoneInput.style.boxShadow = '';
+            }
+
             btn.disabled = true;
             btn.innerText = "Initiating Checkout...";
-
-            // Retrieve optional customer details - clean and untainted
-            const customerName = document.getElementById('input-name').value.trim() || null;
-            const customerPhone = document.getElementById('input-phone').value.trim() || null;
-            const customerEmail = document.getElementById('input-email').value.trim() || null;
 
             const orderRef = generateOrderReference();
 
@@ -658,7 +676,10 @@
             document.getElementById('label-order-ref').innerText = order.external_order_id;
             document.getElementById('risk-amount').innerText = `₹${(order.amount / 100).toFixed(2)}`;
 
-            if (order.customerPhone) {
+            if (order.customerPhone && order.customerEmail) {
+                document.getElementById('notif-row').style.display = 'flex';
+                document.getElementById('notif-text').innerText = "Recovery link sent by SMS & Email";
+            } else if (order.customerPhone) {
                 document.getElementById('notif-row').style.display = 'flex';
                 document.getElementById('notif-text').innerText = "Recovery link sent by SMS";
             } else {
@@ -724,6 +745,13 @@
             document.getElementById('recovered-amount').innerText = `₹${recAmt}`;
             document.getElementById('recovered-payment-id').innerText = data.recovered_payment_id || 'pay_recovered';
         }
+
+        document.getElementById('input-phone').addEventListener('input', function() {
+            const err = document.getElementById('phone-error');
+            if (err) err.style.display = 'none';
+            this.style.borderColor = '';
+            this.style.boxShadow = '';
+        });
 
         initConfig();
     </script>
