@@ -262,7 +262,7 @@ export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
               </h3>
               <p className="text-[12px] text-[#6B7280] max-w-md mx-auto mb-6 leading-relaxed">
                 The live tracker continuously listens for incoming merchant checkout failures,
-                autonomous policy validation, and gateway-confirmed recovery attribution.
+                deterministic policy validation, and gateway-confirmed recovery attribution.
               </p>
 
               {/* Lifecycle explanation flow */}
