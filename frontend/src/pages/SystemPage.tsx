@@ -15,6 +15,7 @@ import {
 import type { HealthResponse } from '../types';
 import { PageHeader } from '../components/common/PageHeader';
 import { ActionButton } from '../components/common/ActionButton';
+import { getApiBaseUrl } from '../api/client';
 
 interface SystemPageProps {
   health: HealthResponse | null;
@@ -41,11 +42,59 @@ const ENDPOINTS = [
   { method: 'GET',  path: '/merchant/checkout',                        desc: 'Demonstration checkout page using Razorpay Checkout.js in Test Mode' },
 ];
 
+const TAXONOMY_CATEGORIES = [
+  {
+    id: 'C1',
+    name: 'Customer Dropoff',
+    badge: 'C1 · CUSTOMER',
+    badgeCls: 'bg-[rgba(217,119,6,0.12)] text-[#FCD34D] border-[rgba(217,119,6,0.30)]',
+    nature: 'Transient customer action (OTP cancellation, delayed entry, session expiry).',
+    strategy: 'Eligible for instant or scheduled prefilled payment recovery links.',
+    guardrail: 'Enforces 24-hour customer cooldown limit and original price immutability.',
+  },
+  {
+    id: 'C2',
+    name: 'Soft Infrastructure',
+    badge: 'C2 · GATEWAY',
+    badgeCls: 'bg-[rgba(37,99,235,0.12)] text-[#93C5FD] border-[rgba(37,99,235,0.30)]',
+    nature: 'Acquirer network glitch, bank downtime, or gateway processing timeout.',
+    strategy: 'Eligible for delayed recovery links dispatched after banking cooldown.',
+    guardrail: 'Enforces exponential backoff delay to avoid hitting unrecovered rails.',
+  },
+  {
+    id: 'C3',
+    name: 'Instrument Defect',
+    badge: 'C3 · INSTRUMENT',
+    badgeCls: 'bg-[rgba(234,88,12,0.12)] text-[#FDBA74] border-[rgba(234,88,12,0.30)]',
+    nature: 'Card or account failure (insufficient funds, expired card, bank limit exceeded).',
+    strategy: 'Prefilled multi-rail recovery link enabling switch to alternate payment methods.',
+    guardrail: 'Preserves exact original checkout order context without price alteration.',
+  },
+  {
+    id: 'C4',
+    name: 'Risk & Fraud Gate',
+    badge: 'C4 · RISK',
+    badgeCls: 'bg-[rgba(225,29,72,0.10)] text-[#FDA4AF] border-[rgba(225,29,72,0.30)]',
+    nature: 'High-risk velocity breach, stolen card detection, or AML/compliance flag.',
+    strategy: 'Zero automated outreach. Case is escalated strictly for human review.',
+    guardrail: 'Mandatory guardrail override → P_ESCALATE_ONLY (automated retries prohibited).',
+  },
+  {
+    id: 'C5',
+    name: 'Technical / Bug',
+    badge: 'C5 · TECHNICAL',
+    badgeCls: 'bg-[rgba(82,82,91,0.15)] text-[#A1A1AA] border-[rgba(82,82,91,0.30)]',
+    nature: 'Non-recoverable technical bug (malformed payload, invalid schema, gateway 500).',
+    strategy: 'Immediate recovery halt. Logged to system telemetry for developer inspection.',
+    guardrail: 'Mandatory guardrail halt → P_NO_ACTION (prevents customer spamming).',
+  },
+];
+
 const INVARIANTS = [
   {
     invariant: 'Amount Immutability',
     rule: 'proposed_amount === original_amount',
-    prevents: 'LLM discount offers, paise manipulation, unauthorized price deductions',
+    prevents: 'LLM discount offers, money manipulation, unauthorized price deductions',
     enforcement: 'Hard guardrail rejection → P_NO_ACTION',
   },
   {
@@ -56,7 +105,7 @@ const INVARIANTS = [
   },
   {
     invariant: 'High-Value Escalation Cap',
-    rule: 'amount > ₹50,000.00 (5,000,000 paise)',
+    rule: 'amount > ₹50,000.00',
     prevents: 'Automated recovery without manual human-in-the-loop review',
     enforcement: 'Unconditional override → P_ESCALATE_ONLY',
   },
@@ -214,29 +263,82 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
             {/* Boundaries: Merchant Integration & Evidence */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/[0.06]">
               {/* Merchant Integration Boundary */}
-              <div className="p-4 rounded-lg bg-surface-raised border border-white/[0.06] space-y-2">
+              <div className="p-4 rounded-lg bg-surface-raised border border-white/[0.06] space-y-2.5">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-teal-400" />
                   <span className="text-xs font-semibold text-[#F0F2F5]">
                     Merchant Integration Boundary
                   </span>
                 </div>
-                <p className="text-xs text-[#9CA3AF] leading-relaxed">
-                  Server-to-server merchant integration boundary; operator console is optional. External merchant store (<code>127.0.0.1:8002</code>) interacts via <code>/merchant/v1/*</code> REST contracts using merchant-bound Razorpay credentials. PaymentFlow operates out-of-band via standard webhooks (<code>payment.failed</code>) and dispatches native recovery links directly to customer contacts.
-                </p>
+                <ul className="text-xs text-[#9CA3AF] space-y-1.5">
+                  <li>• Server-to-server merchant boundary; operator console is strictly optional</li>
+                  <li>• External merchant storefront or e-commerce backend integrates via authenticated <code>/merchant/v1/*</code> REST contracts</li>
+                  <li>• Compatible with any merchant platform (Shopify, WooCommerce, custom web or mobile checkouts)</li>
+                  <li>• Operates out-of-band via standard Razorpay <code>payment.failed</code> webhook ingress</li>
+                  <li>• Dispatches native, prefilled Razorpay recovery links directly to customer contact points</li>
+                </ul>
               </div>
 
               {/* Evidence Boundary */}
-              <div className="p-4 rounded-lg bg-surface-raised border border-white/[0.06] space-y-2">
+              <div className="p-4 rounded-lg bg-surface-raised border border-white/[0.06] space-y-2.5">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-amber-400" />
                   <span className="text-xs font-semibold text-[#F0F2F5]">
                     Authoritative Evidence Boundary
                   </span>
                 </div>
-                <p className="text-xs text-[#9CA3AF] leading-relaxed">
-                  Zero manufactured attribution. Benchmark metrics derive strictly from <code>CANONICAL_EVALUATION</code> runs, while operational metrics reflect genuine <code>MERCHANT_CHECKOUT</code> webhooks verified via Razorpay REST API captures and PostgreSQL row locks.
+                <ul className="text-xs text-[#9CA3AF] space-y-1.5">
+                  <li>• Zero manufactured attribution or simulated revenue recovery claims</li>
+                  <li>• Controlled evaluation metrics isolate strictly to verified <code>CANONICAL_EVALUATION</code> runs</li>
+                  <li>• Operational metrics derive only from genuine merchant checkout webhook events</li>
+                  <li>• Every recovered rupee verified via Razorpay REST API capture and row-locked ledger</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Standardized Failure Classification Taxonomy (C1–C5) */}
+            <div className="mt-6 pt-6 border-t border-white/[0.06] space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-[#F0F2F5]">
+                  Standard Failure Taxonomy (C1–C5 Classification Matrix)
+                </h4>
+                <p className="text-xs text-[#6B7280] mt-0.5">
+                  Payment failures are classified into 5 standardized categories to determine recovery eligibility and policy bounds.
                 </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                {TAXONOMY_CATEGORIES.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="p-3.5 rounded-lg bg-surface-raised border border-white/[0.06] space-y-2 flex flex-col justify-between"
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border ${cat.badgeCls}`}>
+                          {cat.badge}
+                        </span>
+                        <span className="text-[11px] font-semibold text-[#F0F2F5]">
+                          {cat.name}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                        {cat.nature}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/[0.04] space-y-1 text-[10px]">
+                      <div>
+                        <strong className="text-[#6B7280]">Strategy:</strong>{' '}
+                        <span className="text-[#D1D5DB]">{cat.strategy}</span>
+                      </div>
+                      <div>
+                        <strong className="text-[#6B7280]">Guardrail:</strong>{' '}
+                        <span className="text-guard-text font-mono">{cat.guardrail}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -248,7 +350,7 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
         <div className="bg-surface rounded-xl border border-white/[0.08] p-6 space-y-4">
           <div>
             <h3 className="text-base font-semibold text-[#F0F2F5]">
-              Deterministic Financial Guardrail Safety Invariants
+              Deterministic Financial Guardrail Safety Invariants ({INVARIANTS.length} Invariants)
             </h3>
             <p className="text-xs text-[#6B7280] mt-1">
               Every recovery proposal is checked against these mathematical invariants before any transaction write.
@@ -285,7 +387,7 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
         <div className="bg-surface rounded-xl border border-white/[0.08] p-6 space-y-4">
           <div>
             <h3 className="text-base font-semibold text-[#F0F2F5]">
-              Model Context Protocol (MCP) Standardized Tools
+              Model Context Protocol (MCP) Standardized Tools ({MCP_TOOLS.length} Tools)
             </h3>
             <p className="text-xs text-[#6B7280] mt-1">
               Read-only inspection tools vs guarded action proposals exposed to the agent client.
@@ -338,7 +440,7 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
                     {loading ? 'Probing Backend...' : isHealthy ? 'System Operational' : 'Backend Degraded'}
                   </h4>
                   <div className="text-xs text-[#6B7280] font-mono">
-                    Target: http://localhost:8001
+                    Target: {getApiBaseUrl()}
                   </div>
                 </div>
               </div>

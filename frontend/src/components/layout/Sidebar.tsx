@@ -9,6 +9,7 @@ import {
   PanelLeftOpen,
   Store,
   ExternalLink,
+  Github,
 } from 'lucide-react';
 import { getMerchantStorefrontUrl } from '../../api/client';
 
@@ -32,7 +33,6 @@ interface SidebarProps {
   activePage: ActivePage;
   onNavigate: (page: ActivePage) => void;
   selectedCaseId?: string | null;
-  healthStatus?: 'ok' | 'degraded' | 'offline' | string | null;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }
@@ -41,16 +41,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activePage,
   onNavigate,
   selectedCaseId,
-  healthStatus,
   collapsed = false,
   onToggleCollapse,
 }) => {
-  const healthDot =
-    healthStatus === 'ok'
-      ? 'bg-recover-base'
-      : healthStatus === 'degraded'
-      ? 'bg-risk-base'
-      : 'bg-halt-base';
 
   return (
     <aside
@@ -200,35 +193,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </nav>
 
-      {/* Footer: System Health & Expand/Collapse */}
-      <div className={`border-t border-white/[0.06] py-3 ${collapsed ? 'px-2.5' : 'px-4'}`}>
+      {/* Footer: Engineer Attribution & GitHub Profile */}
+      <div
+        className={`border-t border-white/[0.06] py-3 ${
+          collapsed
+            ? 'px-2.5 flex flex-col items-center gap-2'
+            : 'px-4 flex items-center justify-between'
+        }`}
+      >
         {collapsed ? (
-          <div className="flex flex-col items-center gap-2">
-            <div
-              className={`w-2 h-2 rounded-full ${healthDot}`}
-              title={`System health: ${healthStatus ?? 'unknown'}`}
-            />
+          <>
+            <a
+              href="https://github.com/ParminderSinghGithub"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded text-[#6B7280] hover:text-[#F0F2F5] hover:bg-white/[0.04] transition-colors"
+              title="Engineered by Parminder Singh (GitHub Profile)"
+              aria-label="Parminder Singh GitHub Profile"
+            >
+              <Github className="w-4 h-4" />
+            </a>
             {onToggleCollapse && (
               <button
                 onClick={onToggleCollapse}
-                className="p-1 rounded text-[#4B5563] hover:text-[#9CA3AF] transition-colors"
+                className="p-1 rounded text-[#4B5563] hover:text-[#9CA3AF] transition-colors mt-0.5"
                 title="Expand sidebar"
                 aria-label="Expand sidebar"
               >
                 <PanelLeftOpen className="w-3.5 h-3.5" />
               </button>
             )}
-          </div>
+          </>
         ) : (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={`w-2 h-2 rounded-full shrink-0 ${healthDot}`} />
-              <span className="text-[10px] text-[#4B5563] font-mono truncate">
-                {healthStatus === 'ok' ? 'System operational' :
-                 healthStatus === 'degraded' ? 'System degraded' : 'Backend offline'}
+          <>
+            <div className="min-w-0 pr-2">
+              <span className="text-[10px] text-[#6B7280] block font-sans leading-tight">
+                Engineered by
+              </span>
+              <span className="text-[12px] font-semibold text-[#E5E7EB] block font-sans leading-snug truncate">
+                Parminder Singh
               </span>
             </div>
-          </div>
+            <a
+              href="https://github.com/ParminderSinghGithub"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded text-[#6B7280] hover:text-[#F0F2F5] hover:bg-white/[0.06] transition-colors shrink-0"
+              title="Visit Parminder Singh's GitHub Profile"
+              aria-label="Parminder Singh GitHub Profile"
+            >
+              <Github className="w-4 h-4" />
+            </a>
+          </>
         )}
       </div>
     </aside>

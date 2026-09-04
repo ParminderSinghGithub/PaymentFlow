@@ -39,7 +39,6 @@ export const AppShell: React.FC<AppShellProps> = ({
           activePage={activePage}
           onNavigate={onNavigate}
           selectedCaseId={selectedCaseId}
-          healthStatus={health?.status}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         />

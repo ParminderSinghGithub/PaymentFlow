@@ -26,21 +26,23 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`flex items-center justify-between gap-3 mb-3 ${className}`}>
-      <div className="flex items-center gap-2 min-w-0">
-        {Icon && <Icon className="w-4 h-4 text-[#6B7280] shrink-0" aria-hidden="true" />}
-        <h3 className="text-[13px] font-semibold text-[#F0F2F5] tracking-tight truncate">
-          {title}
-        </h3>
-        {badge !== undefined && (
-          <span className="px-1.5 py-0.2 text-[10px] font-mono font-medium rounded bg-white/[0.06] text-[#9CA3AF] border border-white/[0.08]">
-            {badge}
-          </span>
-        )}
+    <div className={`flex items-start justify-between gap-3 mb-3 ${className}`}>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          {Icon && <Icon className="w-4 h-4 text-[#6B7280] shrink-0" aria-hidden="true" />}
+          <h3 className="text-[13px] font-semibold text-[#F0F2F5] tracking-tight">
+            {title}
+          </h3>
+          {badge !== undefined && (
+            <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded bg-white/[0.06] text-[#9CA3AF] border border-white/[0.08]">
+              {badge}
+            </span>
+          )}
+        </div>
         {subtitle && (
-          <span className="text-[11px] text-[#4B5563] hidden sm:inline truncate">
-            — {subtitle}
-          </span>
+          <p className="text-[11px] text-[#6B7280] leading-normal">
+            {subtitle}
+          </p>
         )}
       </div>
       {action && <div className="shrink-0 flex items-center gap-2">{action}</div>}

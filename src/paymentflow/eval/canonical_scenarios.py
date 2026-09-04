@@ -45,12 +45,14 @@ CANONICAL_BENCHMARK_SCENARIOS: list[dict[str, Any]] = [
             "error_step": "payment_authorization",
             "error_reason": "network_timeout",
         },
-        "advisory_policy": "P_CREATE_LINK_IMMEDIATE",
-        "advisory_explanation": "Network timeout during auth; immediate recovery link authorized.",
+        "advisory_policy": "P_CREATE_LINK_DELAYED",
+        "advisory_explanation": (
+            "Network timeout during auth; scheduled delayed recovery link with backoff cooldown."
+        ),
         "proposed_amount_paise": 385000,
         "proposed_currency": "INR",
-        "is_delayed": False,
-        "evaluation_outcome": "RECOVERED",  # Eligible -> Link Executed -> Evaluation Recovered
+        "is_delayed": True,
+        "evaluation_outcome": "RECOVERED",  # Eligible -> Delayed Scheduled -> Evaluation Recovered
     },
     {
         "scenario_id": "CS03",
@@ -229,8 +231,8 @@ CANONICAL_BENCHMARK_SCENARIOS: list[dict[str, Any]] = [
     {
         "scenario_id": "CS11",
         "title": "Delayed Recovery Matured & Executed",
-        "category": "C1",
-        "failure_code": "BAD_REQUEST_ERROR",
+        "category": "C2",
+        "failure_code": "BANK_UNAVAILABLE",
         "failure_description": "Late-night payment drop during core banking downtime",
         "amount_paise": 175000,  # ₹1,750.00
         "currency": "INR",
@@ -261,12 +263,14 @@ CANONICAL_BENCHMARK_SCENARIOS: list[dict[str, Any]] = [
             "error_step": "payment_authorization",
             "error_reason": "network_timeout",
         },
-        "advisory_policy": "P_CREATE_LINK_IMMEDIATE",
-        "advisory_explanation": "Immediate payment link dispatched; awaiting customer response.",
+        "advisory_policy": "P_CREATE_LINK_DELAYED",
+        "advisory_explanation": (
+            "Delayed payment link scheduled with banking cooldown; awaiting customer response."
+        ),
         "proposed_amount_paise": 289000,
         "proposed_currency": "INR",
-        "is_delayed": False,
-        "evaluation_outcome": "NOT_RECOVERED",  # Eligible Opportunity -> Action Executed -> Unpaid
+        "is_delayed": True,
+        "evaluation_outcome": "NOT_RECOVERED",  # Eligible Opportunity -> Delayed Scheduled -> In-Flight Unpaid
     },
     {
         "scenario_id": "CS13",

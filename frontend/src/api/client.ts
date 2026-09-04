@@ -17,6 +17,17 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
+export function getApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl.trim();
+  }
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return window.location.origin;
+  }
+  return 'http://localhost:8001';
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,

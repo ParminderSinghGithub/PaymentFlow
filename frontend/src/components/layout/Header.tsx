@@ -48,12 +48,12 @@ export const Header: React.FC<HeaderProps> = ({
           ) : isHealthy ? (
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
               <Wifi className="w-3 h-3" />
-              <span>{health.environment.toUpperCase()} · PG OK</span>
+              <span>{health.environment.toUpperCase()} · DB CONNECTED</span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">
               <Wifi className="w-3 h-3" />
-              <span>{health.environment.toUpperCase()} · DEGRADED</span>
+              <span>{health.environment.toUpperCase()} · DB DISCONNECTED</span>
             </div>
           )}
         </div>

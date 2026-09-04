@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppShell } from './components/layout/AppShell';
 import type { ActivePage } from './components/layout/Sidebar';
 import { OverviewPage } from './pages/OverviewPage';
@@ -57,6 +57,24 @@ const AppContent: React.FC = () => {
 
   const [cases, setCases] = useState<CaseSummaryItem[]>([]);
   const [casesLoading, setCasesLoading] = useState(true);
+
+  // Controlled evaluation run tracking for current session
+  const [evaluationRunId, setEvaluationRunId] = useState<string | null>(null);
+
+  // When no evaluation has been run in the current session, filter out past canonical evaluation batch cases
+  // and internal test artifacts so the application strictly defaults to the clean initial state until an
+  // evaluation is run or a real live merchant checkout failure occurs.
+  const sessionCases = useMemo(() => {
+    if (evaluationRunId) {
+      return cases.filter(
+        (c) =>
+          c.eval_run_id === evaluationRunId ||
+          c.case_source === 'MERCHANT_CHECKOUT' ||
+          (c.case_source === 'CANONICAL_EVALUATION' && !c.case_id.startsWith('case_l3_'))
+      );
+    }
+    return cases.filter((c) => c.case_source === 'MERCHANT_CHECKOUT');
+  }, [cases, evaluationRunId]);
 
   const [caseDetail, setCaseDetail] = useState<CaseDetailResponse | null>(null);
   const [caseDetailLoading, setCaseDetailLoading] = useState(false);
@@ -118,9 +136,14 @@ const AppContent: React.FC = () => {
     async (scope?: { case_source?: string; eval_run_id?: string }) => {
       setMetricsLoading(true);
       try {
-        const targetScope =
-          scope ??
-          (activePage === 'overview' ? { case_source: 'CANONICAL_EVALUATION' } : undefined);
+        let targetScope = scope;
+        if (!targetScope) {
+          if (evaluationRunId) {
+            targetScope = { case_source: 'CANONICAL_EVALUATION', eval_run_id: evaluationRunId };
+          } else {
+            targetScope = { case_source: 'OPERATIONAL' };
+          }
+        }
         setMetrics(await fetchMetricsSummary(targetScope));
       } catch (err) {
         const msg = err instanceof ApiError ? err.detail : 'Metrics unavailable';
@@ -129,7 +152,7 @@ const AppContent: React.FC = () => {
         setMetricsLoading(false);
       }
     },
-    [activePage, showToast]
+    [evaluationRunId, showToast]
   );
 
   const loadCases = useCallback(async () => {
@@ -239,17 +262,18 @@ const AppContent: React.FC = () => {
     setSeedingBatch(true);
     try {
       const result = await runBenchmarkBatch();
+      setEvaluationRunId(result.eval_run_id);
       showToast(
         'success',
-        'Benchmark Batch Executed',
-        `Run ID: ${result.eval_run_id} · ${result.evaluation_recovered_cases}/${result.total_cases} recovered (₹${result.evaluation_recovered_amount_inr.toLocaleString('en-IN')}).`
+        'Controlled Evaluation Complete',
+        `${result.evaluation_recovered_cases}/${result.total_cases} cases recovered (₹${result.evaluation_recovered_amount_inr.toLocaleString('en-IN')}).`
       );
       await Promise.all([
         loadMetrics({ case_source: 'CANONICAL_EVALUATION', eval_run_id: result.eval_run_id }),
         loadCases(),
       ]);
     } catch (err) {
-      showToast('error', 'Benchmark Error', err instanceof ApiError ? err.detail : 'Benchmark execution failed');
+      showToast('error', 'Evaluation Error', err instanceof ApiError ? err.detail : 'Controlled evaluation failed');
     } finally {
       setSeedingBatch(false);
     }
@@ -275,8 +299,9 @@ const AppContent: React.FC = () => {
         <OverviewPage
           metrics={metrics}
           metricsLoading={metricsLoading}
-          recentCases={cases}
+          recentCases={sessionCases}
           casesLoading={casesLoading}
+          hasEvaluationRun={Boolean(evaluationRunId)}
           onSelectCase={handleSelectCase}
           onNavigateToCases={() => navigateTo('cases')}
           onNavigateToArchitecture={() => navigateTo('system')}
@@ -289,7 +314,7 @@ const AppContent: React.FC = () => {
 
       {activePage === 'cases' && (
         <CasesPage
-          cases={cases}
+          cases={sessionCases}
           loading={casesLoading}
           onSelectCase={handleSelectCase}
           onProcessDelayed={handleProcessDelayed}

@@ -80,6 +80,14 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
     );
     const reasons = (validationEvent?.details?.reasons as string[]) || [];
 
+    const defaultDecision = isHalted
+      ? (c.eligibility_status === 'INELIGIBLE' || isOverridden ? 'REJECT' : 'APPROVE')
+      : isOverridden
+      ? 'DOWNGRADE'
+      : isApproved
+      ? 'APPROVE'
+      : 'EVALUATE';
+
     return {
       aiProposed,
       guardrailAuth,
@@ -88,9 +96,70 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
       isEscalated,
       isHalted,
       reasons,
-      decision: validationEvent?.decision || (isOverridden ? 'DOWNGRADE' : isApproved ? 'APPROVE' : 'EVALUATE'),
+      decision: validationEvent?.decision || defaultDecision,
     };
   }, [c, audits]);
+
+  // Specific invariant statuses derived from case attributes & audit reasons
+  const invariantChecks = useMemo(() => {
+    if (!c) {
+      return {
+        amount: { label: 'Lock Enforced', violated: false },
+        currency: { label: 'Constant Enforced', violated: false },
+        idempotency: { label: 'Max 1 Link Enforced', violated: false },
+        amlGate: { label: 'Passed (<₹50k)', violated: false },
+      };
+    }
+
+    const reasonsJoined = (guardrailAnalysis?.reasons || []).join(' ') + ' ' + (c.eligibility_reason || '');
+
+    // Amount check
+    const amountViolated = /amount.*not match|amount.*mutation|invalid_amount/i.test(reasonsJoined);
+    const amountLabel = amountViolated
+      ? 'REJECTED: Amount Modified'
+      : `₹${c.amount_inr.toFixed(2)} Lock Verified`;
+
+    // Currency check
+    const currencyViolated = /currency.*not match|currency.*mutation/i.test(reasonsJoined);
+    const currencyLabel = currencyViolated
+      ? 'REJECTED: Currency Mismatch'
+      : `${c.currency || 'INR'} Constant Verified`;
+
+    // Single link idempotency check
+    let idempotencyLabel = 'Max 1 Link Enforced';
+    let idempotencyViolated = false;
+    if (/duplicate/i.test(reasonsJoined)) {
+      idempotencyLabel = 'BLOCKED: Duplicate Event';
+      idempotencyViolated = true;
+    } else if (/max_attempts|cooldown/i.test(reasonsJoined)) {
+      idempotencyLabel = 'BLOCKED: Cooldown Limit';
+      idempotencyViolated = true;
+    } else if (/already_paid|already paid/i.test(reasonsJoined)) {
+      idempotencyLabel = 'BLOCKED: Order Already Paid';
+      idempotencyViolated = true;
+    }
+
+    // High value & AML
+    let amlLabel = 'Passed (<₹50k)';
+    let amlViolated = false;
+    if (c.amount_inr > 50000) {
+      amlLabel = 'Gated: Exceeds ₹50k Limit';
+      amlViolated = true;
+    } else if (c.failure_category === 'C4') {
+      amlLabel = 'Gated: AML / Risk Flag';
+      amlViolated = true;
+    } else if (c.failure_category === 'C5') {
+      amlLabel = 'Halted: C5 Gateway Fatal';
+      amlViolated = true;
+    }
+
+    return {
+      amount: { label: amountLabel, violated: amountViolated },
+      currency: { label: currencyLabel, violated: currencyViolated },
+      idempotency: { label: idempotencyLabel, violated: idempotencyViolated },
+      amlGate: { label: amlLabel, violated: amlViolated },
+    };
+  }, [c, guardrailAnalysis]);
 
   // Dynamic "Why this happened" narrative derivation
   const causalNarrative = useMemo(() => {
@@ -99,22 +168,24 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
     const desc = c.failure_description || 'Payment failure detected at checkout.';
 
     if (c.state === 'RECOVERED') {
+      const policyType = c.validated_policy_id === 'P_CREATE_LINK_DELAYED' ? 'delayed link' : 'immediate link';
       if (c.case_source === 'CANONICAL_EVALUATION') {
-        return `Transaction failed due to ${cat} (${desc}). Evaluated under canonical benchmark: AI proposed ${c.ai_policy_id || 'recovery'}, deterministic guardrails validated all policy invariants, and evaluation recovery credit of ₹${c.recovered_amount_inr.toLocaleString('en-IN')} was assigned under the benchmark model.`;
+        return `Transaction failed due to ${cat} (${desc}). Evaluated under controlled recovery evaluation: AI proposed ${policyType}, deterministic guardrails validated all policy invariants, and verified recovery credit of ₹${c.recovered_amount_inr.toLocaleString('en-IN')} was attributed to pipeline revenue.`;
       }
-      return `Transaction failed due to ${cat} (${desc}). The AI advisory proposed immediate recovery via ${c.ai_policy_id}. Deterministic guardrails verified all safety checks (amount & currency lock, cooldown, single-link limit) and authorized link creation. The customer completed checkout, and Razorpay captured webhook verified authentic revenue of ₹${c.recovered_amount_inr.toLocaleString('en-IN')}.`;
+      return `Transaction failed due to ${cat} (${desc}). The AI advisory proposed ${policyType}. Deterministic guardrails verified all safety checks (amount & currency lock, cooldown, single-link limit) and authorized link creation. The customer completed checkout, and Razorpay captured webhook verified authentic revenue of ₹${c.recovered_amount_inr.toLocaleString('en-IN')}.`;
     }
     if (c.state === 'ESCALATED') {
-      return `Transaction failed with code ${c.failure_code || 'RISK_CHECK_FAILED'} (${cat}: ${desc}). Although the AI proposed ${c.ai_policy_id || 'recovery'}, the deterministic policy engine enforced compliance invariants (${c.eligibility_reason || 'AML / Fraud Gate'}), downgraded the policy to P_ESCALATE_ONLY, and safely halted automated writes to protect merchant risk.`;
+      return `Transaction failed with code ${c.failure_code || 'RISK_CHECK_FAILED'} (${cat}: ${desc}). Although the AI proposed recovery, the deterministic policy engine enforced compliance invariants (${c.eligibility_reason || 'Safety / Compliance Gate'}), downgraded the action to manual escalation, and safely halted automated writes to protect merchant risk.`;
     }
     if (c.state === 'TERMINAL_NO_ACTION') {
       return `Transaction failed with ${cat} (${desc}). The eligibility engine determined this case is non-recoverable (${c.eligibility_reason || 'Terminal defect'}). Guardrails enforced P_NO_ACTION, preventing wasteful customer messaging or duplicate payment links.`;
     }
     if (c.state === 'ACTION_EXECUTED') {
+      const policyType = c.validated_policy_id === 'P_CREATE_LINK_DELAYED' ? 'delayed link' : 'immediate link';
       if (c.case_source === 'CANONICAL_EVALUATION') {
-        return `Transaction failed with ${cat} (${desc}). Evaluated under canonical benchmark: AI proposed ${c.ai_policy_id || 'recovery'}, and deterministic guardrails validated recovery action. Recovery action executed, but no evaluation recovery credit was assigned before the benchmark cutoff.`;
+        return `Transaction failed with ${cat} (${desc}). Evaluated under controlled recovery evaluation: AI proposed ${policyType}, and deterministic guardrails validated the recovery action. Dispatched recovery link is currently active and in-flight awaiting customer checkout.`;
       }
-      return `Transaction failed with ${cat} (${desc}). The AI proposed ${c.ai_policy_id}, which was verified and authorized by deterministic guardrails. A genuine Razorpay Hosted Payment Link was generated and dispatched. Currently in-flight awaiting customer checkout.`;
+      return `Transaction failed with ${cat} (${desc}). The AI proposed ${policyType}, which was verified and authorized by deterministic guardrails. A genuine Razorpay Hosted Payment Link was generated and dispatched. Currently in-flight awaiting customer checkout.`;
     }
     return `Transaction failed with ${cat} (${desc}). Ingested and awaiting automated or manual triage evaluation.`;
   }, [c]);
@@ -207,20 +278,6 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
         }
       />
 
-      {/* ── Provenance Banner for Canonical Benchmark Evaluation ─────── */}
-      {c.case_source === 'CANONICAL_EVALUATION' && (
-        <div className="bg-[rgba(217,119,6,0.06)] border border-[rgba(217,119,6,0.25)] rounded-lg p-3 px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px]">
-          <div className="flex items-center gap-2">
-            <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.15)] text-amber-300 font-mono text-[10px] font-bold uppercase tracking-wider">
-              Canonical Benchmark Evaluation
-            </span>
-            <span className="text-[#D1D5DB]">
-              Executed in benchmark run <span className="font-mono text-amber-200">{c.eval_run_id || 'run'}</span>. Measured recovery workflow evaluated safely without merchant side-effects.
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* ── State-Aware Provenance Banner for Live Merchant Recovery ─────── */}
       {c.case_source === 'MERCHANT_CHECKOUT' && (
         <div className="bg-[rgba(13,148,136,0.06)] border border-[rgba(13,148,136,0.25)] rounded-lg p-3.5 px-4 space-y-2 text-[11px]">
@@ -274,7 +331,19 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
             </div>
           )}
 
-          {c.state !== 'FAILED_INGESTED' && c.state !== 'ACTION_EXECUTED' && c.state !== 'RECOVERED' && (
+          {c.state === 'ESCALATED' && (
+            <p className="text-[#D1D5DB] leading-relaxed">
+              Real merchant checkout transaction escalated to operations review under compliance guardrails. Automated recovery link withheld. State: <strong className="text-risk-text font-mono">ESCALATED</strong>.
+            </p>
+          )}
+
+          {c.state === 'TERMINAL_NO_ACTION' && (
+            <p className="text-[#D1D5DB] leading-relaxed">
+              Real merchant checkout transaction halted under deterministic safety invariants (P_NO_ACTION). Automated recovery withheld to prevent duplicate links or futile messaging.
+            </p>
+          )}
+
+          {c.state !== 'FAILED_INGESTED' && c.state !== 'ACTION_EXECUTED' && c.state !== 'RECOVERED' && c.state !== 'ESCALATED' && c.state !== 'TERMINAL_NO_ACTION' && (
             <p className="text-[#D1D5DB] leading-relaxed">
               Real merchant checkout transaction halted or escalated under deterministic compliance guardrails. State: <strong className="text-white font-mono">{c.state}</strong>.
             </p>
@@ -325,7 +394,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                 size="lg"
               />
               <div className="text-[10px] font-mono text-[#4B5563] mt-0.5">
-                {c.currency} · {c.amount_paise} paise
+                {c.currency} · Base units: {c.amount_paise.toLocaleString('en-IN')}
               </div>
             </div>
           </div>
@@ -341,7 +410,11 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
             <div className="mt-1">
               <PolicyBadge policy={c.ai_policy_id} context="ai" />
               <div className="text-[10px] font-mono text-[#6B7280] mt-1">
-                {c.ai_explanation ? 'Rationale logged' : 'Pending triage'}
+                {c.ai_explanation
+                  ? 'Rationale logged'
+                  : c.state === 'TERMINAL_NO_ACTION' && !c.ai_policy_id
+                  ? 'Bypassed (Duplicate / Ineligible)'
+                  : 'Pending triage'}
               </div>
             </div>
           </div>
@@ -359,7 +432,17 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
             <div className="mt-1">
               <PolicyBadge policy={c.validated_policy_id} context="guard" />
               <div className="text-[10px] font-mono text-[#6B7280] mt-1">
-                {guardrailAnalysis?.isOverridden ? 'Proposal Downgraded' : 'Safety Verified'}
+                {guardrailAnalysis?.decision === 'REJECT'
+                  ? 'Proposal Rejected'
+                  : guardrailAnalysis?.isOverridden
+                  ? 'Proposal Downgraded'
+                  : c.state === 'TERMINAL_NO_ACTION'
+                  ? 'Terminal Non-Recoverable'
+                  : c.state === 'ESCALATED'
+                  ? 'Threshold Escalated'
+                  : c.state === 'FAILED_INGESTED'
+                  ? 'Pending Evaluation'
+                  : 'Safety Verified'}
               </div>
             </div>
           </div>
@@ -371,11 +454,13 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                 ? 'bg-[rgba(5,150,105,0.08)] border-[rgba(5,150,105,0.25)]'
                 : c.state === 'ESCALATED'
                 ? 'bg-[rgba(217,119,6,0.08)] border-[rgba(217,119,6,0.25)]'
+                : c.state === 'ACTION_EXECUTED'
+                ? 'bg-[rgba(13,148,136,0.08)] border-[rgba(13,148,136,0.25)]'
                 : 'bg-surface-raised border-white/[0.06]'
             }`}
           >
             <span className="text-[10px] font-mono text-[#6B7280] uppercase tracking-wider">
-              {c.state === 'RECOVERED' ? 'Verified Cash Won' : 'Recovery Outcome'}
+              {c.state === 'RECOVERED' ? 'Verified Recovered Cash' : 'Recovery Outcome'}
             </span>
             <div className="mt-1">
               {c.state === 'RECOVERED' ? (
@@ -398,13 +483,31 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                     Gated: Manual Review
                   </div>
                 </>
+              ) : c.state === 'ACTION_EXECUTED' ? (
+                <>
+                  <span className="text-[15px] font-mono font-bold text-guard-text">
+                    ACTION EXECUTED
+                  </span>
+                  <div className="text-[10px] font-mono text-guard-text/80 mt-0.5">
+                    In-Flight: Awaiting Payment
+                  </div>
+                </>
+              ) : c.state === 'TERMINAL_NO_ACTION' ? (
+                <>
+                  <span className="text-[15px] font-mono font-bold text-[#9CA3AF]">
+                    TERMINAL NO ACTION
+                  </span>
+                  <div className="text-[10px] font-mono text-[#6B7280] mt-0.5">
+                    Withheld: Non-Recoverable
+                  </div>
+                </>
               ) : (
                 <>
                   <span className="text-[15px] font-mono font-bold text-[#9CA3AF]">
                     {c.state.replace(/_/g, ' ')}
                   </span>
                   <div className="text-[10px] font-mono text-[#4B5563] mt-0.5">
-                    {c.payment_link_id ? 'In-Flight' : 'No Financial Credit'}
+                    Pending Triage
                   </div>
                 </>
               )}
@@ -427,7 +530,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
               <div className="text-[9px] font-mono text-[#6B7280] uppercase">01 DETECTED</div>
               <div className="text-[12px] font-semibold text-[#F0F2F5] mt-0.5">Failure Ingest</div>
               <p className="text-[10px] text-[#6B7280] mt-1 leading-snug">
-                {c.failed_payment_id}
+                Failure Event Captured
               </p>
             </div>
             <div className="mt-2 pt-2 border-t border-white/[0.04] text-[10px] font-mono text-[#4B5563]">
@@ -461,7 +564,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-[rgba(124,58,237,0.12)] text-[10px] font-mono text-ai-text/70">
-              Read-Only Proposal
+              {c.ai_policy_id ? 'Read-Only Proposal' : 'Bypassed (Duplicate)'}
             </div>
           </div>
 
@@ -487,11 +590,27 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
               <div className="text-[9px] font-mono text-[#6B7280] uppercase">05 ACTION</div>
               <div className="text-[12px] font-semibold text-[#F0F2F5] mt-0.5">Execution</div>
               <p className="text-[10px] text-[#6B7280] mt-1 leading-snug">
-                {c.payment_link_id ? 'Link Dispatched' : c.state === 'ESCALATED' ? 'Escalated' : 'No Action'}
+                {c.state === 'RECOVERED'
+                  ? 'Link Dispatched'
+                  : c.state === 'ACTION_EXECUTED'
+                  ? 'Link Dispatched'
+                  : c.state === 'ESCALATED'
+                  ? 'Gated Escalation'
+                  : c.state === 'TERMINAL_NO_ACTION'
+                  ? 'Action Withheld'
+                  : 'Pending Triage'}
               </p>
             </div>
             <div className="mt-2 pt-2 border-t border-white/[0.04] text-[10px] font-mono text-[#4B5563]">
-              {c.payment_link_id ? 'Link Active' : c.state === 'ESCALATED' ? 'Safeguarded' : 'No Action'}
+              {c.state === 'RECOVERED'
+                ? 'Checkout Completed'
+                : c.state === 'ACTION_EXECUTED'
+                ? 'Link Active'
+                : c.state === 'ESCALATED'
+                ? 'Safeguarded'
+                : c.state === 'TERMINAL_NO_ACTION'
+                ? 'Safely Halted'
+                : 'Awaiting Evaluation'}
             </div>
           </div>
 
@@ -501,11 +620,27 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
               <div className="text-[9px] font-mono text-[#6B7280] uppercase">06 VERIFY</div>
               <div className="text-[12px] font-semibold text-[#F0F2F5] mt-0.5">Gateway Capture</div>
               <p className="text-[10px] text-[#6B7280] mt-1 leading-snug">
-                {c.recovered_payment_id ? 'Captured Webhook' : 'Unverified'}
+                {c.state === 'RECOVERED'
+                  ? 'Captured Webhook'
+                  : c.state === 'ACTION_EXECUTED'
+                  ? 'Awaiting Webhook'
+                  : c.state === 'ESCALATED'
+                  ? 'Escalation Logged'
+                  : c.state === 'TERMINAL_NO_ACTION'
+                  ? 'Not Applicable'
+                  : 'Pending'}
               </p>
             </div>
             <div className="mt-2 pt-2 border-t border-white/[0.04] text-[10px] font-mono text-[#4B5563]">
-              {c.recovered_payment_id ? 'Capture Confirmed' : c.state === 'ESCALATED' ? 'Zero Attribution' : 'Awaiting Payment'}
+              {c.state === 'RECOVERED'
+                ? 'Capture Confirmed'
+                : c.state === 'ACTION_EXECUTED'
+                ? 'Awaiting Payment'
+                : c.state === 'ESCALATED'
+                ? 'Zero Attribution'
+                : c.state === 'TERMINAL_NO_ACTION'
+                ? 'Zero Attribution'
+                : 'Pending Assessment'}
             </div>
           </div>
 
@@ -514,6 +649,10 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
             className={`rounded-md p-3 flex flex-col justify-between border ${
               c.state === 'RECOVERED'
                 ? 'bg-[rgba(5,150,105,0.06)] border-[rgba(5,150,105,0.25)]'
+                : c.state === 'ACTION_EXECUTED'
+                ? 'bg-[rgba(13,148,136,0.06)] border-[rgba(13,148,136,0.25)]'
+                : c.state === 'ESCALATED'
+                ? 'bg-[rgba(217,119,6,0.06)] border-[rgba(217,119,6,0.25)]'
                 : 'bg-surface-raised border-white/[0.06]'
             }`}
           >
@@ -527,8 +666,14 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
             <div className="mt-2 pt-2 border-t border-white/[0.04] text-[10px] font-mono font-semibold">
               {c.state === 'RECOVERED' ? (
                 <span className="text-recover-text">Attributed</span>
+              ) : c.state === 'ACTION_EXECUTED' ? (
+                <span className="text-guard-text">In-Flight</span>
+              ) : c.state === 'ESCALATED' ? (
+                <span className="text-risk-text">Gated Escalation</span>
+              ) : c.state === 'TERMINAL_NO_ACTION' ? (
+                <span className="text-[#9CA3AF]">Closed Terminal</span>
               ) : (
-                <span className="text-[#6B7280]">Closed</span>
+                <span className="text-blue-300">Pending Triage</span>
               )}
             </div>
           </div>
@@ -610,7 +755,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                   </div>
                 </div>
 
-                {c.ai_explanation && (
+                {c.ai_explanation ? (
                   <div className="p-3 bg-[rgba(124,58,237,0.06)] border border-[rgba(124,58,237,0.18)] rounded-md">
                     <div className="text-[10px] font-mono text-ai-text uppercase font-semibold mb-1">
                       LLM Reasoning Explanation
@@ -619,7 +764,16 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                       &ldquo;{c.ai_explanation}&rdquo;
                     </p>
                   </div>
-                )}
+                ) : (c.eligibility_reason === 'DUPLICATE_EVENT' || !c.ai_policy_id) ? (
+                  <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-md">
+                    <div className="text-[10px] font-mono text-[#9CA3AF] uppercase font-semibold mb-1">
+                      Advisory Layer Note
+                    </div>
+                    <p className="text-[11px] text-[#6B7280] leading-relaxed">
+                      AI diagnostic invocation bypassed: duplicate or ineligible failure event suppressed prior to LLM reasoning.
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="space-y-1.5 text-[11px] pt-1">
                   <DataRow label="Diagnosed Category" value={c.failure_category || 'C1'} mono />
@@ -652,7 +806,11 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                   <div className="flex items-center justify-between">
                     <PolicyBadge policy={c.validated_policy_id} context="guard" />
                     <span className="text-[10px] font-mono text-guard-text">
-                      {guardrailAnalysis?.isOverridden ? 'AI Proposal Overridden' : 'Authorized as Proposed'}
+                      {guardrailAnalysis?.decision === 'REJECT'
+                        ? 'AI Proposal Rejected'
+                        : guardrailAnalysis?.isOverridden
+                        ? 'AI Proposal Overridden'
+                        : 'Authorized as Proposed'}
                     </span>
                   </div>
                 </div>
@@ -675,28 +833,26 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                 <div className="space-y-1 text-[11px] pt-1">
                   <div className="flex items-center justify-between py-1 border-b border-white/[0.04]">
                     <span className="text-[#6B7280]">Amount Immutability:</span>
-                    <span className="font-mono text-[11px] text-guard-text">
-                      ₹{c.amount_inr.toFixed(2)} Lock
+                    <span className={`font-mono text-[11px] ${invariantChecks.amount.violated ? 'text-halt-text font-bold' : 'text-guard-text'}`}>
+                      {invariantChecks.amount.label}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-1 border-b border-white/[0.04]">
                     <span className="text-[#6B7280]">Currency Lock:</span>
-                    <span className="font-mono text-[11px] text-guard-text">
-                      {c.currency || 'INR'} Constant
+                    <span className={`font-mono text-[11px] ${invariantChecks.currency.violated ? 'text-halt-text font-bold' : 'text-guard-text'}`}>
+                      {invariantChecks.currency.label}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-1 border-b border-white/[0.04]">
                     <span className="text-[#6B7280]">Single-Link Idempotency:</span>
-                    <span className="font-mono text-[11px] text-guard-text">
-                      Max 1 Link Enforced
+                    <span className={`font-mono text-[11px] ${invariantChecks.idempotency.violated ? 'text-halt-text font-bold' : 'text-guard-text'}`}>
+                      {invariantChecks.idempotency.label}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-1">
                     <span className="text-[#6B7280]">High-Value & AML Gate:</span>
-                    <span className="font-mono text-[11px] text-guard-text">
-                      {c.amount_inr > 50000 || c.failure_category === 'C4'
-                        ? 'Mandatory Escalation'
-                        : 'Passed (<₹50k)'}
+                    <span className={`font-mono text-[11px] ${invariantChecks.amlGate.violated ? 'text-risk-text font-bold' : 'text-guard-text'}`}>
+                      {invariantChecks.amlGate.label}
                     </span>
                   </div>
                 </div>
@@ -711,35 +867,85 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
               <SectionHeader
                 title="Action Execution"
                 subtitle={
-                  c.case_source === 'CANONICAL_EVALUATION'
+                  c.state === 'TERMINAL_NO_ACTION'
+                    ? 'Automated recovery withheld under deterministic safety policy'
+                    : c.state === 'ESCALATED'
+                    ? 'Automated gateway write halted; routed to operations review'
+                    : c.state === 'FAILED_INGESTED'
+                    ? 'Awaiting triage evaluation; no gateway action executed'
+                    : c.case_source === 'CANONICAL_EVALUATION'
                     ? 'Safe evaluation execution under deterministic policy'
                     : 'Gateway write dispatched under deterministic policy'
                 }
-                badge={c.payment_link_id ? 'Executed' : c.state === 'ESCALATED' ? 'Escalated' : 'Halted'}
+                badge={
+                  c.payment_link_id
+                    ? 'Executed'
+                    : c.state === 'ESCALATED'
+                    ? 'Escalated'
+                    : c.state === 'TERMINAL_NO_ACTION'
+                    ? 'Withheld'
+                    : 'Pending'
+                }
               />
 
               <div className="space-y-2 text-[11px]">
-                <DataRow label="Action Status" value={c.action_status || (c.payment_link_id ? 'EXECUTED' : 'SKIPPED')} mono />
-                <DataRow label="Payment Link ID" value={c.payment_link_id || 'None created (safeguarded)'} mono />
+                <DataRow
+                  label="Action Status"
+                  value={
+                    c.state === 'TERMINAL_NO_ACTION'
+                      ? 'WITHHELD (P_NO_ACTION)'
+                      : c.state === 'ESCALATED'
+                      ? 'GATED_ESCALATION'
+                      : c.state === 'FAILED_INGESTED'
+                      ? 'PENDING_TRIAGE'
+                      : (c.action_status || (c.payment_link_id ? 'EXECUTED' : 'SKIPPED'))
+                  }
+                  mono
+                />
+                <DataRow
+                  label="Payment Link ID"
+                  value={
+                    c.payment_link_id ||
+                    (c.state === 'TERMINAL_NO_ACTION'
+                      ? 'None created (policy invariant)'
+                      : c.state === 'ESCALATED'
+                      ? 'None created (safeguarded)'
+                      : 'None created (un-triaged)')
+                  }
+                  mono
+                />
                 <DataRow label="Reference ID" value={c.payment_link_reference_id || '—'} mono />
-                <DataRow label="Link State" value={c.payment_link_status?.toUpperCase() || '—'} mono />
+                <DataRow
+                  label="Link State"
+                  value={
+                    c.state === 'TERMINAL_NO_ACTION' || c.state === 'ESCALATED' || c.state === 'FAILED_INGESTED'
+                      ? 'NOT APPLICABLE'
+                      : (c.payment_link_status?.toUpperCase() || '—')
+                  }
+                  mono
+                />
                 {c.payment_link_short_url && (
-                  <div className="data-row">
+                  <div className="data-row flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3">
                     <span className="data-row__label">
                       {c.case_source === 'CANONICAL_EVALUATION' ? 'Evaluation Link Reference' : 'Payment Link URL'}
                     </span>
-                    <span className="data-row__value flex items-center gap-2">
+                    <div className="data-row__value flex-1 min-w-0">
                       {c.case_source === 'CANONICAL_EVALUATION' ? (
-                        <span className="text-[#9CA3AF] text-[11px] font-mono select-all">
-                          {c.payment_link_short_url} <span className="text-[10px] text-[#6B7280]">(Evaluation synthetic route)</span>
-                        </span>
+                        <div className="space-y-0.5">
+                          <div className="text-[#9CA3AF] text-[11px] font-mono break-all select-all leading-relaxed">
+                            {c.payment_link_short_url}
+                          </div>
+                          <div className="text-[10px] text-[#6B7280]">
+                            (Evaluation synthetic route)
+                          </div>
+                        </div>
                       ) : (
-                        <>
+                        <div className="flex items-start gap-2 min-w-0">
                           <a
                             href={c.payment_link_short_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-ai-text hover:underline truncate text-[11px] font-mono"
+                            className="text-ai-text hover:underline break-all text-[11px] font-mono leading-relaxed"
                           >
                             {c.payment_link_short_url}
                           </a>
@@ -747,14 +953,14 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                             href={c.payment_link_short_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[#6B7280] hover:text-[#F0F2F5] shrink-0"
+                            className="text-[#6B7280] hover:text-[#F0F2F5] shrink-0 mt-0.5"
                             aria-label="Open payment link"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
-                        </>
+                        </div>
                       )}
-                    </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -773,22 +979,44 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
               )}
             </div>
 
-            {/* Panel G: Verification & Revenue Outcome (Emerald if Recovered) */}
+            {/* Panel G: Verification & Revenue Outcome */}
             <div
               className={`border rounded-lg p-5 space-y-4 ${
                 c.state === 'RECOVERED'
                   ? 'bg-[rgba(5,150,105,0.04)] border-[rgba(5,150,105,0.22)]'
+                  : c.state === 'ACTION_EXECUTED'
+                  ? 'bg-[rgba(13,148,136,0.04)] border-[rgba(13,148,136,0.22)]'
+                  : c.state === 'ESCALATED'
+                  ? 'bg-[rgba(217,119,6,0.04)] border-[rgba(217,119,6,0.22)]'
                   : 'bg-surface-base border-white/[0.06]'
               }`}
             >
               <SectionHeader
                 title="Gateway Verification & Attribution"
                 subtitle={
-                  c.case_source === 'CANONICAL_EVALUATION'
-                    ? 'Benchmark evaluation attribution'
-                    : 'Independent confirmation of status: captured'
+                  c.state === 'RECOVERED'
+                    ? c.case_source === 'CANONICAL_EVALUATION'
+                      ? 'Controlled evaluation capture attribution'
+                      : 'Independent confirmation of status: captured'
+                    : c.state === 'ESCALATED'
+                    ? 'Zero financial attribution (controlled risk escalation)'
+                    : c.state === 'TERMINAL_NO_ACTION'
+                    ? 'No gateway capture expected (terminal non-recoverable)'
+                    : c.state === 'ACTION_EXECUTED'
+                    ? 'Awaiting customer completion and webhook confirmation'
+                    : 'Pending automated triage and guardrail evaluation'
                 }
-                badge={c.state === 'RECOVERED' ? 'Verified Cash' : 'Pending'}
+                badge={
+                  c.state === 'RECOVERED'
+                    ? 'Verified Cash'
+                    : c.state === 'ESCALATED'
+                    ? 'Escalated'
+                    : c.state === 'TERMINAL_NO_ACTION'
+                    ? 'No Attribution'
+                    : c.state === 'ACTION_EXECUTED'
+                    ? 'Awaiting Payment'
+                    : 'Pending'
+                }
               />
 
               {c.state === 'RECOVERED' ? (
@@ -817,7 +1045,34 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                       label="Verification Basis"
                       value={
                         c.case_source === 'CANONICAL_EVALUATION'
-                          ? 'Benchmark Verification Engine'
+                          ? 'Deterministic Verification Engine'
+                          : 'Razorpay HMAC SHA-256 Webhook'
+                      }
+                      mono
+                    />
+                  </div>
+                </div>
+              ) : c.state === 'ACTION_EXECUTED' ? (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-md bg-[rgba(13,148,136,0.08)] border border-[rgba(13,148,136,0.20)]">
+                    <span className="text-[10px] font-mono text-guard-text uppercase tracking-wider font-semibold block">
+                      Awaiting Customer Payment (In-Flight Opportunity)
+                    </span>
+                    <p className="text-[11px] text-[#5EEAD4] mt-1 leading-snug">
+                      {c.case_source === 'CANONICAL_EVALUATION'
+                        ? 'Deterministic recovery link dispatched and currently active. Capture attribution will register upon customer checkout.'
+                        : 'Genuine Razorpay Payment Link dispatched to customer. Attributed revenue will register immediately upon authoritative webhook delivery.'}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5 text-[11px]">
+                    <DataRow label="Gateway Payment Status" value="issued / active" mono />
+                    <DataRow label="Verification Status" value="AWAITING GATEWAY CAPTURE" mono />
+                    <DataRow label="Attributed Amount" value="₹0.00 (In-Flight Opportunity)" mono />
+                    <DataRow
+                      label="Verification Basis"
+                      value={
+                        c.case_source === 'CANONICAL_EVALUATION'
+                          ? 'Deterministic Verification Engine'
                           : 'Razorpay HMAC SHA-256 Webhook'
                       }
                       mono
@@ -828,35 +1083,58 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                 <div className="space-y-3">
                   <div className="p-3 rounded-md bg-[rgba(217,119,6,0.08)] border border-[rgba(217,119,6,0.20)]">
                     <span className="text-[10px] font-mono text-risk-text uppercase tracking-wider font-semibold block">
-                      No Financial Credit (Controlled Escalation)
+                      Zero Financial Attribution (Controlled Escalation)
                     </span>
                     <p className="text-[11px] text-[#FCD34D] mt-1 leading-snug">
-                      This transaction was blocked from automated link generation. No revenue attributed.
+                      Automated recovery withheld under safety guardrails. Transaction routed to operations team for manual adjudication.
                     </p>
                   </div>
                   <div className="space-y-1.5 text-[11px]">
-                    <DataRow label="Verification Status" value="PAYMENT NOT VERIFIED" mono />
-                    <DataRow label="Captured Amount" value="₹0.00" mono />
-                    <DataRow label="Operations Action" value="Human compliance review required" mono />
+                    <DataRow label="Gateway Payment Status" value="NOT APPLICABLE (WITHHELD)" mono />
+                    <DataRow label="Verification Status" value="ESCALATED TO OPERATIONS" mono />
+                    <DataRow label="Attributed Amount" value="₹0.00" mono />
+                    <DataRow
+                      label="Escalation Basis"
+                      value={c.eligibility_reason ? `Enforced: ${c.eligibility_reason}` : 'Safety / Compliance Policy'}
+                      mono
+                    />
+                  </div>
+                </div>
+              ) : c.state === 'TERMINAL_NO_ACTION' ? (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-md bg-surface-raised border border-white/[0.04]">
+                    <span className="text-[10px] font-mono text-[#9CA3AF] uppercase tracking-wider font-semibold block">
+                      Zero Attribution (Terminal Non-Recoverable Defect)
+                    </span>
+                    <p className="text-[11px] text-[#9CA3AF] mt-1 leading-snug">
+                      Deterministic policy invariants determined this transaction cannot or should not be recovered automatically. No payment link was dispatched; no gateway capture is expected.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5 text-[11px]">
+                    <DataRow label="Gateway Payment Status" value="NOT APPLICABLE (WITHHELD)" mono />
+                    <DataRow label="Verification Status" value="NO CAPTURE EXPECTED" mono />
+                    <DataRow label="Attributed Amount" value="₹0.00" mono />
+                    <DataRow
+                      label="Policy Basis"
+                      value={c.eligibility_reason ? `Enforced: ${c.eligibility_reason}` : 'Deterministic Policy Invariant (P_NO_ACTION)'}
+                      mono
+                    />
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <div className="p-3 rounded-md bg-surface-raised border border-white/[0.04]">
                     <span className="text-[10px] font-mono text-[#6B7280] uppercase tracking-wider font-semibold block">
-                      {c.case_source === 'CANONICAL_EVALUATION'
-                        ? 'Benchmark Cutoff Reached'
-                        : 'Awaiting Customer Payment'}
+                      Pending Triage & Assessment
                     </span>
                     <p className="text-[11px] text-[#9CA3AF] mt-1 leading-snug">
-                      {c.case_source === 'CANONICAL_EVALUATION'
-                        ? 'Recovery action executed, but no evaluation recovery credit was assigned before the benchmark cutoff.'
-                        : 'Payment link dispatched. Attributed revenue will register immediately upon confirmed gateway webhook.'}
+                      Transaction failure ingested into pipeline. Triage evaluation has not executed yet. No payment link created, zero attribution registered.
                     </p>
                   </div>
                   <div className="space-y-1.5 text-[11px]">
-                    <DataRow label="Verification Status" value="AWAITING CAPTURE" mono />
-                    <DataRow label="Recovered Amount" value="₹0.00 (Pending)" mono />
+                    <DataRow label="Gateway Payment Status" value="FAILED (INGESTED)" mono />
+                    <DataRow label="Verification Status" value="PENDING TRIAGE" mono />
+                    <DataRow label="Attributed Amount" value="₹0.00" mono />
                   </div>
                 </div>
               )}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   IndianRupee,
   TrendingUp,
@@ -41,9 +41,8 @@ interface OverviewPageProps {
   triageLoadingCaseId: string | null;
   onSeedDemoBatch?: () => void;
   seedingBatch?: boolean;
+  hasEvaluationRun?: boolean;
 }
-
-type AttentionFilter = 'ALL' | 'ESCALATED' | 'ACTIVE_LINKS' | 'HIGH_VALUE';
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
   metrics,
@@ -57,52 +56,64 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   triageLoadingCaseId,
   onSeedDemoBatch,
   seedingBatch = false,
+  hasEvaluationRun = false,
 }) => {
-  const [attentionFilter, setAttentionFilter] = useState<AttentionFilter>('ALL');
 
-  // Derive genuine pipeline totals from live backend data
+  // When no evaluation has been run in the current session, exclude past evaluation batch cases
+  // so the overview defaults to the clean initial state until an evaluation or live case occurs.
+  const activeCases = useMemo(() => {
+    if (hasEvaluationRun) return recentCases;
+    return recentCases.filter((c) => c.case_source === 'MERCHANT_CHECKOUT');
+  }, [recentCases, hasEvaluationRun]);
+
+  // Derive genuine pipeline totals from active cases
   const totalRevenueAtRiskInr = useMemo(() => {
-    return recentCases.reduce((sum, c) => sum + (c.amount_inr || 0), 0);
-  }, [recentCases]);
+    return activeCases.reduce((sum, c) => sum + (c.amount_inr || 0), 0);
+  }, [activeCases]);
 
   const unrecoveredRevenueAtRiskInr = useMemo(() => {
-    return recentCases
+    return activeCases
       .filter((c) => c.state !== 'RECOVERED')
       .reduce((sum, c) => sum + (c.amount_inr || 0), 0);
-  }, [recentCases]);
+  }, [activeCases]);
 
   const revenueRecoveryRatePct = useMemo(() => {
     if (!metrics || totalRevenueAtRiskInr <= 0) return 0;
     return (metrics.total_recovered_amount_inr / totalRevenueAtRiskInr) * 100;
   }, [metrics, totalRevenueAtRiskInr]);
 
-  // Derive category revenue breakdown dynamically from live cases
+  // Derive category revenue breakdown dynamically from active cases
   const categoryRevenueMap = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const c of recentCases) {
+    for (const c of activeCases) {
       const cat = c.failure_category || 'UNKNOWN';
       map[cat] = (map[cat] || 0) + (c.amount_inr || 0);
     }
     return map;
-  }, [recentCases]);
+  }, [activeCases]);
 
-  // Operational Attention Queue: Filter prioritized actionable cases
+  // Operational Attention Queue: Top prioritized actionable cases
+  // Ranked: ESCALATED first -> in-flight/ingested -> RECOVERED -> TERMINAL_NO_ACTION
   const attentionCases = useMemo(() => {
-    return recentCases.filter((c) => {
-      if (attentionFilter === 'ESCALATED') return c.state === 'ESCALATED';
-      if (attentionFilter === 'ACTIVE_LINKS') return c.state === 'ACTION_EXECUTED' || Boolean(c.payment_link_id && c.state !== 'RECOVERED');
-      if (attentionFilter === 'HIGH_VALUE') return c.amount_inr >= 10000;
-      // 'ALL': cases needing operational visibility (escalated, in flight, high value, or un-triaged)
-      return (
-        c.state === 'ESCALATED' ||
-        c.state === 'ACTION_EXECUTED' ||
-        c.state === 'FAILED_INGESTED' ||
-        c.amount_inr >= 10000
-      );
-    });
-  }, [recentCases, attentionFilter]);
+    const getStateRank = (state: string): number => {
+      if (state === 'ESCALATED') return 1;
+      if (state === 'FAILED_INGESTED') return 2;
+      if (state === 'ACTION_EXECUTED') return 3;
+      if (state === 'RECOVERED') return 4;
+      if (state === 'TERMINAL_NO_ACTION') return 5;
+      return 6;
+    };
 
-  const m = metrics;
+    return [...activeCases].sort((a, b) => {
+      const rankA = getStateRank(a.state);
+      const rankB = getStateRank(b.state);
+      if (rankA !== rankB) return rankA - rankB;
+      // Within same state tier, prioritize higher money value
+      return (b.amount_inr || 0) - (a.amount_inr || 0);
+    });
+  }, [activeCases]);
+
+  const m = hasEvaluationRun ? metrics : (metrics?.case_source !== 'CANONICAL_EVALUATION' ? metrics : null);
   const isBenchmark = m?.case_source === 'CANONICAL_EVALUATION';
 
   return (
@@ -166,7 +177,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       </div>
 
       {/* ── Initial Empty State (When no evaluation or cases exist yet) ──── */}
-      {!metricsLoading && !casesLoading && (!m || (m.total_cases === 0 && recentCases.length === 0)) ? (
+      {!metricsLoading && !casesLoading && (!hasEvaluationRun && activeCases.length === 0) ? (
         <div className="bg-surface-base border border-white/[0.06] rounded-xl p-12 text-center space-y-4">
           <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mx-auto text-guard-text">
             <Database className="w-6 h-6" />
@@ -206,7 +217,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               /* ── Canonical Benchmark Evaluator Metrics (Truthful Semantics) ── */
               <div className="space-y-3">
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {/* 1. Benchmark Revenue at Risk */}
+                  {/* 1. Evaluation Revenue at Risk */}
                   <KpiCard
                     label="Revenue at Risk"
                     value={
@@ -216,7 +227,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                         size="xl"
                       />
                     }
-                    subValue={`${m.total_cases} benchmark scenarios`}
+                    subValue={`${m.total_cases} evaluation cases`}
                     footer={
                       <span>
                         Eligible: <strong className="text-[#9CA3AF] font-mono font-medium">₹{(m.eligible_opportunity_amount_inr || 0).toLocaleString('en-IN')}</strong> ({m.eligible_cases || 0} cases)
@@ -237,12 +248,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                       />
                     }
                     subValue="Controlled Evaluation Evidence"
-                    footer={`${m.evaluation_recovered_cases ?? m.recovered_cases ?? 0} of ${m.eligible_cases || 0} eligible (Evaluation Evidence)`}
+                    footer={`${m.evaluation_recovered_cases ?? m.recovered_cases ?? 0} of ${m.eligible_cases || 0} eligible cases recovered`}
                     accent="recover"
                     icon={<TrendingUp className="w-4 h-4 text-recover-text" />}
                   />
 
-                  {/* 3. Primary Benchmark Metric: Eligible Opportunity Recovery */}
+                  {/* 3. Primary Evaluation Metric: Eligible Opportunity Recovery */}
                   <KpiCard
                     label="Eligible Opportunity Recovery"
                     value={
@@ -264,7 +275,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                         {(m.overall_case_recovery_rate_pct || 0).toFixed(1)}%
                       </span>
                     }
-                    subValue={`${m.recovered_cases} of ${m.total_cases} total scenarios`}
+                    subValue={`${m.recovered_cases} of ${m.total_cases} total cases`}
                     footer={`Eligible case rate: ${(m.eligible_case_recovery_rate_pct || 0).toFixed(1)}%`}
                     accent="none"
                     icon={<Shield className="w-4 h-4 text-[#9CA3AF]" />}
@@ -275,11 +286,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     label="Operations Gated"
                     value={
                       <span className="font-mono text-halt-text font-bold text-[24px]">
-                        {m.escalated_cases} Escalated
+                        {(m.escalated_cases || 0) + (m.terminal_no_action_cases || 0)} Gated
                       </span>
                     }
-                    subValue={`${m.terminal_no_action_cases} compliance halts`}
-                    footer={`Safe halts: ₹{((m.escalated_amount_inr || 0) + (m.terminal_amount_inr || 0)).toLocaleString('en-IN')}`}
+                    subValue={`${m.escalated_cases || 0} escalated · ${m.terminal_no_action_cases || 0} safe halts`}
+                    footer={`Protected Volume: ₹${((m.escalated_amount_inr || 0) + (m.terminal_amount_inr || 0)).toLocaleString('en-IN')}`}
                     accent="halt"
                     icon={<ShieldCheck className="w-4 h-4 text-halt-text" />}
                   />
@@ -400,11 +411,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 Primary Eligible Metric vs Gross Portfolio Metrics
               </p>
             </div>
-            {m.eval_run_id && (
-              <span className="text-[10px] font-mono text-[#6B7280]">
-                Run ID: {m.eval_run_id}
-              </span>
-            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -591,7 +597,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 4. Verified Cash
               </div>
               <p className="text-[11px] text-[#6B7280] mt-1 leading-snug">
-                Razorpay payment.captured webhook confirms actual money won.
+                Razorpay payment.captured webhook confirms verified recovered revenue.
               </p>
             </div>
             <div className="mt-4 pt-3 border-t border-[rgba(5,150,105,0.12)] flex items-baseline justify-between">
@@ -599,7 +605,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <span className="font-mono text-[12px] font-bold text-recover-text">
                 {m
                   ? isBenchmark
-                    ? `₹${m.total_recovered_amount_inr.toLocaleString('en-IN')} (${(m.eligible_opportunity_recovery_rate_pct ?? 90.84).toFixed(1)}% eligible)`
+                    ? `₹${m.total_recovered_amount_inr.toLocaleString('en-IN')} (${(m.eligible_opportunity_recovery_rate_pct ?? m.recovery_rate_pct ?? 0).toFixed(1)}% eligible)`
                     : `₹${m.total_recovered_amount_inr.toLocaleString('en-IN')}`
                   : '—'}
               </span>
@@ -621,23 +627,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 Prioritized failure cases requiring operational review or tracking
               </p>
             </div>
-
-            {/* Filter Pills */}
-            <div className="flex items-center gap-1 bg-surface-raised p-0.5 rounded-md border border-white/[0.06] text-[10px] font-mono">
-              {(['ALL', 'ESCALATED', 'ACTIVE_LINKS', 'HIGH_VALUE'] as AttentionFilter[]).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setAttentionFilter(f)}
-                  className={`px-2 py-1 rounded transition-colors ${
-                    attentionFilter === f
-                      ? 'bg-white/[0.08] text-[#F0F2F5] font-semibold'
-                      : 'text-[#6B7280] hover:text-[#9CA3AF]'
-                  }`}
-                >
-                  {f === 'ALL' ? 'Priority' : f.replace(/_/g, ' ')}
-                </button>
-              ))}
-            </div>
+            <span className="text-[10px] font-mono text-[#9CA3AF] bg-surface-raised px-2.5 py-1 rounded border border-white/[0.06]">
+              Top 5 Priority Cases
+            </span>
           </div>
 
           {/* Cases Table */}
@@ -667,7 +659,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  attentionCases.slice(0, 6).map((c) => {
+                  attentionCases.slice(0, 5).map((c) => {
                     const isTriaging = triageLoadingCaseId === c.case_id;
 
                     return (
@@ -725,13 +717,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
           <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between text-[11px]">
             <span className="text-[#4B5563] font-mono">
-              Showing {Math.min(6, attentionCases.length)} of {attentionCases.length} prioritized cases
+              Showing top {Math.min(5, attentionCases.length)} of {activeCases.length} pipeline cases
             </span>
             <button
               onClick={onNavigateToCases}
               className="text-guard-text hover:underline flex items-center gap-1 font-mono font-medium"
             >
-              View Full Pipeline ({recentCases.length} Cases) <ArrowRight className="w-3.5 h-3.5" />
+              View Full Pipeline ({activeCases.length} Cases) <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </section>
@@ -853,6 +845,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     <span>At Risk:</span>
                     <span className="text-[#D1D5DB] font-semibold">
                       ₹{categoryRevenue.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[#4B5563]">
+                    <span>Likelihood:</span>
+                    <span className="text-[#9CA3AF]">
+                      {meta.recoveryLikelihood}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-[#4B5563]">
