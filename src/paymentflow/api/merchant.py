@@ -217,6 +217,7 @@ async def get_merchant_order_recovery_status(
         stmt = select(RecoveryCaseModel).where(
             (RecoveryCaseModel.order_id == order_id)
             | (RecoveryCaseModel.case_id == f"case_{order_id}")
+            | (RecoveryCaseModel.failure_context["external_order_id"].as_string() == order_id)
         )
         res = await session.execute(stmt)
         case = res.scalar_one_or_none()
@@ -231,18 +232,28 @@ async def get_merchant_order_recovery_status(
     fc = case.failure_context or {}
     notif_status = fc.get("notification_status", "PENDING")
 
+    is_recovered = case.state == "RECOVERED"
+    message = (
+        f"Payment recovered successfully! Recovered amount: INR {case.recovered_amount / 100:.2f}."
+        if is_recovered
+        else (
+            "Payment could not be completed. A secure payment link has been sent to "
+            "your checkout contact. Check your SMS/email for the link."
+        )
+    )
+
     return {
         "order_id": order_id,
+        "case_id": case.case_id,
         "case_source": case.case_source,
         "state": case.state,
+        "recovered_amount": case.recovered_amount,
+        "recovered_payment_id": case.recovered_payment_id,
         "notification_medium": fc.get("notification_medium", "sms"),
         "notification_status": notif_status,
         "masked_contact": fc.get("masked_contact"),
-        "delivery_verified": False,
-        "message": (
-            "Payment could not be completed. A secure payment link has been sent to "
-            "your checkout contact. Check your SMS/email for the link."
-        ),
+        "delivery_verified": True if is_recovered else fc.get("delivery_verified", False),
+        "message": message,
     }
 
 
