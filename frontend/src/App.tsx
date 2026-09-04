@@ -23,7 +23,7 @@ import type { CaseDetailResponse, CaseSummaryItem, HealthResponse, MetricsSummar
 const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
   overview: {
     title: 'Recovery Overview',
-    subtitle: 'Autonomous revenue recovery performance and pipeline state',
+    subtitle: 'Revenue recovery performance and pipeline state',
   },
   cases: {
     title: 'Cases Explorer',

@@ -38,7 +38,7 @@ const ENDPOINTS = [
   { method: 'POST', path: '/merchant/v1/checkout-context',             desc: 'Generate idempotent checkout context & sign orders' },
   { method: 'POST', path: '/merchant/v1/orders',                       desc: 'Initiate merchant order and bind customer contact' },
   { method: 'GET',  path: '/merchant/v1/orders/{order_id}/recovery-status', desc: 'Authoritative recovery status & attribution probe' },
-  { method: 'GET',  path: '/merchant/checkout',                        desc: 'Internal mock checkout surface for integration testing' },
+  { method: 'GET',  path: '/merchant/checkout',                        desc: 'Demonstration checkout page using Razorpay Checkout.js in Test Mode' },
 ];
 
 const INVARIANTS = [
@@ -102,7 +102,7 @@ const MCP_TOOLS = [
   {
     name: 'get_recovery_status',
     access: 'READ ONLY',
-    desc: 'Queries real-time payment link state and gateway status before AI triage reasoning.',
+    desc: 'Queries current payment link state and gateway status before AI triage reasoning.',
     input: '{ "case_id": "string" }',
   },
   {

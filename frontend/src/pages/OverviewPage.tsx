@@ -115,13 +115,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <div className="flex items-center gap-2.5">
             {onSeedDemoBatch && (
               <ActionButton
-                label={seedingBatch ? 'Running Benchmark…' : 'Run Benchmark Batch'}
+                label={seedingBatch ? 'Running Evaluation…' : 'Run Controlled Evaluation'}
                 variant="secondary"
                 size="sm"
                 icon={Database}
                 loading={seedingBatch}
                 onClick={onSeedDemoBatch}
-                aria-label="Run 15-scenario canonical benchmark workflow execution"
+                aria-label="Run controlled canonical recovery evaluation"
               />
             )}
             <a
@@ -138,24 +138,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
         }
       />
-
-      {/* ── Provenance Banner for Canonical Benchmark Evaluation ─────── */}
-      {isBenchmark && (
-        <div className="bg-[rgba(217,119,6,0.06)] border border-[rgba(217,119,6,0.25)] rounded-lg p-3.5 px-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-[11px]">
-          <div className="flex items-center gap-2">
-            <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.15)] text-amber-300 font-mono text-[10px] font-bold uppercase tracking-wider">
-              Canonical Benchmark Evaluation Active
-            </span>
-            <span className="text-[#D1D5DB]">
-              Showing measured workflow evaluation across 15 controlled revenue-at-risk scenarios · Run ID:{' '}
-              <span className="font-mono text-amber-200">{m.eval_run_id}</span>
-            </span>
-          </div>
-          <span className="text-[10px] font-mono text-[#9CA3AF]">
-            Isolated from live merchant traffic
-          </span>
-        </div>
-      )}
 
       {/* ── Core Operating Principle Banner ─────────────────────────────── */}
       <div className="bg-surface-base border border-white/[0.06] rounded-lg p-3.5 px-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-[11px]">
@@ -183,199 +165,227 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </div>
       </div>
 
-      {/* ── Primary KPI Ribbon (5 Metrics, Strong Financial Hierarchy) ──── */}
-      <section aria-label="Key Performance Indicators">
-        {metricsLoading || !m ? (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <KpiCardSkeleton key={i} />
-            ))}
+      {/* ── Initial Empty State (When no evaluation or cases exist yet) ──── */}
+      {!metricsLoading && !casesLoading && (!m || (m.total_cases === 0 && recentCases.length === 0)) ? (
+        <div className="bg-surface-base border border-white/[0.06] rounded-xl p-12 text-center space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mx-auto text-guard-text">
+            <Database className="w-6 h-6" />
           </div>
-        ) : isBenchmark ? (
-          /* ── Canonical Benchmark Evaluator Metrics (Truthful Semantics) ── */
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {/* 1. Benchmark Revenue at Risk */}
-              <KpiCard
-                label="Revenue at Risk"
-                value={
-                  <MoneyValue
-                    amountInr={m.total_at_risk_amount_inr ?? totalRevenueAtRiskInr}
-                    variant="at-risk"
-                    size="xl"
-                  />
-                }
-                subValue={`${m.total_cases} benchmark scenarios`}
-                footer={
-                  <span>
-                    Eligible: <strong className="text-[#9CA3AF] font-mono font-medium">₹{(m.eligible_opportunity_amount_inr ?? 31538).toLocaleString('en-IN')}</strong> ({m.eligible_cases ?? 7} cases)
-                  </span>
-                }
-                accent="risk"
-                icon={<IndianRupee className="w-4 h-4 text-risk-text" />}
-              />
-
-              {/* 2. Recovered Eligible Revenue - Explicitly marked Evaluation Recovered */}
-              <KpiCard
-                label="Evaluation Recovered"
-                value={
-                  <MoneyValue
-                    amountInr={m.total_recovered_amount_inr}
-                    variant="recovered"
-                    size="xl"
-                  />
-                }
-                subValue="Synthetic Benchmark Evaluator"
-                footer={`${m.evaluation_recovered_cases ?? m.recovered_cases} of ${m.eligible_cases ?? 7} eligible (Not Live Cash)`}
-                accent="recover"
-                icon={<TrendingUp className="w-4 h-4 text-recover-text" />}
-              />
-
-              {/* 3. Primary Benchmark Metric: Eligible Opportunity Recovery */}
-              <KpiCard
-                label="Eligible Opportunity Recovery"
-                value={
-                  <span className="font-mono text-guard-text font-bold text-[24px]">
-                    {(m.eligible_opportunity_recovery_rate_pct ?? m.recovery_rate_pct).toFixed(2)}%
-                  </span>
-                }
-                subValue="Primary Benchmark Metric"
-                footer={`₹${m.total_recovered_amount_inr.toLocaleString('en-IN')} / ₹${(m.eligible_opportunity_amount_inr ?? 31538).toLocaleString('en-IN')}`}
-                accent="guard"
-                icon={<PercentBadge className="w-4 h-4 text-guard-text" />}
-              />
-
-              {/* 4. Overall Case Conversion */}
-              <KpiCard
-                label="Overall Case Recovery"
-                value={
-                  <span className="font-mono text-[#F0F2F5] font-bold text-[24px]">
-                    {(m.overall_case_recovery_rate_pct ?? 40.0).toFixed(1)}%
-                  </span>
-                }
-                subValue={`${m.recovered_cases} of ${m.total_cases} total scenarios`}
-                footer={`Eligible case rate: ${(m.eligible_case_recovery_rate_pct ?? 85.71).toFixed(1)}% (6/7)`}
-                accent="none"
-                icon={<Shield className="w-4 h-4 text-[#9CA3AF]" />}
-              />
-
-              {/* 5. Gated / Safeguarded Compliance Operations */}
-              <KpiCard
-                label="Operations Gated"
-                value={
-                  <span className="font-mono text-halt-text font-bold text-[24px]">
-                    {m.escalated_cases} Escalated
-                  </span>
-                }
-                subValue={`${m.terminal_no_action_cases} compliance halts`}
-                footer={`Safe halts: ₹${((m.escalated_amount_inr ?? 69750) + (m.terminal_amount_inr ?? 20829)).toLocaleString('en-IN')}`}
-                accent="halt"
-                icon={<ShieldCheck className="w-4 h-4 text-halt-text" />}
+          <div className="max-w-md mx-auto space-y-1.5">
+            <h3 className="text-base font-semibold text-[#F0F2F5]">
+              No evaluation run yet
+            </h3>
+            <p className="text-xs text-[#9CA3AF] leading-relaxed">
+              Run the controlled evaluation to populate recovery metrics and observe pipeline state machine decisions, or receive live merchant checkout failures.
+            </p>
+          </div>
+          {onSeedDemoBatch && (
+            <div className="pt-2">
+              <ActionButton
+                label={seedingBatch ? 'Running Evaluation…' : 'Run Controlled Evaluation'}
+                variant="primary"
+                size="md"
+                icon={Database}
+                loading={seedingBatch}
+                onClick={onSeedDemoBatch}
               />
             </div>
-
-            {/* Supporting Counts Strip */}
-            <div className="bg-surface-raised border border-white/[0.06] rounded-md px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
-              <span className="text-[#9CA3AF]">
-                Cohort Breakdown: <strong className="text-white">{m.total_cases} Total</strong>
-              </span>
-              <div className="flex flex-wrap items-center gap-3 text-[10px]">
-                <span className="text-guard-text">Eligible: <strong>{m.eligible_cases ?? 7}</strong></span>
-                <span className="text-recover-text">Recovered: <strong>{m.recovered_cases ?? 6}</strong></span>
-                <span className="text-amber-300">Escalated: <strong>{m.escalated_cases ?? 2}</strong></span>
-                <span className="text-rose-400">Terminal Halts: <strong>{m.terminal_no_action_cases ?? 6}</strong></span>
-                <span className="text-sky-300">Action Executed / Awaiting: <strong>1</strong> (CS12)</span>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* ── Primary KPI Ribbon (5 Metrics, Strong Financial Hierarchy) ──── */}
+          <section aria-label="Key Performance Indicators">
+            {metricsLoading || !m ? (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <KpiCardSkeleton key={i} />
+                ))}
               </div>
-            </div>
-          </div>
-        ) : (
-          /* ── Live / Operational Recovery Metrics ── */
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {/* 1. Revenue at Risk */}
-            <KpiCard
-              label="Revenue at Risk"
-              value={
-                <MoneyValue
-                  amountInr={totalRevenueAtRiskInr}
-                  variant="at-risk"
-                  size="xl"
+            ) : isBenchmark ? (
+              /* ── Canonical Benchmark Evaluator Metrics (Truthful Semantics) ── */
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {/* 1. Benchmark Revenue at Risk */}
+                  <KpiCard
+                    label="Revenue at Risk"
+                    value={
+                      <MoneyValue
+                        amountInr={m.total_at_risk_amount_inr ?? totalRevenueAtRiskInr}
+                        variant="at-risk"
+                        size="xl"
+                      />
+                    }
+                    subValue={`${m.total_cases} benchmark scenarios`}
+                    footer={
+                      <span>
+                        Eligible: <strong className="text-[#9CA3AF] font-mono font-medium">₹{(m.eligible_opportunity_amount_inr || 0).toLocaleString('en-IN')}</strong> ({m.eligible_cases || 0} cases)
+                      </span>
+                    }
+                    accent="risk"
+                    icon={<IndianRupee className="w-4 h-4 text-risk-text" />}
+                  />
+
+                  {/* 2. Recovered Eligible Revenue - Explicitly marked Evaluation Recovered */}
+                  <KpiCard
+                    label="Evaluation Recovered"
+                    value={
+                      <MoneyValue
+                        amountInr={m.total_recovered_amount_inr}
+                        variant="recovered"
+                        size="xl"
+                      />
+                    }
+                    subValue="Controlled Evaluation Evidence"
+                    footer={`${m.evaluation_recovered_cases ?? m.recovered_cases ?? 0} of ${m.eligible_cases || 0} eligible (Evaluation Evidence)`}
+                    accent="recover"
+                    icon={<TrendingUp className="w-4 h-4 text-recover-text" />}
+                  />
+
+                  {/* 3. Primary Benchmark Metric: Eligible Opportunity Recovery */}
+                  <KpiCard
+                    label="Eligible Opportunity Recovery"
+                    value={
+                      <span className="font-mono text-guard-text font-bold text-[24px]">
+                        {(m.eligible_opportunity_recovery_rate_pct ?? m.recovery_rate_pct ?? 0).toFixed(2)}%
+                      </span>
+                    }
+                    subValue="Primary Evaluation Metric"
+                    footer={`₹${m.total_recovered_amount_inr.toLocaleString('en-IN')} / ₹${(m.eligible_opportunity_amount_inr || 0).toLocaleString('en-IN')}`}
+                    accent="guard"
+                    icon={<PercentBadge className="w-4 h-4 text-guard-text" />}
+                  />
+
+                  {/* 4. Overall Case Conversion */}
+                  <KpiCard
+                    label="Overall Case Recovery"
+                    value={
+                      <span className="font-mono text-[#F0F2F5] font-bold text-[24px]">
+                        {(m.overall_case_recovery_rate_pct || 0).toFixed(1)}%
+                      </span>
+                    }
+                    subValue={`${m.recovered_cases} of ${m.total_cases} total scenarios`}
+                    footer={`Eligible case rate: ${(m.eligible_case_recovery_rate_pct || 0).toFixed(1)}%`}
+                    accent="none"
+                    icon={<Shield className="w-4 h-4 text-[#9CA3AF]" />}
+                  />
+
+                  {/* 5. Gated / Safeguarded Compliance Operations */}
+                  <KpiCard
+                    label="Operations Gated"
+                    value={
+                      <span className="font-mono text-halt-text font-bold text-[24px]">
+                        {m.escalated_cases} Escalated
+                      </span>
+                    }
+                    subValue={`${m.terminal_no_action_cases} compliance halts`}
+                    footer={`Safe halts: ₹{((m.escalated_amount_inr || 0) + (m.terminal_amount_inr || 0)).toLocaleString('en-IN')}`}
+                    accent="halt"
+                    icon={<ShieldCheck className="w-4 h-4 text-halt-text" />}
+                  />
+                </div>
+
+                {/* Supporting Counts Strip */}
+                <div className="bg-surface-raised border border-white/[0.06] rounded-md px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+                  <span className="text-[#9CA3AF]">
+                    Cohort Breakdown: <strong className="text-white">{m.total_cases} Total</strong>
+                  </span>
+                  <div className="flex flex-wrap items-center gap-3 text-[10px]">
+                    <span className="text-guard-text">Eligible: <strong>{m.eligible_cases || 0}</strong></span>
+                    <span className="text-recover-text">Recovered: <strong>{m.recovered_cases || 0}</strong></span>
+                    <span className="text-amber-300">Escalated: <strong>{m.escalated_cases || 0}</strong></span>
+                    <span className="text-rose-400">Terminal Halts: <strong>{m.terminal_no_action_cases || 0}</strong></span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── Live / Operational Recovery Metrics ── */
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {/* 1. Revenue at Risk */}
+                <KpiCard
+                  label="Revenue at Risk"
+                  value={
+                    <MoneyValue
+                      amountInr={totalRevenueAtRiskInr}
+                      variant="at-risk"
+                      size="xl"
+                    />
+                  }
+                  subValue={`${m.total_cases} failed transactions detected`}
+                  footer={
+                    <span>
+                      Pending: <strong className="text-risk-text font-mono font-medium">₹{unrecoveredRevenueAtRiskInr.toLocaleString('en-IN')}</strong>
+                    </span>
+                  }
+                  accent="risk"
+                  icon={<IndianRupee className="w-4 h-4 text-risk-text" />}
                 />
-              }
-              subValue={`${m.total_cases} failed transactions detected`}
-              footer={
-                <span>
-                  Pending: <strong className="text-risk-text font-mono font-medium">₹{unrecoveredRevenueAtRiskInr.toLocaleString('en-IN')}</strong>
-                </span>
-              }
-              accent="risk"
-              icon={<IndianRupee className="w-4 h-4 text-risk-text" />}
-            />
 
-            {/* 2. Recovered Revenue */}
-            <KpiCard
-              label="Live Captured Revenue"
-              value={
-                <MoneyValue
-                  amountInr={m.total_recovered_amount_inr}
-                  variant="recovered"
-                  size="xl"
+                {/* 2. Recovered Revenue */}
+                <KpiCard
+                  label="Live Captured Revenue"
+                  value={
+                    <MoneyValue
+                      amountInr={m.total_recovered_amount_inr}
+                      variant="recovered"
+                      size="xl"
+                    />
+                  }
+                  subValue="100% gateway captured & verified"
+                  footer={`${m.recovered_cases} of ${m.total_cases} cases recovered`}
+                  accent="recover"
+                  icon={<TrendingUp className="w-4 h-4 text-recover-text" />}
                 />
-              }
-              subValue="100% gateway captured & verified"
-              footer={`${m.recovered_cases} of ${m.total_cases} cases recovered`}
-              accent="recover"
-              icon={<TrendingUp className="w-4 h-4 text-recover-text" />}
-            />
 
-            {/* 3. Operational Case Recovery Rate */}
-            <KpiCard
-              label="Operational Case Recovery Rate"
-              value={
-                <span className="font-mono text-guard-text font-bold text-[24px]">
-                  {revenueRecoveryRatePct.toFixed(1)}%
-                </span>
-              }
-              subValue={`Case conversion: ${m.recovery_rate_pct.toFixed(1)}%`}
-              footer={`${m.recovered_cases} of ${m.total_cases} operational cases`}
-              accent="guard"
-              icon={<PercentBadge className="w-4 h-4 text-guard-text" />}
-            />
+                {/* 3. Operational Case Recovery Rate */}
+                <KpiCard
+                  label="Operational Case Recovery Rate"
+                  value={
+                    <span className="font-mono text-guard-text font-bold text-[24px]">
+                      {revenueRecoveryRatePct.toFixed(1)}%
+                    </span>
+                  }
+                  subValue={`Case conversion: ${m.recovery_rate_pct.toFixed(1)}%`}
+                  footer={`${m.recovered_cases} of ${m.total_cases} operational cases`}
+                  accent="guard"
+                  icon={<PercentBadge className="w-4 h-4 text-guard-text" />}
+                />
 
-            {/* 4. Active Recovery Interventions */}
-            <KpiCard
-              label="Active Links"
-              value={
-                <span className="font-mono text-[#F0F2F5] font-bold text-[24px]">
-                  {m.active_recovery_links}
-                </span>
-              }
-              subValue="In-flight customer links"
-              footer="Single-link limit enforced"
-              accent="none"
-              icon={<Link2 className="w-4 h-4 text-[#9CA3AF]" />}
-            />
+                {/* 4. Active Recovery Interventions */}
+                <KpiCard
+                  label="Active Links"
+                  value={
+                    <span className="font-mono text-[#F0F2F5] font-bold text-[24px]">
+                      {m.active_recovery_links}
+                    </span>
+                  }
+                  subValue="In-flight customer links"
+                  footer="Single-link limit enforced"
+                  accent="none"
+                  icon={<Link2 className="w-4 h-4 text-[#9CA3AF]" />}
+                />
 
-            {/* 5. Human Attention / Escalated */}
-            <KpiCard
-              label="Operations Gated"
-              value={
-                <span className="font-mono text-halt-text font-bold text-[24px]">
-                  {m.escalated_cases}
-                </span>
-              }
-              subValue={`${m.terminal_no_action_cases} compliance halts`}
-              footer="High-value / AML risk protected"
-              accent="halt"
-              icon={<ShieldCheck className="w-4 h-4 text-halt-text" />}
-            />
-          </div>
-        )}
-      </section>
+                {/* 5. Human Attention / Escalated */}
+                <KpiCard
+                  label="Operations Gated"
+                  value={
+                    <span className="font-mono text-halt-text font-bold text-[24px]">
+                      {m.escalated_cases}
+                    </span>
+                  }
+                  subValue={`${m.terminal_no_action_cases} compliance halts`}
+                  footer="High-value / AML risk protected"
+                  accent="halt"
+                  icon={<ShieldCheck className="w-4 h-4 text-halt-text" />}
+                />
+              </div>
+            )}
+          </section>
 
-      {/* ── Canonical Benchmark Recovery Rate & Measurement Breakdown ──── */}
+      {/* ── Canonical Evaluation Recovery Rate & Measurement Breakdown ──── */}
       {isBenchmark && m && (
         <section
-          aria-label="Benchmark Recovery Rate Breakdown"
+          aria-label="Evaluation Recovery Rate Breakdown"
           className="bg-surface-base border border-white/[0.08] rounded-lg p-5 space-y-4"
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/[0.06]">
@@ -383,16 +393,18 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-guard-text" />
                 <h3 className="text-[13px] font-semibold text-[#F0F2F5]">
-                  Benchmark Recovery Rate &amp; Measurement Semantics
+                  Controlled Evaluation Recovery Rate &amp; Measurement Semantics
                 </h3>
               </div>
               <p className="text-[11px] text-[#9CA3AF] mt-0.5">
-                Razorpay Track 03 Evaluator Truthfulness · Primary Metric vs Gross Portfolio Metrics
+                Primary Eligible Metric vs Gross Portfolio Metrics
               </p>
             </div>
-            <span className="text-[10px] font-mono text-[#6B7280]">
-              Run ID: {m.eval_run_id}
-            </span>
+            {m.eval_run_id && (
+              <span className="text-[10px] font-mono text-[#6B7280]">
+                Run ID: {m.eval_run_id}
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -402,21 +414,21 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <div className="flex items-center justify-between text-[10px] font-mono text-guard-text font-semibold uppercase">
                   <span>Primary Metric</span>
                   <span className="px-1.5 py-0.2 rounded bg-guard-muted text-guard-text border border-guard-border">
-                    Track 03
+                    Eligible
                   </span>
                 </div>
                 <div className="text-[12px] font-medium text-[#F0F2F5] mt-1">
                   Eligible Opportunity Recovery
                 </div>
                 <div className="font-mono text-[26px] font-bold text-guard-text mt-2">
-                  {(m.eligible_opportunity_recovery_rate_pct ?? m.recovery_rate_pct).toFixed(2)}%
+                  {(m.eligible_opportunity_recovery_rate_pct ?? m.recovery_rate_pct ?? 0).toFixed(2)}%
                 </div>
                 <div className="text-[11px] font-mono text-[#5EEAD4] mt-1">
-                  ₹{m.total_recovered_amount_inr.toLocaleString('en-IN')} / ₹{(m.eligible_opportunity_amount_inr ?? 31538).toLocaleString('en-IN')}
+                  ₹{(m.total_recovered_amount_inr || 0).toLocaleString('en-IN')} / ₹{(m.eligible_opportunity_amount_inr ?? m.total_at_risk_amount_inr ?? 0).toLocaleString('en-IN')}
                 </div>
               </div>
               <p className="text-[10px] text-[#9CA3AF] leading-relaxed pt-2 border-t border-white/[0.06]">
-                Evaluates recovery strictly where recovery is safe and compliant. Avoids penalizing legitimate halts like AML/compliance and expired cards.
+                Evaluates recovery strictly where recovery is safe and compliant. Excludes policy halts and terminal conditions.
               </p>
             </div>
 
@@ -430,14 +442,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   Eligible Case Recovery Rate
                 </div>
                 <div className="font-mono text-[26px] font-bold text-[#F0F2F5] mt-2">
-                  {(m.eligible_case_recovery_rate_pct ?? 85.71).toFixed(1)}%
+                  {(m.eligible_case_recovery_rate_pct ?? 0).toFixed(1)}%
                 </div>
                 <div className="text-[11px] font-mono text-[#9CA3AF] mt-1">
-                  {m.evaluation_recovered_cases ?? 6} of {m.eligible_cases ?? 7} eligible cases
+                  {m.evaluation_recovered_cases ?? m.recovered_cases ?? 0} of {m.eligible_cases ?? 0} eligible cases
                 </div>
               </div>
               <p className="text-[10px] text-[#6B7280] leading-relaxed pt-2 border-t border-white/[0.06]">
-                6 eligible cases recovered; CS12 recovery action executed, but no evaluation recovery credit was assigned before the benchmark cutoff.
+                Proportion of policy-eligible cases converted to successful recovery.
               </p>
             </div>
 
@@ -451,14 +463,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   Overall Case Recovery Rate
                 </div>
                 <div className="font-mono text-[26px] font-bold text-[#D1D5DB] mt-2">
-                  {(m.overall_case_recovery_rate_pct ?? 40.0).toFixed(1)}%
+                  {(m.overall_case_recovery_rate_pct ?? m.recovery_rate_pct ?? 0).toFixed(1)}%
                 </div>
                 <div className="text-[11px] font-mono text-[#9CA3AF] mt-1">
-                  {m.recovered_cases} of {m.total_cases} total scenarios
+                  {m.recovered_cases ?? 0} of {m.total_cases ?? 0} total cases
                 </div>
               </div>
               <p className="text-[10px] text-[#6B7280] leading-relaxed pt-2 border-t border-white/[0.06]">
-                Batch conversion across all 15 scenarios, including 8 deliberately non-recovered scenarios (2 escalated, 6 terminal non-action).
+                Overall conversion across all evaluation cases including policy-halted and terminal cases.
               </p>
             </div>
 
@@ -472,14 +484,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   Gross Portfolio Recovery Rate
                 </div>
                 <div className="font-mono text-[26px] font-bold text-[#D1D5DB] mt-2">
-                  {(m.portfolio_revenue_recovery_rate_pct ?? 23.46).toFixed(1)}%
+                  {(m.portfolio_revenue_recovery_rate_pct ?? revenueRecoveryRatePct ?? 0).toFixed(1)}%
                 </div>
                 <div className="text-[11px] font-mono text-[#9CA3AF] mt-1">
-                  ₹{m.total_recovered_amount_inr.toLocaleString('en-IN')} / ₹{(m.total_at_risk_amount_inr ?? 122117).toLocaleString('en-IN')}
+                  ₹{(m.total_recovered_amount_inr || 0).toLocaleString('en-IN')} / ₹{(m.total_at_risk_amount_inr ?? totalRevenueAtRiskInr ?? 0).toLocaleString('en-IN')}
                 </div>
               </div>
               <p className="text-[10px] text-[#6B7280] leading-relaxed pt-2 border-t border-white/[0.06]">
-                Gross revenue percentage. Reflects ₹69,750 high-value corporate AML transactions (CS04) safely halted rather than auto-recovered.
+                Gross revenue recovered versus total volume at risk, reflecting protective guardrails on high-value transactions.
               </p>
             </div>
           </div>
@@ -863,6 +875,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           })}
         </div>
       </section>
+        </>
+      )}
     </div>
   );
 };

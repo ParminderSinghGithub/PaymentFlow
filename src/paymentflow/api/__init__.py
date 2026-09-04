@@ -17,7 +17,7 @@ api_router = APIRouter()
 api_router.include_router(health_router, tags=["Health"])
 api_router.include_router(webhooks_router, tags=["Webhooks"])
 api_router.include_router(cases_router, tags=["Recovery Cases"])
-api_router.include_router(interactive_router)
+api_router.include_router(interactive_router, include_in_schema=False)
 api_router.include_router(merchant_router)
 api_router.include_router(merchant_checkout_router)
 

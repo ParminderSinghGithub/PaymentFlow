@@ -70,8 +70,7 @@ async def register_checkout_context(
     """Register checkout failure or attempt context from external merchant server.
 
     Authenticates the merchant via Bearer token, enforces identity invariants,
-    and returns a stable registration confirmation. Does not execute recovery
-    actions in this phase (Phase C3.1).
+    and returns a stable registration confirmation.
     """
     # Enforce identity invariant: Request-body merchant_id cannot impersonate another merchant
     if payload.merchant_id and payload.merchant_id != merchant.merchant_id:
@@ -387,7 +386,9 @@ async def merchant_checkout_page(
     <div class="card">
         <div class="header">
             <span class="tag">Merchant Storefront</span>
-            <span style="font-size: 12px; color: #38bdf8; font-family: monospace;">Phase C3.2</span>
+            <span style="font-size: 12px; color: #94a3b8; font-family: monospace;">
+                Razorpay Test Mode
+            </span>
         </div>
         <h1>{html.escape(merchant_name)}</h1>
         <p class="subtitle">Simulate real merchant customer checkout failure</p>

@@ -334,6 +334,9 @@ code, pre, .font-mono {
   font-size: 12px;
   color: var(--text-secondary);
   flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* ── JSON Block ─────────────────────────────────────────────────────────── */

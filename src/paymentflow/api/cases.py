@@ -602,7 +602,7 @@ async def get_latest_benchmark_metrics(
 
 @router.post(
     "/{case_id}/triage",
-    summary="Execute Production Recovery Orchestration",
+    summary="Execute Recovery Orchestration",
 )
 async def trigger_case_triage(
     case_id: str,
@@ -634,8 +634,9 @@ async def process_due_delayed_cases() -> dict[str, Any]:
 
 @router.post(
     "/demo/seed",
-    summary="[DEPRECATED] Seed Canonical Demonstration Batch",
+    summary="Seed Canonical Demonstration Batch",
     deprecated=True,
+    include_in_schema=False,
 )
 async def seed_demo_batch(
     reset_first: bool = Query(default=True, description="Reset previous demo cases before seeding"),

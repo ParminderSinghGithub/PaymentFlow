@@ -725,31 +725,41 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                 <DataRow label="Link State" value={c.payment_link_status?.toUpperCase() || '—'} mono />
                 {c.payment_link_short_url && (
                   <div className="data-row">
-                    <span className="data-row__label">Payment Link URL</span>
+                    <span className="data-row__label">
+                      {c.case_source === 'CANONICAL_EVALUATION' ? 'Evaluation Link Reference' : 'Payment Link URL'}
+                    </span>
                     <span className="data-row__value flex items-center gap-2">
-                      <a
-                        href={c.payment_link_short_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-ai-text hover:underline truncate text-[11px] font-mono"
-                      >
-                        {c.payment_link_short_url}
-                      </a>
-                      <a
-                        href={c.payment_link_short_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#6B7280] hover:text-[#F0F2F5] shrink-0"
-                        aria-label="Open payment link"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
+                      {c.case_source === 'CANONICAL_EVALUATION' ? (
+                        <span className="text-[#9CA3AF] text-[11px] font-mono select-all">
+                          {c.payment_link_short_url} <span className="text-[10px] text-[#6B7280]">(Evaluation synthetic route)</span>
+                        </span>
+                      ) : (
+                        <>
+                          <a
+                            href={c.payment_link_short_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-ai-text hover:underline truncate text-[11px] font-mono"
+                          >
+                            {c.payment_link_short_url}
+                          </a>
+                          <a
+                            href={c.payment_link_short_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#6B7280] hover:text-[#F0F2F5] shrink-0"
+                            aria-label="Open payment link"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </>
+                      )}
                     </span>
                   </div>
                 )}
               </div>
 
-              {c.payment_link_short_url && (
+              {c.payment_link_short_url && c.case_source !== 'CANONICAL_EVALUATION' && (
                 <div className="pt-2">
                   <a
                     href={c.payment_link_short_url}

@@ -10,7 +10,7 @@ from paymentflow.main import create_app, lifespan
 async def test_app_instantiation():
     """Verify application factory creates a valid FastAPI app instance."""
     app = create_app()
-    assert app.title == "PaymentFlow Recovery Agent"
+    assert app.title == "PaymentFlow — AI Revenue Recovery"
     assert app.version == "0.1.0"
 
 

@@ -72,16 +72,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ) : (
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[14px] font-bold text-[#F0F2F5] tracking-tight leading-none">
-                PaymentFlow
-              </span>
-              <span className="px-1.5 py-0.2 text-[9px] font-mono font-bold text-guard-text bg-teal-500/10 border border-teal-500/20 rounded">
-                RECOVERY
-              </span>
+            <div className="text-[14px] font-bold text-[#F0F2F5] tracking-tight leading-none">
+              PaymentFlow
             </div>
-            <div className="text-[10px] text-[#4B5563] mt-1 font-sans truncate">
-              AI Payment Recovery Intelligence
+            <div className="text-[10px] text-guard-text font-medium mt-1 font-sans truncate">
+              AI Revenue Recovery
             </div>
           </div>
         )}
@@ -233,9 +228,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                  healthStatus === 'degraded' ? 'System degraded' : 'Backend offline'}
               </span>
             </div>
-            <span className="text-[9px] font-mono text-[#374151] shrink-0">
-              v2.0
-            </span>
           </div>
         )}
       </div>

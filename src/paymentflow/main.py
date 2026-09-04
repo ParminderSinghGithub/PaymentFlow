@@ -33,8 +33,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application instance."""
     application = FastAPI(
-        title="PaymentFlow Recovery Agent",
-        description="Autonomous Revenue Recovery for Razorpay Failed Payments",
+        title="PaymentFlow — AI Revenue Recovery",
+        description="AI Revenue Recovery for Razorpay Failed Payments",
         version="0.1.0",
         lifespan=lifespan,
     )
