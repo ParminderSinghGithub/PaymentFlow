@@ -70,7 +70,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       )}
 
       {/* Title row */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
           {Icon && (
             <div className="w-9 h-9 rounded-lg bg-white/[0.03] border border-white/[0.07] flex items-center justify-center shrink-0">
@@ -78,7 +78,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             </div>
           )}
           <div>
-            <h2 className="text-[20px] font-bold text-[#F0F2F5] leading-tight tracking-tight">
+            <h2 className="text-[18px] sm:text-[20px] font-bold text-[#F0F2F5] leading-tight tracking-tight">
               {title}
             </h2>
             {description && (
@@ -90,7 +90,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         </div>
 
         {actions && (
-          <div className="flex items-center gap-2 shrink-0 mt-0.5">
+          <div className="flex items-center flex-wrap gap-2 shrink-0">
             {actions}
           </div>
         )}

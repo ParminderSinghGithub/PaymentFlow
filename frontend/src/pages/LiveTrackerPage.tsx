@@ -180,9 +180,9 @@ export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
         }
       />
 
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Minimal Live Metrics Bar */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <KpiCard
             label="Amount at Risk"
             value={<MoneyValue amountInr={amountAtRisk} />}
@@ -234,7 +234,7 @@ export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
 
         {/* Live Recovery Queue Section */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <h2 className="text-[14px] font-semibold text-[#F0F2F5] tracking-tight">
@@ -253,7 +253,7 @@ export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
           {/* Queue Content */}
           {activeQueue.length === 0 ? (
             /* Clean Empty State */
-            <div className="bg-surface-base border border-white/[0.06] rounded-lg p-10 text-center">
+            <div className="bg-surface-base border border-white/[0.06] rounded-lg p-6 sm:p-10 text-center">
               <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-white/[0.03] border border-white/[0.08] flex items-center justify-center">
                 <Radio className="w-6 h-6 text-[#6B7280]" />
               </div>
@@ -266,7 +266,7 @@ export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
               </p>
 
               {/* Lifecycle explanation flow */}
-              <div className="inline-flex items-center gap-2 p-3 rounded-lg bg-surface-raised border border-white/[0.04] text-[11px] text-[#9CA3AF] mb-6">
+              <div className="inline-flex flex-wrap items-center justify-center gap-2 p-3 rounded-lg bg-surface-raised border border-white/[0.04] text-[11px] text-[#9CA3AF] mb-6">
                 <span>Payment Failure</span>
                 <ArrowRight className="w-3 h-3 text-[#4B5563]" />
                 <span>Detection & Triage</span>
@@ -293,8 +293,8 @@ export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
             </div>
           ) : (
             /* Active Recovery Items Table */
-            <div className="bg-surface-base border border-white/[0.06] rounded-lg overflow-hidden">
-              <table className="w-full text-left text-[12px]">
+            <div className="bg-surface-base border border-white/[0.06] rounded-lg overflow-hidden overflow-x-auto">
+              <table className="w-full min-w-[700px] text-left text-[12px]">
                 <thead className="bg-surface-raised border-b border-white/[0.06] text-[#6B7280] font-mono text-[11px] uppercase tracking-wider">
                   <tr>
                     <th className="py-3 px-4">Case / Order</th>

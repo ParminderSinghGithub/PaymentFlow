@@ -381,7 +381,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
         </div>
 
         {/* 4 Core Financial & Decision Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Metric 1: Revenue at Risk */}
           <div className="bg-surface-raised border border-white/[0.06] rounded-md p-3.5 flex flex-col justify-between">
             <span className="text-[10px] font-mono text-[#6B7280] uppercase tracking-wider">
@@ -681,10 +681,10 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
       </section>
 
       {/* ── Sub-navigation Tab Bar ────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 border-b border-white/[0.06]">
+      <div className="flex items-center gap-1 border-b border-white/[0.06] overflow-x-auto whitespace-nowrap">
         <button
           onClick={() => setActiveTab('story')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all shrink-0 ${
             activeTab === 'story'
               ? 'border-b-ai-base text-[#F0F2F5]'
               : 'border-b-transparent text-[#6B7280] hover:text-[#9CA3AF]'
@@ -696,7 +696,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
 
         <button
           onClick={() => setActiveTab('audit')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all shrink-0 ${
             activeTab === 'audit'
               ? 'border-b-ai-base text-[#F0F2F5]'
               : 'border-b-transparent text-[#6B7280] hover:text-[#9CA3AF]'
@@ -708,7 +708,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
 
         <button
           onClick={() => setActiveTab('telemetry')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-all shrink-0 ${
             activeTab === 'telemetry'
               ? 'border-b-ai-base text-[#F0F2F5]'
               : 'border-b-transparent text-[#6B7280] hover:text-[#9CA3AF]'

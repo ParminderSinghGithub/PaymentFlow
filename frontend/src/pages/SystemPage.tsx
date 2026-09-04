@@ -494,19 +494,19 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
             {ENDPOINTS.map((ep) => (
               <div
                 key={ep.path}
-                className="flex items-center justify-between p-3 rounded-lg bg-surface-raised border border-white/[0.04]"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-3 p-3 rounded-lg bg-surface-raised border border-white/[0.04]"
               >
-                <div className="flex items-center gap-3">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ${
                     ep.method === 'GET'
                       ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                       : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                   }`}>
                     {ep.method}
                   </span>
-                  <code className="text-xs font-mono text-[#D1D5DB]">{ep.path}</code>
+                  <code className="text-xs font-mono text-[#D1D5DB] break-all">{ep.path}</code>
                 </div>
-                <span className="text-xs text-[#6B7280]">{ep.desc}</span>
+                <span className="text-xs text-[#6B7280] shrink-0">{ep.desc}</span>
               </div>
             ))}
           </div>

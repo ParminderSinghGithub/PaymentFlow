@@ -123,7 +123,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         title="Payment Recovery Command Center"
         description="Detect revenue leakage across payment dropoffs, enforce bounded recovery policies, and attribute verified gateway cash."
         actions={
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             {onSeedDemoBatch && (
               <ActionButton
                 label={seedingBatch ? 'Running Evaluation…' : 'Run Controlled Evaluation'}
@@ -208,7 +208,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           {/* ── Primary KPI Ribbon (5 Metrics, Strong Financial Hierarchy) ──── */}
           <section aria-label="Key Performance Indicators">
             {metricsLoading || !m ? (
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <KpiCardSkeleton key={i} />
                 ))}
@@ -216,7 +216,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             ) : isBenchmark ? (
               /* ── Canonical Benchmark Evaluator Metrics (Truthful Semantics) ── */
               <div className="space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                   {/* 1. Evaluation Revenue at Risk */}
                   <KpiCard
                     label="Revenue at Risk"
@@ -311,7 +311,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </div>
             ) : (
               /* ── Live / Operational Recovery Metrics ── */
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                 {/* 1. Revenue at Risk */}
                 <KpiCard
                   label="Revenue at Risk"

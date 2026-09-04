@@ -336,6 +336,47 @@
             margin-top: 24px;
             line-height: 1.5;
         }
+
+        /* Responsive Mobile Layouts */
+        @media (max-width: 640px) {
+            body {
+                padding: 12px 10px;
+                align-items: flex-start;
+            }
+            .card {
+                padding: 20px 16px;
+                border-radius: 14px;
+            }
+            h1 {
+                font-size: 20px;
+            }
+            .subtitle {
+                font-size: 12.5px;
+                margin-bottom: 18px;
+            }
+            .form-input {
+                font-size: 16px; /* Prevents auto-zoom on mobile iOS */
+                padding: 11px 13px;
+            }
+            .btn-primary, .btn-secondary {
+                padding: 13px;
+                min-height: 46px;
+            }
+            .header-badge {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 3px;
+            }
+            .info-val {
+                text-align: left;
+                word-break: break-word;
+            }
+        }
     </style>
 </head>
 <body>

@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Github,
   Radio,
+  X,
 } from 'lucide-react';
 import { getMerchantStorefrontUrl } from '../../api/client';
 
@@ -37,6 +38,7 @@ interface SidebarProps {
   selectedCaseId?: string | null;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -45,13 +47,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   selectedCaseId,
   collapsed = false,
   onToggleCollapse,
+  onCloseMobile,
 }) => {
 
   return (
     <aside
       className={`
         flex flex-col shrink-0 bg-void border-r border-white/[0.06]
-        transition-all duration-200 select-none
+        transition-all duration-200 select-none h-full
         ${collapsed ? 'w-14' : 'w-[236px]'}
       `}
     >
@@ -76,7 +79,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {!collapsed && onToggleCollapse && (
+        {onCloseMobile ? (
+          <button
+            onClick={onCloseMobile}
+            className="p-1 rounded text-[#9CA3AF] hover:text-[#F0F2F5] hover:bg-white/[0.06] transition-colors"
+            title="Close navigation menu"
+            aria-label="Close navigation menu"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        ) : !collapsed && onToggleCollapse ? (
           <button
             onClick={onToggleCollapse}
             className="p-1 rounded text-[#4B5563] hover:text-[#9CA3AF] hover:bg-white/[0.04] transition-colors"
@@ -85,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <PanelLeftClose className="w-4 h-4" />
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Primary Navigation */}
@@ -97,7 +109,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <React.Fragment key={item.id}>
               <button
-                onClick={() => onNavigate(item.id)}
+                onClick={() => {
+                  onNavigate(item.id);
+                  onCloseMobile?.();
+                }}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
                 className={`
@@ -141,7 +156,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {item.id === 'cases' && activePage === 'investigation' && !collapsed && (
                 <div className="ml-4 pl-4 border-l border-white/[0.08] my-1">
                   <button
-                    onClick={() => onNavigate('investigation')}
+                    onClick={() => {
+                      onNavigate('investigation');
+                      onCloseMobile?.();
+                    }}
                     className="w-full flex items-center gap-2 py-1.5 px-2 rounded bg-surface-overlay/60 text-[#F0F2F5] border border-ai-border/40 text-left"
                   >
                     <Search className="w-3.5 h-3.5 text-ai-text shrink-0" />
@@ -166,6 +184,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             href={getMerchantStorefrontUrl()}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => onCloseMobile?.()}
             title="Open External Merchant Storefront (New Tab)"
             className={`
               w-full flex items-center gap-3 transition-colors duration-100 text-[#6B7280] hover:text-guard-text hover:bg-white/[0.02] border-l-[3px] border-l-transparent
