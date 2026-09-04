@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acme Fashion Store — Merchant Checkout</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; width: 100%; max-width: 480px; padding: 32px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+        .tag { background: #0284c7; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; }
+        h1 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+        .subtitle { font-size: 13px; color: #94a3b8; margin-bottom: 24px; }
+        .order-box { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 18px; margin-bottom: 24px; }
+        .order-row { display: flex; justify-content: space-between; font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
+        .order-row:last-child { margin-bottom: 0; padding-top: 8px; border-top: 1px solid #334155; color: #fff; font-size: 15px; font-weight: 600; }
+        .order-row span.val { color: #e2e8f0; font-weight: 500; }
+        .instruction-box { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+        .instruction-title { font-size: 13px; font-weight: 700; color: #f87171; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+        .instruction-text { font-size: 12px; color: #cbd5e1; line-height: 1.5; }
+        .upi-badge { display: inline-block; background: #334155; color: #38bdf8; font-family: monospace; font-size: 13px; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin: 4px 0; }
+        .btn-pay { width: 100%; background: #2563eb; color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn-pay:hover { background: #1d4ed8; }
+        .footer { font-size: 11px; color: #64748b; text-align: center; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <span class="tag">Merchant Storefront</span>
+            <span style="font-size: 12px; color: #38bdf8; font-family: monospace;">External App</span>
+        </div>
+        <h1 id="merchant-name">Acme Fashion Store</h1>
+        <p class="subtitle">Simulate real customer checkout and gateway failure</p>
+
+        <div class="order-box">
+            <div class="order-row">
+                <span>Order Reference:</span>
+                <span class="val" id="order-ref">ORD-C33-DEMO-3450</span>
+            </div>
+            <div class="order-row">
+                <span>Customer:</span>
+                <span class="val" id="customer-name">Priya Sharma</span>
+            </div>
+            <div class="order-row">
+                <span>Amount Due:</span>
+                <span class="val" style="color: #38bdf8;" id="order-amount">₹3,450.00</span>
+            </div>
+        </div>
+
+        <div class="instruction-box">
+            <div class="instruction-title">⚠️ Test Mode Failure Simulation:</div>
+            <div class="instruction-text">
+                1. Click <b>"Pay with Razorpay"</b> below.<br>
+                2. Select <b>UPI</b> method or <b>Netbanking</b>.<br>
+                3. Enter VPA: <span class="upi-badge">failure@razorpay</span> or select Failure in netbanking.<br>
+                4. Razorpay will trigger a real <code>payment.failed</code> webhook to PaymentFlow.
+            </div>
+        </div>
+
+        <button id="rzp-button" class="btn-pay">Pay with Razorpay</button>
+        <p class="footer">
+            External Merchant Consumer • Secrets Kept Server-Side • Zero Internal PaymentFlow Imports
+        </p>
+    </div>
+
+    <script>
+        let merchantConfig = null;
+
+        async function initConfig() {
+            try {
+                const res = await fetch('/api/config');
+                merchantConfig = await res.json();
+                if (merchantConfig.merchant_name) {
+                    document.getElementById('merchant-name').innerText = merchantConfig.merchant_name;
+                }
+            } catch (err) {
+                console.error("Failed to load merchant config:", err);
+            }
+        }
+
+        document.getElementById('rzp-button').onclick = async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('rzp-button');
+            btn.disabled = true;
+            btn.innerText = "Creating Order...";
+
+            try {
+                // 1. Merchant frontend calls merchant server to create order
+                const orderRes = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: 345000,
+                        currency: 'INR',
+                        external_order_id: 'ORD-C33-DEMO-3450',
+                        customer_name: 'Priya Sharma',
+                        customer_email: 'priya.sharma@example.com',
+                        customer_phone: '9876543210'
+                    })
+                });
+
+                if (!orderRes.ok) {
+                    throw new Error("Failed to create order on merchant server: " + orderRes.statusText);
+                }
+
+                const orderData = await orderRes.json();
+
+                // 2. Open Razorpay Checkout with public key ID and order ID
+                const options = {
+                    "key": orderData.razorpay_key_id,
+                    "amount": orderData.amount,
+                    "currency": orderData.currency,
+                    "name": orderData.merchant_name || "Acme Fashion Store",
+                    "description": "Order " + orderData.external_order_id,
+                    "order_id": orderData.razorpay_order_id,
+                    "prefill": {
+                        "name": "Priya Sharma",
+                        "email": "priya.sharma@example.com",
+                        "contact": "9876543210"
+                    },
+                    "theme": { "color": "#2563eb" },
+                    "modal": {
+                        "ondismiss": function() {
+                            btn.disabled = false;
+                            btn.innerText = "Pay with Razorpay";
+                        }
+                    }
+                };
+
+                const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function(response) {
+                    console.log('Payment Failed Response:', response);
+                    alert('Payment failed in Razorpay Test Mode! ID: ' + response.error.metadata.payment_id);
+                });
+                rzp.open();
+            } catch (err) {
+                alert("Checkout error: " + err.message);
+                btn.disabled = false;
+                btn.innerText = "Pay with Razorpay";
+            }
+        };
+
+        initConfig();
+    </script>
+</body>
+</html>

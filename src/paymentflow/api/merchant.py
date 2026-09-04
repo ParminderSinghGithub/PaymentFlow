@@ -221,13 +221,10 @@ async def merchant_checkout_page(
     external_order_id = (ctx.get("external_order_id") if ctx else None) or "ORD-C32-FAIL-3450"
     razorpay_order_id = (ctx.get("razorpay_order_id") if ctx else None) or order_id or ""
     merchant_name = (
-        (ctx.get("merchant_name") if ctx else None)
-        or "Acme Fashion Store (Buildathon Demo)"
-    )
+        ctx.get("merchant_name") if ctx else None
+    ) or "Acme Fashion Store (Buildathon Demo)"
     customer_name = (ctx.get("customer_name") if ctx else None) or "Priya Sharma"
-    customer_email = (
-        (ctx.get("customer_email") if ctx else None) or "priya.sharma@example.com"
-    )
+    customer_email = (ctx.get("customer_email") if ctx else None) or "priya.sharma@example.com"
     customer_phone = (ctx.get("customer_phone") if ctx else None) or "9876543210"
 
     # Always ensure context is registered in running process memory for webhook correlation
@@ -251,9 +248,7 @@ async def merchant_checkout_page(
 
     formatted_amount = f"₹{amount / 100:,.2f}"
 
-    rzp_order_line = (
-        f'"order_id": "{html.escape(razorpay_order_id)}",' if razorpay_order_id else ""
-    )
+    rzp_order_line = f'"order_id": "{html.escape(razorpay_order_id)}",' if razorpay_order_id else ""
 
     css_styles = """
         * { box-sizing: border-box; margin: 0; padding: 0;

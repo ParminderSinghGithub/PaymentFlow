@@ -1,0 +1,1 @@
+"""Merchant demo application package."""
