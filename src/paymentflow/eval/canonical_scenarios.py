@@ -270,7 +270,7 @@ CANONICAL_BENCHMARK_SCENARIOS: list[dict[str, Any]] = [
         "proposed_amount_paise": 289000,
         "proposed_currency": "INR",
         "is_delayed": True,
-        "evaluation_outcome": "NOT_RECOVERED",  # Eligible Opportunity -> Delayed Scheduled -> In-Flight Unpaid
+        "evaluation_outcome": "NOT_RECOVERED",  # Delayed Scheduled -> In-Flight Unpaid
     },
     {
         "scenario_id": "CS13",

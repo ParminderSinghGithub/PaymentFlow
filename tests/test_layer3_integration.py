@@ -107,7 +107,9 @@ async def test_layer3_full_pipeline_success(
     finally:
         async with sessionmaker() as session:
             await session.execute(delete(AuditEventModel).where(AuditEventModel.case_id == case_id))
-            await session.execute(delete(RecoveryCaseModel).where(RecoveryCaseModel.case_id == case_id))
+            await session.execute(
+                delete(RecoveryCaseModel).where(RecoveryCaseModel.case_id == case_id)
+            )
             await session.commit()
 
 
@@ -158,7 +160,9 @@ async def test_layer3_pipeline_high_value_escalation(
     finally:
         async with sessionmaker() as session:
             await session.execute(delete(AuditEventModel).where(AuditEventModel.case_id == case_id))
-            await session.execute(delete(RecoveryCaseModel).where(RecoveryCaseModel.case_id == case_id))
+            await session.execute(
+                delete(RecoveryCaseModel).where(RecoveryCaseModel.case_id == case_id)
+            )
             await session.commit()
 
 
@@ -207,5 +211,7 @@ async def test_layer3_pipeline_llm_failure_safe_fallback(test_settings: Settings
     finally:
         async with sessionmaker() as session:
             await session.execute(delete(AuditEventModel).where(AuditEventModel.case_id == case_id))
-            await session.execute(delete(RecoveryCaseModel).where(RecoveryCaseModel.case_id == case_id))
+            await session.execute(
+                delete(RecoveryCaseModel).where(RecoveryCaseModel.case_id == case_id)
+            )
             await session.commit()

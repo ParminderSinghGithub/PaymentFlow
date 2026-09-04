@@ -69,7 +69,8 @@ CANONICAL_BATCH_SCENARIOS: list[dict[str, Any]] = [
         "eligibility_reason": "ELIGIBLE",
         "ai_policy": RecoveryPolicy.P_CREATE_LINK_DELAYED.value,
         "ai_explanation": (
-            "Network timeout occurred during payment processing; scheduled delayed recovery link with backoff cooldown."
+            "Network timeout occurred during payment processing; scheduled delayed "
+            "recovery link with backoff cooldown."
         ),
         "validated_policy": RecoveryPolicy.P_CREATE_LINK_DELAYED.value,
         "guardrail_decision": PolicyDecision.APPROVE.value,
