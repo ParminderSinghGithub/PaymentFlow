@@ -147,12 +147,25 @@ async def create_merchant_order(
     key_id, key_secret = credentials
     rzp_adapter = RazorpayAdapter(key_id=key_id, key_secret=key_secret)
 
-    order_notes = {
-        "merchant_id": merchant.merchant_id,
-        "external_order_id": payload.external_order_id,
-    }
+    if payload.notes and payload.notes.get("merchant_id"):
+        if str(payload.notes["merchant_id"]) != merchant.merchant_id:
+            logger.warning(
+                f"Merchant note spoofing attempt: Authenticated merchant '{merchant.merchant_id}' "
+                f"passed notes with merchant_id '{payload.notes['merchant_id']}'."
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Forbidden: Custom notes merchant_id does not match authenticated credentials."
+                ),
+            )
+
+    order_notes = {}
     if payload.notes:
         order_notes.update(payload.notes)
+    # Always enforce authenticated merchant identity overrides caller notes
+    order_notes["merchant_id"] = merchant.merchant_id
+    order_notes["external_order_id"] = payload.external_order_id
 
     receipt = payload.external_order_id[:40]
 
@@ -211,31 +224,35 @@ async def get_merchant_order_recovery_status(
     """Retrieve safe, public-facing recovery status for an order.
 
     Never exposes secrets, payment link URLs, or internal LLM reasoning.
+    Strictly tenant-isolated to the authenticated merchant.
     """
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
         stmt = select(RecoveryCaseModel).where(
-            (RecoveryCaseModel.order_id == order_id)
-            | (RecoveryCaseModel.case_id == f"case_{order_id}")
-            | (RecoveryCaseModel.failure_context["external_order_id"].as_string() == order_id)
+            (RecoveryCaseModel.case_source == "MERCHANT_CHECKOUT")
+            & (
+                (RecoveryCaseModel.order_id == order_id)
+                | (RecoveryCaseModel.case_id == f"case_{order_id}")
+                | (RecoveryCaseModel.failure_context["external_order_id"].as_string() == order_id)
+            )
         )
         res = await session.execute(stmt)
-        case = res.scalar_one_or_none()
+        candidates = res.scalars().all()
+
+    # Tenant filtering: select strictly the case owned by the authenticated merchant
+    case = None
+    for c in candidates:
+        fc = c.failure_context or {}
+        case_m = fc.get("merchant_id")
+        if case_m == merchant.merchant_id:
+            case = c
+            break
+        # Support default demo store prototype fallback if unassigned
+        elif case_m is None and merchant.merchant_id == "merchant_demo_store":
+            case = c
+            break
 
     if not case:
-        return {
-            "order_id": order_id,
-            "status": "AWAITING_INGESTION",
-            "message": "Payment failure ingestion pending.",
-        }
-
-    fc = case.failure_context or {}
-    case_merchant = fc.get("merchant_id")
-    if case_merchant and case_merchant != merchant.merchant_id:
-        logger.warning(
-            f"Merchant isolation check failed: Authenticated merchant '{merchant.merchant_id}' "
-            f"attempted to query order '{order_id}' belonging to '{case_merchant}'."
-        )
         return {
             "order_id": order_id,
             "status": "AWAITING_INGESTION",

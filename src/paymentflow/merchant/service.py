@@ -104,15 +104,32 @@ class MerchantRegistry:
         """Store checkout context indexed by context_id, external_order_id, and rzp order_id."""
         cls._ensure_initialized()
         cls._checkout_contexts[context_id] = data
+        merchant_id = data.get("merchant_id")
         if "external_order_id" in data and data["external_order_id"]:
-            cls._checkout_contexts[str(data["external_order_id"])] = data
+            ext_id = str(data["external_order_id"])
+            if merchant_id:
+                cls._checkout_contexts[f"{merchant_id}:{ext_id}"] = data
+            cls._checkout_contexts[ext_id] = data
         if "razorpay_order_id" in data and data["razorpay_order_id"]:
-            cls._checkout_contexts[str(data["razorpay_order_id"])] = data
+            rzp_id = str(data["razorpay_order_id"])
+            if merchant_id:
+                cls._checkout_contexts[f"{merchant_id}:{rzp_id}"] = data
+            cls._checkout_contexts[rzp_id] = data
 
     @classmethod
-    def get_checkout_context(cls, key: str | None) -> dict[str, Any] | None:
-        """Look up checkout context by context_id, external_order_id, or razorpay order_id."""
+    def get_checkout_context(
+        cls, key: str | None, merchant_id: str | None = None
+    ) -> dict[str, Any] | None:
+        """Look up checkout context by context_id, external_order_id, or razorpay order_id.
+
+        If merchant_id is provided, prefers tenant-scoped entry to prevent cross-merchant collision.
+        """
         cls._ensure_initialized()
         if not key:
             return None
-        return cls._checkout_contexts.get(str(key))
+        s_key = str(key)
+        if merchant_id:
+            scoped_key = f"{merchant_id}:{s_key}"
+            if scoped_key in cls._checkout_contexts:
+                return cls._checkout_contexts[scoped_key]
+        return cls._checkout_contexts.get(s_key)

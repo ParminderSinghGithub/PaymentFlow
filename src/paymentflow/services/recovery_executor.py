@@ -232,13 +232,40 @@ class RecoveryExecutor:
                     from paymentflow.merchant.service import MerchantRegistry
 
                     creds = MerchantRegistry.resolve_razorpay_credentials(merchant_id)
-                    if creds:
-                        key_id, key_secret = creds
-                        adapter_to_use = RazorpayAdapter(
-                            key_id=key_id,
-                            key_secret=key_secret,
-                            settings=self.settings,
+                    if not creds:
+                        logger.error(
+                            f"RecoveryExecutor: Active credentials not found for merchant "
+                            f"'{merchant_id}'. Failing closed."
                         )
+                        case.state = CaseState.ESCALATED.value
+                        case.updated_at = utc_now()
+                        audit = AuditEventModel(
+                            case_id=case_id,
+                            event_type="RECOVERY_EXECUTION_FAILED",
+                            actor="recovery_executor",
+                            decision="FAIL_CLOSED",
+                            outcome="MERCHANT_CREDENTIALS_UNAVAILABLE",
+                            timestamp=utc_now(),
+                        )
+                        session.add(audit)
+                        await session.commit()
+                        return RecoveryExecutionResult(
+                            success=False,
+                            case_id=case_id,
+                            decision="FAIL_CLOSED",
+                            state=CaseState.ESCALATED,
+                            message=(
+                                f"No active credentials for merchant '{merchant_id}'; "
+                                "failing closed."
+                            ),
+                        )
+
+                    key_id, key_secret = creds
+                    adapter_to_use = RazorpayAdapter(
+                        key_id=key_id,
+                        key_secret=key_secret,
+                        settings=self.settings,
+                    )
 
                 # Propagate customer identity and configure native SMS/email notification
                 customer_data = None

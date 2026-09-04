@@ -192,10 +192,20 @@ class WebhookService:
 
         from paymentflow.merchant.service import MerchantRegistry
 
-        if not merchant_id and order_id:
+        if order_id:
             mctx = MerchantRegistry.get_checkout_context(order_id)
             if mctx:
-                merchant_id = mctx.get("merchant_id")
+                trusted_merchant_id = mctx.get("merchant_id")
+                if merchant_id and trusted_merchant_id and merchant_id != trusted_merchant_id:
+                    logger.warning(
+                        f"Webhook merchant mismatch: notes.merchant_id='{merchant_id}' "
+                        f"differs from trusted checkout context "
+                        f"merchant_id='{trusted_merchant_id}'. "
+                        "Enforcing trusted checkout context merchant."
+                    )
+                    merchant_id = trusted_merchant_id
+                elif not merchant_id:
+                    merchant_id = trusted_merchant_id
                 if not external_order_id:
                     external_order_id = mctx.get("external_order_id")
 
@@ -556,6 +566,7 @@ class WebhookService:
         # 4b. Merchant Context Integrity Verification (Race H & Multi-Tenant Isolation)
         case_merchant_id = (case.failure_context or {}).get("merchant_id")
         webhook_merchant_id = notes.get("merchant_id")
+
         if case_merchant_id and webhook_merchant_id and case_merchant_id != webhook_merchant_id:
             logger.warning(
                 f"Webhook {event_id}: Merchant mismatch for case '{case.case_id}': "
@@ -590,6 +601,42 @@ class WebhookService:
                 case_id=case.case_id,
                 state=case.state,
                 message="Merchant mismatch detected; attribution rejected.",
+            )
+
+        from paymentflow.merchant.service import MerchantRegistry
+
+        if webhook_merchant_id and not MerchantRegistry.get_by_merchant_id(webhook_merchant_id):
+            logger.warning(
+                f"Webhook {event_id}: Unknown merchant_id '{webhook_merchant_id}' in notes. "
+                "Rejecting attribution and escalating."
+            )
+            case.state = RecoveryStateMachine.transition(
+                current_case_state, CaseState.ESCALATED
+            ).value
+            case.updated_at = utc_now()
+            self.session.add(
+                AuditEventModel(
+                    case_id=case.case_id,
+                    event_type="RECOVERY_ATTRIBUTION_REJECTED",
+                    actor=ActorType.SYSTEM.value,
+                    decision="REJECTED",
+                    outcome="UNKNOWN_MERCHANT",
+                    correlation_id=event_id,
+                    timestamp=utc_now(),
+                    details={
+                        "expected_merchant_id": case_merchant_id,
+                        "unknown_merchant_id": webhook_merchant_id,
+                        "payment_id": payment_id,
+                    },
+                )
+            )
+            return WebhookProcessingResult(
+                status="ok",
+                event_id=event_id,
+                event_type=event_type,
+                case_id=case.case_id,
+                state=case.state,
+                message="Unknown merchant in webhook notes; attribution rejected.",
             )
 
         # 4c. Single Payment Attribution Invariant: One payment cannot recover two cases
