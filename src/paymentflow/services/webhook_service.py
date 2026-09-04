@@ -18,6 +18,7 @@ from paymentflow.db.models import (
 )
 from paymentflow.domain.enums import ActorType, CaseState, WebhookStatus
 from paymentflow.domain.exceptions import WebhookPayloadError
+from paymentflow.domain.state_machine import RecoveryStateMachine
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +40,14 @@ class WebhookService:
 
     def __init__(
         self,
-        db_session: AsyncSession,
+        db_session: AsyncSession | None = None,
+        session: AsyncSession | None = None,
         razorpay_adapter: RazorpayAdapter | None = None,
     ):
-        self.session = db_session
+        active_session = db_session or session
+        if active_session is None:
+            raise ValueError("WebhookService requires an active db_session or session.")
+        self.session = active_session
         self.razorpay_adapter = razorpay_adapter
 
     @staticmethod
@@ -66,11 +71,14 @@ class WebhookService:
 
     async def process_webhook(
         self,
-        raw_body: bytes,
-        payload: dict[str, Any],
-        signature_verified: bool,
+        raw_body: bytes = b"",
+        payload: dict[str, Any] | None = None,
+        signature_verified: bool = False,
+        event_id: str | None = None,
     ) -> WebhookProcessingResult:
         """Process an incoming webhook transactionally with database-backed idempotency."""
+        if payload is None:
+            payload = {}
         if not isinstance(payload, dict):
             raise WebhookPayloadError("Webhook payload must be a valid JSON object.")
 
@@ -78,7 +86,7 @@ class WebhookService:
         if not event_type:
             raise WebhookPayloadError("Missing required 'event' field in webhook payload.")
 
-        event_id = self.extract_event_id(payload, raw_body)
+        event_id = event_id or self.extract_event_id(payload, raw_body)
         logger.info(f"Ingesting webhook event: ID={event_id}, type={event_type}")
 
         # 1. Check idempotency: Has this event_id already been persisted?
@@ -380,6 +388,37 @@ class WebhookService:
                 message="Recovery case already attributed.",
             )
 
+        # 2b. State Machine Invariant: Ensure case is permitted to transition to RECOVERED
+        current_case_state = (
+            CaseState(case.state)
+            if case.state in CaseState._value2member_map_
+            else CaseState.FAILED_INGESTED
+        )
+        if not RecoveryStateMachine.can_transition(current_case_state, CaseState.RECOVERED):
+            logger.warning(
+                f"Webhook {event_id}: Case '{case.case_id}' in state '{case.state}' "
+                f"cannot transition to RECOVERED. Attribution blocked."
+            )
+            audit = AuditEventModel(
+                case_id=case.case_id,
+                event_type="RECOVERY_ATTRIBUTION_REJECTED",
+                actor=ActorType.SYSTEM.value,
+                decision="REJECTED",
+                outcome="INVALID_STATE_TRANSITION",
+                correlation_id=event_id,
+                timestamp=utc_now(),
+                details={"current_state": case.state, "target_state": CaseState.RECOVERED.value},
+            )
+            self.session.add(audit)
+            return WebhookProcessingResult(
+                status="ok",
+                event_id=event_id,
+                event_type=event_type,
+                case_id=case.case_id,
+                state=case.state,
+                message=f"State '{case.state}' cannot transition to RECOVERED.",
+            )
+
         # 3. Independent Payment Verification
         payment_status = payment_entity.get("status")
         payment_amount = payment_entity.get("amount")
@@ -470,7 +509,9 @@ class WebhookService:
                 f"got {verified_amount} {payment_currency}. "
                 "Rejecting attribution and escalating."
             )
-            case.state = CaseState.ESCALATED.value
+            case.state = RecoveryStateMachine.transition(
+                current_case_state, CaseState.ESCALATED
+            ).value
             case.updated_at = utc_now()
 
             self.session.add(
@@ -512,11 +553,88 @@ class WebhookService:
                 message="Amount/currency mismatch detected; attribution rejected.",
             )
 
+        # 4b. Merchant Context Integrity Verification (Race H & Multi-Tenant Isolation)
+        case_merchant_id = (case.failure_context or {}).get("merchant_id")
+        webhook_merchant_id = notes.get("merchant_id")
+        if case_merchant_id and webhook_merchant_id and case_merchant_id != webhook_merchant_id:
+            logger.warning(
+                f"Webhook {event_id}: Merchant mismatch for case '{case.case_id}': "
+                f"expected '{case_merchant_id}', got '{webhook_merchant_id}'. "
+                "Rejecting attribution and escalating."
+            )
+            case.state = RecoveryStateMachine.transition(
+                current_case_state, CaseState.ESCALATED
+            ).value
+            case.updated_at = utc_now()
+
+            self.session.add(
+                AuditEventModel(
+                    case_id=case.case_id,
+                    event_type="RECOVERY_ATTRIBUTION_REJECTED",
+                    actor=ActorType.SYSTEM.value,
+                    decision="REJECTED",
+                    outcome="MERCHANT_MISMATCH",
+                    correlation_id=event_id,
+                    timestamp=utc_now(),
+                    details={
+                        "expected_merchant_id": case_merchant_id,
+                        "actual_merchant_id": webhook_merchant_id,
+                        "payment_id": payment_id,
+                    },
+                )
+            )
+            return WebhookProcessingResult(
+                status="ok",
+                event_id=event_id,
+                event_type=event_type,
+                case_id=case.case_id,
+                state=case.state,
+                message="Merchant mismatch detected; attribution rejected.",
+            )
+
+        # 4c. Single Payment Attribution Invariant: One payment cannot recover two cases
+        if payment_id:
+            dup_stmt = select(RecoveryCaseModel).where(
+                RecoveryCaseModel.recovered_payment_id == payment_id,
+                RecoveryCaseModel.case_id != case.case_id,
+            )
+            dup_res = await self.session.execute(dup_stmt)
+            existing_attr_case = dup_res.scalar_one_or_none()
+            if existing_attr_case is not None:
+                logger.warning(
+                    f"Webhook {event_id}: Payment '{payment_id}' is already attributed to case "
+                    f"'{existing_attr_case.case_id}'. Rejecting double recovery attribution."
+                )
+                self.session.add(
+                    AuditEventModel(
+                        case_id=case.case_id,
+                        event_type="RECOVERY_ATTRIBUTION_REJECTED",
+                        actor=ActorType.SYSTEM.value,
+                        decision="REJECTED",
+                        outcome="PAYMENT_ALREADY_ATTRIBUTED",
+                        correlation_id=event_id,
+                        timestamp=utc_now(),
+                        details={
+                            "payment_id": payment_id,
+                            "prior_case_id": existing_attr_case.case_id,
+                        },
+                    )
+                )
+                return WebhookProcessingResult(
+                    status="ok",
+                    event_id=event_id,
+                    event_type=event_type,
+                    case_id=case.case_id,
+                    state=case.state,
+                    message=f"Payment '{payment_id}' already attributed to case "
+                    f"'{existing_attr_case.case_id}'.",
+                )
+
         # 5. Persist Verified Attribution & Transition State to RECOVERED
         case.recovered_payment_id = payment_id
         case.recovered_amount = verified_amount
         case.payment_link_status = "paid"
-        case.state = CaseState.RECOVERED.value
+        case.state = RecoveryStateMachine.transition(current_case_state, CaseState.RECOVERED).value
         case.updated_at = utc_now()
 
         self.session.add(

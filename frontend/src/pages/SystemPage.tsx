@@ -29,7 +29,8 @@ const ENDPOINTS = [
   { method: 'GET',  path: '/cases',                                    desc: 'List recovery cases with state filtering & pagination' },
   { method: 'GET',  path: '/cases/metrics/summary',                    desc: 'Aggregate recovery KPIs and category/policy breakdown' },
   { method: 'GET',  path: '/cases/{case_id}',                          desc: 'Case detail + complete chronological audit stream' },
-  { method: 'POST', path: '/cases/demo/seed',                          desc: 'Seed the canonical 15-case demonstration batch' },
+  { method: 'POST', path: '/cases/benchmark/run',                      desc: 'Execute canonical 15-scenario recovery workflow benchmark dynamically' },
+  { method: 'GET',  path: '/cases/benchmark/latest',                   desc: 'Retrieve run-scoped metrics for the most recent benchmark run' },
   { method: 'POST', path: '/cases/{case_id}/triage',                   desc: 'Manually execute full AI + MCP recovery orchestration' },
   { method: 'POST', path: '/cases/delayed/process',                    desc: 'Restart-safely process due delayed recovery cases' },
   { method: 'POST', path: '/webhooks/razorpay',                        desc: 'HMAC-verified Razorpay payment.failed / payment.captured ingress' },
@@ -37,7 +38,7 @@ const ENDPOINTS = [
   { method: 'POST', path: '/merchant/v1/checkout-context',             desc: 'Generate idempotent checkout context & sign orders' },
   { method: 'POST', path: '/merchant/v1/orders',                       desc: 'Initiate merchant order and bind customer contact' },
   { method: 'GET',  path: '/merchant/v1/orders/{order_id}/recovery-status', desc: 'Authoritative recovery status & attribution probe' },
-  { method: 'GET',  path: '/merchant/checkout',                        desc: 'External merchant storefront demonstration surface' },
+  { method: 'GET',  path: '/merchant/checkout',                        desc: 'Internal mock checkout surface for integration testing' },
 ];
 
 const INVARIANTS = [
@@ -221,7 +222,7 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
                   </span>
                 </div>
                 <p className="text-xs text-[#9CA3AF] leading-relaxed">
-                  Decoupled merchant storefront integration via <code>/merchant/v1/*</code> REST contracts. PaymentFlow operates out-of-band via standard webhooks (<code>payment.failed</code>) and dispatches native recovery links directly to customer contacts without altering merchant checkout code.
+                  Server-to-server merchant integration boundary; operator console is optional. External merchant store (<code>127.0.0.1:8002</code>) interacts via <code>/merchant/v1/*</code> REST contracts using merchant-bound Razorpay credentials. PaymentFlow operates out-of-band via standard webhooks (<code>payment.failed</code>) and dispatches native recovery links directly to customer contacts.
                 </p>
               </div>
 
@@ -380,7 +381,7 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
         <div className="bg-surface rounded-xl border border-white/[0.08] p-6 space-y-4">
           <div>
             <h3 className="text-base font-semibold text-[#F0F2F5]">
-              Frozen FastAPI REST API Contract (11 Endpoints)
+              Authoritative FastAPI REST API Contract ({ENDPOINTS.length} Endpoints)
             </h3>
             <p className="text-xs text-[#6B7280] mt-1">
               Authoritative backend contracts consumed by this frontend intelligence console.

@@ -230,6 +230,18 @@ async def get_merchant_order_recovery_status(
         }
 
     fc = case.failure_context or {}
+    case_merchant = fc.get("merchant_id")
+    if case_merchant and case_merchant != merchant.merchant_id:
+        logger.warning(
+            f"Merchant isolation check failed: Authenticated merchant '{merchant.merchant_id}' "
+            f"attempted to query order '{order_id}' belonging to '{case_merchant}'."
+        )
+        return {
+            "order_id": order_id,
+            "status": "AWAITING_INGESTION",
+            "message": "Payment failure ingestion pending.",
+        }
+
     notif_status = fc.get("notification_status", "PENDING")
 
     is_recovered = case.state == "RECOVERED"
