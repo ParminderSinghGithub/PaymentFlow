@@ -25,17 +25,19 @@ interface SystemPageProps {
 type SystemTab = 'architecture' | 'guardrails' | 'mcp' | 'health' | 'contracts';
 
 const ENDPOINTS = [
-  { method: 'GET',  path: '/health',                       desc: 'System health check & asyncpg database probe' },
-  { method: 'GET',  path: '/cases',                        desc: 'List recovery cases with state filtering & pagination' },
-  { method: 'GET',  path: '/cases/metrics/summary',        desc: 'Aggregate recovery KPIs and category/policy breakdown' },
-  { method: 'GET',  path: '/cases/{case_id}',              desc: 'Case detail + complete chronological audit stream' },
-  { method: 'POST', path: '/cases/demo/seed',              desc: 'Seed the canonical 15-case demonstration batch' },
-  { method: 'POST', path: '/cases/{case_id}/triage',       desc: 'Manually execute full AI + MCP recovery orchestration' },
-  { method: 'POST', path: '/cases/delayed/process',        desc: 'Restart-safely process due delayed recovery cases' },
-  { method: 'POST', path: '/cases/interactive/launch',     desc: 'Launch interactive CS01 demonstration scenario' },
-  { method: 'GET',  path: '/cases/interactive/status',     desc: 'Retrieve live interactive case state & audit trail' },
-  { method: 'POST', path: '/cases/interactive/verify',     desc: 'Authoritatively verify payment capture against Razorpay' },
-  { method: 'POST', path: '/cases/interactive/reset',      desc: 'Safely reset isolated interactive demonstration run' },
+  { method: 'GET',  path: '/health',                                   desc: 'System health check & asyncpg database probe' },
+  { method: 'GET',  path: '/cases',                                    desc: 'List recovery cases with state filtering & pagination' },
+  { method: 'GET',  path: '/cases/metrics/summary',                    desc: 'Aggregate recovery KPIs and category/policy breakdown' },
+  { method: 'GET',  path: '/cases/{case_id}',                          desc: 'Case detail + complete chronological audit stream' },
+  { method: 'POST', path: '/cases/demo/seed',                          desc: 'Seed the canonical 15-case demonstration batch' },
+  { method: 'POST', path: '/cases/{case_id}/triage',                   desc: 'Manually execute full AI + MCP recovery orchestration' },
+  { method: 'POST', path: '/cases/delayed/process',                    desc: 'Restart-safely process due delayed recovery cases' },
+  { method: 'POST', path: '/webhooks/razorpay',                        desc: 'HMAC-verified Razorpay payment.failed / payment.captured ingress' },
+  { method: 'GET',  path: '/merchant/v1/verify',                       desc: 'Merchant configuration probe & API credential validation' },
+  { method: 'POST', path: '/merchant/v1/checkout-context',             desc: 'Generate idempotent checkout context & sign orders' },
+  { method: 'POST', path: '/merchant/v1/orders',                       desc: 'Initiate merchant order and bind customer contact' },
+  { method: 'GET',  path: '/merchant/v1/orders/{order_id}/recovery-status', desc: 'Authoritative recovery status & attribution probe' },
+  { method: 'GET',  path: '/merchant/checkout',                        desc: 'External merchant storefront demonstration surface' },
 ];
 
 const INVARIANTS = [
@@ -205,6 +207,35 @@ export const SystemPage: React.FC<SystemPageProps> = ({ health, loading, onRefre
                   <li>• Mandatory halt on C4 Risk and C5 Gateway defects</li>
                   <li>• Authorizes RecoveryExecutor write to Razorpay API</li>
                 </ul>
+              </div>
+            </div>
+
+            {/* Boundaries: Merchant Integration & Evidence */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/[0.06]">
+              {/* Merchant Integration Boundary */}
+              <div className="p-4 rounded-lg bg-surface-raised border border-white/[0.06] space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-400" />
+                  <span className="text-xs font-semibold text-[#F0F2F5]">
+                    Merchant Integration Boundary
+                  </span>
+                </div>
+                <p className="text-xs text-[#9CA3AF] leading-relaxed">
+                  Decoupled merchant storefront integration via <code>/merchant/v1/*</code> REST contracts. PaymentFlow operates out-of-band via standard webhooks (<code>payment.failed</code>) and dispatches native recovery links directly to customer contacts without altering merchant checkout code.
+                </p>
+              </div>
+
+              {/* Evidence Boundary */}
+              <div className="p-4 rounded-lg bg-surface-raised border border-white/[0.06] space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span className="text-xs font-semibold text-[#F0F2F5]">
+                    Authoritative Evidence Boundary
+                  </span>
+                </div>
+                <p className="text-xs text-[#9CA3AF] leading-relaxed">
+                  Zero manufactured attribution. Benchmark metrics derive strictly from <code>CANONICAL_EVALUATION</code> runs, while operational metrics reflect genuine <code>MERCHANT_CHECKOUT</code> webhooks verified via Razorpay REST API captures and PostgreSQL row locks.
+                </p>
               </div>
             </div>
           </div>

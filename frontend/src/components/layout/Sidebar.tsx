@@ -2,18 +2,20 @@ import React from 'react';
 import {
   LayoutDashboard,
   ListChecks,
-  Sparkles,
   Activity,
   Search,
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Store,
+  ExternalLink,
 } from 'lucide-react';
+import { getMerchantStorefrontUrl } from '../../api/client';
 
-export type ActivePage = 'overview' | 'cases' | 'investigation' | 'interactive' | 'system';
+export type ActivePage = 'overview' | 'cases' | 'investigation' | 'system';
 
 interface NavItem {
-  id: 'overview' | 'cases' | 'interactive' | 'system';
+  id: 'overview' | 'cases' | 'system';
   label: string;
   Icon: React.FC<{ className?: string }>;
   description: string;
@@ -21,10 +23,9 @@ interface NavItem {
 }
 
 const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { id: 'overview',    label: 'Overview',       Icon: LayoutDashboard, description: 'Recovery metrics & KPI' },
-  { id: 'cases',       label: 'Cases',           Icon: ListChecks,      description: 'Pipeline state machine' },
-  { id: 'interactive', label: 'Interactive Demo',Icon: Sparkles,        description: 'Live CS01 recovery', badge: 'DEMO' },
-  { id: 'system',      label: 'System & Trust',  Icon: Activity,        description: 'Guardrails & architecture' },
+  { id: 'overview', label: 'Overview',       Icon: LayoutDashboard, description: 'Recovery metrics & KPI' },
+  { id: 'cases',    label: 'Cases',          Icon: ListChecks,      description: 'Pipeline state machine' },
+  { id: 'system',   label: 'System & Trust', Icon: Activity,        description: 'Guardrails & architecture' },
 ];
 
 interface SidebarProps {
@@ -168,6 +169,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </React.Fragment>
           );
         })}
+
+        {/* External Merchant Storefront Demo Link */}
+        <div className="pt-2 mt-2 border-t border-white/[0.04]">
+          <a
+            href={getMerchantStorefrontUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open External Merchant Storefront (New Tab)"
+            className={`
+              w-full flex items-center gap-3 transition-colors duration-100 text-[#6B7280] hover:text-guard-text hover:bg-white/[0.02] border-l-[3px] border-l-transparent
+              ${collapsed ? 'px-3 py-2.5 justify-center' : 'px-4 py-2.5'}
+            `}
+          >
+            <Store className="w-4 h-4 shrink-0 text-[#4B5563]" />
+            {!collapsed && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[12px] font-medium leading-none truncate">
+                      Merchant Demo
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-teal-500/10 text-guard-text border border-teal-500/20">
+                      LIVE
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-[#4B5563] mt-0.5 leading-none truncate">
+                    External customer checkout
+                  </div>
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 text-[#4B5563] shrink-0" />
+              </>
+            )}
+          </a>
+        </div>
       </nav>
 
       {/* Footer: System Health & Expand/Collapse */}

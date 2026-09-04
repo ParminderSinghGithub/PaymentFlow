@@ -4,7 +4,6 @@ import {
   TrendingUp,
   Link2,
   ShieldCheck,
-  Sparkles,
   Database,
   ArrowRight,
   Shield,
@@ -13,6 +12,7 @@ import {
   ExternalLink,
   ChevronRight,
   Zap,
+  Store,
 } from 'lucide-react';
 import type { CaseSummaryItem, MetricsSummary, FailureCategory } from '../types';
 import { CATEGORY_INFO } from '../types';
@@ -27,6 +27,7 @@ import { SectionHeader } from '../components/common/SectionHeader';
 import { ZoneCard } from '../components/common/ZoneCard';
 import { TableRowSkeleton } from '../components/common/Skeleton';
 import { EmptyState } from '../components/common/EmptyState';
+import { getMerchantStorefrontUrl } from '../api/client';
 
 interface OverviewPageProps {
   metrics: MetricsSummary | null;
@@ -36,7 +37,6 @@ interface OverviewPageProps {
   onSelectCase: (id: string) => void;
   onNavigateToCases: () => void;
   onNavigateToArchitecture: () => void;
-  onNavigateToInteractive?: () => void;
   onTriggerTriage: (id: string) => void;
   triageLoadingCaseId: string | null;
   onSeedDemoBatch?: () => void;
@@ -53,7 +53,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   onSelectCase,
   onNavigateToCases,
   onNavigateToArchitecture,
-  onNavigateToInteractive,
   onTriggerTriage,
   triageLoadingCaseId,
   onSeedDemoBatch,
@@ -125,16 +124,17 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 aria-label="Run 15-scenario canonical benchmark workflow execution"
               />
             )}
-            {onNavigateToInteractive && (
-              <ActionButton
-                label="Launch Live Demo"
-                variant="primary"
-                size="sm"
-                icon={Sparkles}
-                onClick={onNavigateToInteractive}
-                aria-label="Launch interactive CS01 live recovery demonstration"
-              />
-            )}
+            <a
+              href={getMerchantStorefrontUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded text-xs font-semibold text-white bg-primary-600 hover:bg-primary-500 transition-colors shadow-sm"
+              aria-label="Open external merchant storefront demonstration in a new tab"
+            >
+              <Store className="w-3.5 h-3.5" />
+              <span>Open Merchant Storefront</span>
+              <ExternalLink className="w-3 h-3 text-white/70" />
+            </a>
           </div>
         }
       />
@@ -193,84 +193,100 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
         ) : isBenchmark ? (
           /* ── Canonical Benchmark Evaluator Metrics (Truthful Semantics) ── */
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {/* 1. Benchmark Revenue at Risk */}
-            <KpiCard
-              label="Revenue at Risk"
-              value={
-                <MoneyValue
-                  amountInr={m.total_at_risk_amount_inr ?? totalRevenueAtRiskInr}
-                  variant="at-risk"
-                  size="xl"
-                />
-              }
-              subValue={`${m.total_cases} benchmark scenarios`}
-              footer={
-                <span>
-                  Eligible: <strong className="text-[#9CA3AF] font-mono font-medium">₹{(m.eligible_opportunity_amount_inr ?? 31538).toLocaleString('en-IN')}</strong> ({m.eligible_cases ?? 7} cases)
-                </span>
-              }
-              accent="risk"
-              icon={<IndianRupee className="w-4 h-4 text-risk-text" />}
-            />
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {/* 1. Benchmark Revenue at Risk */}
+              <KpiCard
+                label="Revenue at Risk"
+                value={
+                  <MoneyValue
+                    amountInr={m.total_at_risk_amount_inr ?? totalRevenueAtRiskInr}
+                    variant="at-risk"
+                    size="xl"
+                  />
+                }
+                subValue={`${m.total_cases} benchmark scenarios`}
+                footer={
+                  <span>
+                    Eligible: <strong className="text-[#9CA3AF] font-mono font-medium">₹{(m.eligible_opportunity_amount_inr ?? 31538).toLocaleString('en-IN')}</strong> ({m.eligible_cases ?? 7} cases)
+                  </span>
+                }
+                accent="risk"
+                icon={<IndianRupee className="w-4 h-4 text-risk-text" />}
+              />
 
-            {/* 2. Recovered Eligible Revenue */}
-            <KpiCard
-              label="Recovered Revenue"
-              value={
-                <MoneyValue
-                  amountInr={m.total_recovered_amount_inr}
-                  variant="recovered"
-                  size="xl"
-                />
-              }
-              subValue="Attributed across eligible scenarios"
-              footer={`${m.evaluation_recovered_cases ?? m.recovered_cases} of ${m.eligible_cases ?? 7} eligible recovered`}
-              accent="recover"
-              icon={<TrendingUp className="w-4 h-4 text-recover-text" />}
-            />
+              {/* 2. Recovered Eligible Revenue - Explicitly marked Evaluation Recovered */}
+              <KpiCard
+                label="Evaluation Recovered"
+                value={
+                  <MoneyValue
+                    amountInr={m.total_recovered_amount_inr}
+                    variant="recovered"
+                    size="xl"
+                  />
+                }
+                subValue="Synthetic Benchmark Evaluator"
+                footer={`${m.evaluation_recovered_cases ?? m.recovered_cases} of ${m.eligible_cases ?? 7} eligible (Not Live Cash)`}
+                accent="recover"
+                icon={<TrendingUp className="w-4 h-4 text-recover-text" />}
+              />
 
-            {/* 3. Primary Benchmark Metric: Eligible Opportunity Recovery */}
-            <KpiCard
-              label="Eligible Opportunity Recovery"
-              value={
-                <span className="font-mono text-guard-text font-bold text-[24px]">
-                  {(m.eligible_opportunity_recovery_rate_pct ?? m.recovery_rate_pct).toFixed(2)}%
-                </span>
-              }
-              subValue="Primary Benchmark Metric"
-              footer={`₹${m.total_recovered_amount_inr.toLocaleString('en-IN')} / ₹${(m.eligible_opportunity_amount_inr ?? 31538).toLocaleString('en-IN')}`}
-              accent="guard"
-              icon={<PercentBadge className="w-4 h-4 text-guard-text" />}
-            />
+              {/* 3. Primary Benchmark Metric: Eligible Opportunity Recovery */}
+              <KpiCard
+                label="Eligible Opportunity Recovery"
+                value={
+                  <span className="font-mono text-guard-text font-bold text-[24px]">
+                    {(m.eligible_opportunity_recovery_rate_pct ?? m.recovery_rate_pct).toFixed(2)}%
+                  </span>
+                }
+                subValue="Primary Benchmark Metric"
+                footer={`₹${m.total_recovered_amount_inr.toLocaleString('en-IN')} / ₹${(m.eligible_opportunity_amount_inr ?? 31538).toLocaleString('en-IN')}`}
+                accent="guard"
+                icon={<PercentBadge className="w-4 h-4 text-guard-text" />}
+              />
 
-            {/* 4. Overall Case Conversion */}
-            <KpiCard
-              label="Overall Case Recovery"
-              value={
-                <span className="font-mono text-[#F0F2F5] font-bold text-[24px]">
-                  {(m.overall_case_recovery_rate_pct ?? 40.0).toFixed(1)}%
-                </span>
-              }
-              subValue={`${m.recovered_cases} of ${m.total_cases} total scenarios`}
-              footer={`Eligible case rate: ${(m.eligible_case_recovery_rate_pct ?? 85.71).toFixed(1)}% (6/7)`}
-              accent="none"
-              icon={<Shield className="w-4 h-4 text-[#9CA3AF]" />}
-            />
+              {/* 4. Overall Case Conversion */}
+              <KpiCard
+                label="Overall Case Recovery"
+                value={
+                  <span className="font-mono text-[#F0F2F5] font-bold text-[24px]">
+                    {(m.overall_case_recovery_rate_pct ?? 40.0).toFixed(1)}%
+                  </span>
+                }
+                subValue={`${m.recovered_cases} of ${m.total_cases} total scenarios`}
+                footer={`Eligible case rate: ${(m.eligible_case_recovery_rate_pct ?? 85.71).toFixed(1)}% (6/7)`}
+                accent="none"
+                icon={<Shield className="w-4 h-4 text-[#9CA3AF]" />}
+              />
 
-            {/* 5. Gated / Safeguarded Compliance Operations */}
-            <KpiCard
-              label="Operations Gated"
-              value={
-                <span className="font-mono text-halt-text font-bold text-[24px]">
-                  {m.escalated_cases} Escalated
-                </span>
-              }
-              subValue={`${m.terminal_no_action_cases} compliance halts`}
-              footer={`Safe halts: ₹${((m.escalated_amount_inr ?? 69750) + (m.terminal_amount_inr ?? 20829)).toLocaleString('en-IN')}`}
-              accent="halt"
-              icon={<ShieldCheck className="w-4 h-4 text-halt-text" />}
-            />
+              {/* 5. Gated / Safeguarded Compliance Operations */}
+              <KpiCard
+                label="Operations Gated"
+                value={
+                  <span className="font-mono text-halt-text font-bold text-[24px]">
+                    {m.escalated_cases} Escalated
+                  </span>
+                }
+                subValue={`${m.terminal_no_action_cases} compliance halts`}
+                footer={`Safe halts: ₹${((m.escalated_amount_inr ?? 69750) + (m.terminal_amount_inr ?? 20829)).toLocaleString('en-IN')}`}
+                accent="halt"
+                icon={<ShieldCheck className="w-4 h-4 text-halt-text" />}
+              />
+            </div>
+
+            {/* Supporting Counts Strip */}
+            <div className="bg-surface-raised border border-white/[0.06] rounded-md px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+              <span className="text-[#9CA3AF]">
+                Cohort Breakdown: <strong className="text-white">{m.total_cases} Total</strong>
+              </span>
+              <div className="flex flex-wrap items-center gap-3 text-[10px]">
+                <span className="text-guard-text">Eligible: <strong>{m.eligible_cases ?? 7}</strong></span>
+                <span className="text-recover-text">Recovered: <strong>{m.recovered_cases ?? 6}</strong></span>
+                <span className="text-amber-300">Escalated: <strong>{m.escalated_cases ?? 2}</strong></span>
+                <span className="text-rose-400">Terminal Halts: <strong>{m.terminal_no_action_cases ?? 6}</strong></span>
+                <span className="text-sky-300">Action Executed / Awaiting: <strong>1</strong> (CS12)</span>
+              </div>
+            </div>
           </div>
         ) : (
           /* ── Live / Operational Recovery Metrics ── */
@@ -297,7 +313,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
             {/* 2. Recovered Revenue */}
             <KpiCard
-              label="Recovered Revenue"
+              label="Live Captured Revenue"
               value={
                 <MoneyValue
                   amountInr={m.total_recovered_amount_inr}
@@ -306,21 +322,21 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 />
               }
               subValue="100% gateway captured & verified"
-              footer={`${m.recovered_cases} successful recoveries`}
+              footer={`${m.recovered_cases} of ${m.total_cases} cases recovered`}
               accent="recover"
               icon={<TrendingUp className="w-4 h-4 text-recover-text" />}
             />
 
-            {/* 3. Recovery Rate */}
+            {/* 3. Operational Case Recovery Rate */}
             <KpiCard
-              label="Recovery Rate"
+              label="Operational Case Recovery Rate"
               value={
                 <span className="font-mono text-guard-text font-bold text-[24px]">
                   {revenueRecoveryRatePct.toFixed(1)}%
                 </span>
               }
-              subValue={`Case rate: ${m.recovery_rate_pct.toFixed(1)}%`}
-              footer={`${m.recovered_cases} of ${m.total_cases} cases recovered`}
+              subValue={`Case conversion: ${m.recovery_rate_pct.toFixed(1)}%`}
+              footer={`${m.recovered_cases} of ${m.total_cases} operational cases`}
               accent="guard"
               icon={<PercentBadge className="w-4 h-4 text-guard-text" />}
             />
@@ -580,7 +596,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </div>
       </section>
 
-      {/* ── Operations Queue & Flagship Interactive Demo (2-Column Grid) ── */}
+      {/* ── Operations Queue & Live Merchant Recovery Showcase (2-Column Grid) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left 2 Cols: Operations Attention Queue */}
         <section className="lg:col-span-2 bg-surface-base border border-white/[0.06] rounded-lg p-5 space-y-4">
@@ -708,57 +724,61 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
         </section>
 
-        {/* Right 1 Col: Flagship Interactive CS01 Callout */}
+        {/* Right 1 Col: Live Merchant Recovery Showcase */}
         <div className="space-y-4">
           <ZoneCard
-            zone="ai"
-            label="Interactive Demo"
-            icon={Sparkles}
-            description="Live end-to-end evaluation journey"
+            zone="recover"
+            label="Live Merchant Recovery"
+            icon={Store}
+            description="External Merchant Checkout Integration"
           >
             <div className="space-y-3 text-[12px]">
-              <div className="font-semibold text-[#F0F2F5] text-[13px] leading-tight">
-                CS01: Card Checkout Dropoff
+              <div className="font-semibold text-[#F0F2F5] text-[13px] leading-tight flex items-center justify-between">
+                <span>Real Merchant Storefront</span>
+                <span className="px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 font-mono text-[10px] font-semibold border border-teal-500/30">
+                  Razorpay Test Mode
+                </span>
               </div>
               <p className="text-[#9CA3AF] text-[11px] leading-relaxed">
-                Experience a genuine recovery loop with Razorpay Test Mode checkout:
+                Experience real-world recovery flow from the customer perspective on the external merchant store:
               </p>
 
-              <ul className="space-y-1.5 text-[11px] text-[#6B7280] font-mono pl-1">
+              <ul className="space-y-1.5 text-[11px] text-[#9CA3AF] font-mono pl-1">
                 <li className="flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-ai-base" />
-                  <span>₹2,500.00 failure simulated</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-risk-text" />
+                  <span>Real merchant checkout failure</span>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-ai-base" />
-                  <span>AI classifies C1 dropoff</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-guard-text" />
+                  <span>PaymentFlow recovery decision</span>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-guard-base" />
-                  <span>P_CREATE_LINK_IMMEDIATE authorized</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-guard-text" />
+                  <span>Razorpay Payment Link</span>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-guard-base" />
-                  <span>Real Razorpay Hosted Link created</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary-400" />
+                  <span>Native notification handoff</span>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-recover-base" />
-                  <span>Gateway captures + attributes ₹2,500</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-recover-text" />
+                  <span>Authoritative gateway verification</span>
                 </li>
               </ul>
 
-              {onNavigateToInteractive && (
-                <div className="pt-2">
-                  <ActionButton
-                    label="Launch Interactive Recovery"
-                    variant="primary"
-                    size="md"
-                    icon={Sparkles}
-                    onClick={onNavigateToInteractive}
-                    className="w-full justify-center shadow-md shadow-ai-base/10"
-                  />
-                </div>
-              )}
+              <div className="pt-2">
+                <a
+                  href={getMerchantStorefrontUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 w-full px-4 py-2 rounded text-xs font-semibold text-white bg-primary-600 hover:bg-primary-500 transition-colors shadow-md shadow-primary-900/20"
+                  aria-label="Open Merchant Storefront in a new tab"
+                >
+                  <Store className="w-3.5 h-3.5" />
+                  <span>Open Merchant Storefront</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-white/70" />
+                </a>
+              </div>
             </div>
           </ZoneCard>
 

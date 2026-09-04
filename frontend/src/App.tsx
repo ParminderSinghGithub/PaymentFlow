@@ -4,7 +4,6 @@ import type { ActivePage } from './components/layout/Sidebar';
 import { OverviewPage } from './pages/OverviewPage';
 import { CasesPage } from './pages/CasesPage';
 import { CaseInvestigationPage } from './pages/CaseInvestigationPage';
-import { InteractivePage } from './pages/InteractivePage';
 import { SystemPage } from './pages/SystemPage';
 import { ToastProvider, useToast } from './components/common/Toast';
 import {
@@ -33,10 +32,6 @@ const PAGE_TITLES: Record<ActivePage, { title: string; subtitle: string }> = {
   investigation: {
     title: 'Case Investigation',
     subtitle: 'Decision story — from gateway failure to revenue attribution',
-  },
-  interactive: {
-    title: 'Interactive Demonstration',
-    subtitle: 'Live CS01 recovery journey with genuine Razorpay Test Mode checkout',
   },
   system: {
     title: 'System & Trust',
@@ -83,7 +78,7 @@ const AppContent: React.FC = () => {
         const id = params.get('id');
         setActivePage('investigation');
         if (id) setSelectedCaseId(id);
-      } else if (['overview', 'cases', 'investigation', 'interactive', 'system'].includes(hash)) {
+      } else if (['overview', 'cases', 'investigation', 'system'].includes(hash)) {
         setActivePage(hash as ActivePage);
       }
     };
@@ -285,7 +280,6 @@ const AppContent: React.FC = () => {
           onSelectCase={handleSelectCase}
           onNavigateToCases={() => navigateTo('cases')}
           onNavigateToArchitecture={() => navigateTo('system')}
-          onNavigateToInteractive={() => navigateTo('interactive')}
           onTriggerTriage={handleTriggerTriage}
           triageLoadingCaseId={triageLoadingCaseId}
           onSeedDemoBatch={handleSeedCanonicalBatch}
@@ -316,13 +310,6 @@ const AppContent: React.FC = () => {
           onTriggerTriage={handleTriggerTriage}
           triageLoading={Boolean(triageLoadingCaseId && triageLoadingCaseId === selectedCaseId)}
           onRefresh={() => selectedCaseId && loadCaseDetail(selectedCaseId)}
-        />
-      )}
-
-      {activePage === 'interactive' && (
-        <InteractivePage
-          onNavigateToInvestigation={handleSelectCase}
-          onRefreshGlobalMetrics={loadMetrics}
         />
       )}
 

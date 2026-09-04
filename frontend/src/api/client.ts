@@ -11,11 +11,6 @@ import type {
   DelayedProcessResult,
   DemoSeedResponse,
   HealthResponse,
-  InteractiveResetResponse,
-  InteractiveStatusResponse,
-  InteractiveVerifyResponse,
-  LaunchScenarioRequest,
-  LaunchScenarioResponse,
   MetricsSummary,
   TriageResult,
 } from '../types';
@@ -165,42 +160,22 @@ export async function processDueDelayedCases(): Promise<DelayedProcessResult> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. Interactive Recovery Demonstration Endpoints
+// 2. Merchant Storefront Navigation Helper
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Launch Interactive CS01 Demonstration Scenario (POST /cases/interactive/launch)
+ * Returns the configured external merchant storefront checkout URL.
+ * Defaults to VITE_MERCHANT_STOREFRONT_URL or derives from host topology.
  */
-export async function launchInteractiveScenario(
-  payload: LaunchScenarioRequest = {}
-): Promise<LaunchScenarioResponse> {
-  return request<LaunchScenarioResponse>('/cases/interactive/launch', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
-/**
- * Query Interactive Demonstration Case Status & Audit Trail (GET /cases/interactive/status)
- */
-export async function fetchInteractiveStatus(): Promise<InteractiveStatusResponse> {
-  return request<InteractiveStatusResponse>('/cases/interactive/status');
-}
-
-/**
- * Authoritatively Verify Payment Capture on Gateway (POST /cases/interactive/verify)
- */
-export async function verifyInteractivePayment(): Promise<InteractiveVerifyResponse> {
-  return request<InteractiveVerifyResponse>('/cases/interactive/verify', {
-    method: 'POST',
-  });
-}
-
-/**
- * Safely Reset Interactive Demonstration Run (POST /cases/interactive/reset)
- */
-export async function resetInteractiveCase(): Promise<InteractiveResetResponse> {
-  return request<InteractiveResetResponse>('/cases/interactive/reset', {
-    method: 'POST',
-  });
+export function getMerchantStorefrontUrl(): string {
+  const configured = import.meta.env.VITE_MERCHANT_STOREFRONT_URL;
+  if (configured && configured.trim().length > 0) {
+    return configured.trim();
+  }
+  const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+  if (apiBase) {
+    // If API is on port 8000/8001, external merchant server runs on port 8002
+    return `${apiBase.replace(/:800[01]/, ':8002')}/checkout`;
+  }
+  return 'http://localhost:8002/checkout';
 }

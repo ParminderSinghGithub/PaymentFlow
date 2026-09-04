@@ -83,3 +83,5 @@ Thumbs.db
 
 # private docs
 private-docs
+
+uv.lock

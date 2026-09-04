@@ -199,9 +199,21 @@ export const CasesPage: React.FC<CasesPageProps> = ({
                     >
                       {/* Case ID */}
                       <td className="py-3 pl-5 px-3">
-                        <span className="font-mono text-[11px] text-ai-text group-hover:underline font-medium">
-                          {c.case_id}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[11px] text-ai-text group-hover:underline font-medium">
+                            {c.case_id}
+                          </span>
+                          {c.case_source === 'CANONICAL_EVALUATION' && (
+                            <span className="px-1 py-0.2 rounded text-[9px] font-mono font-medium tracking-wide uppercase bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                              BENCHMARK
+                            </span>
+                          )}
+                          {c.case_source === 'MERCHANT_CHECKOUT' && (
+                            <span className="px-1 py-0.2 rounded text-[9px] font-mono font-medium tracking-wide uppercase bg-teal-500/10 text-teal-300 border border-teal-500/20">
+                              MERCHANT
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Payment ID (Complete, No Arbitrary Slicing) */}

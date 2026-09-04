@@ -221,6 +221,67 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
         </div>
       )}
 
+      {/* ── State-Aware Provenance Banner for Live Merchant Recovery ─────── */}
+      {c.case_source === 'MERCHANT_CHECKOUT' && (
+        <div className="bg-[rgba(13,148,136,0.06)] border border-[rgba(13,148,136,0.25)] rounded-lg p-3.5 px-4 space-y-2 text-[11px]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 font-mono text-[10px] font-bold uppercase tracking-wider">
+                Live Merchant Recovery
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-white/[0.08] text-[#9CA3AF] font-mono text-[10px]">
+                Razorpay Test Mode
+              </span>
+            </div>
+            {c.order_id && (
+              <span className="text-[10px] font-mono text-teal-200">
+                Merchant Order: {c.order_id}
+              </span>
+            )}
+          </div>
+
+          {/* State-Aware Content */}
+          {c.state === 'FAILED_INGESTED' && (
+            <p className="text-[#D1D5DB] leading-relaxed">
+              Real merchant checkout failure received and ingested. Recovery triage and guardrail verification have not yet executed. No recovered amount attributed.
+            </p>
+          )}
+
+          {c.state === 'ACTION_EXECUTED' && (
+            <div className="space-y-1 text-[#D1D5DB] leading-relaxed">
+              <p>
+                Deterministic recovery action authorized and executed. Razorpay Payment Link generated and dispatched to customer via native notification.
+              </p>
+              <div className="flex flex-wrap items-center gap-4 text-[10px] font-mono text-[#9CA3AF] pt-1 border-t border-teal-500/20">
+                <span>Status: <strong className="text-amber-300">Awaiting Customer Payment</strong></span>
+                {c.payment_link_id && <span>Payment Link: <strong className="text-white">{c.payment_link_id}</strong></span>}
+                <span>Recovered Amount: <strong className="text-white">₹0.00</strong> (pending customer action)</span>
+              </div>
+            </div>
+          )}
+
+          {c.state === 'RECOVERED' && (
+            <div className="space-y-1 text-[#D1D5DB] leading-relaxed">
+              <p>
+                Customer opened recovery Payment Link and completed checkout. Authoritative Razorpay REST verification confirmed gateway capture. Single attribution recorded.
+              </p>
+              <div className="flex flex-wrap items-center gap-4 text-[10px] font-mono text-[#9CA3AF] pt-1 border-t border-teal-500/20">
+                <span>Outcome: <strong className="text-recover-text">Authoritative Gateway Verified Capture</strong></span>
+                <span>Recovered Cash: <strong className="text-recover-text font-bold">₹{c.recovered_amount_inr.toLocaleString('en-IN')}</strong></span>
+                {c.payment_link_id && <span>Payment Link: <strong className="text-white">{c.payment_link_id}</strong></span>}
+                {c.failed_payment_id && <span>Original Payment: <strong className="text-white">{c.failed_payment_id}</strong></span>}
+              </div>
+            </div>
+          )}
+
+          {c.state !== 'FAILED_INGESTED' && c.state !== 'ACTION_EXECUTED' && c.state !== 'RECOVERED' && (
+            <p className="text-[#D1D5DB] leading-relaxed">
+              Real merchant checkout transaction halted or escalated under deterministic compliance guardrails. State: <strong className="text-white font-mono">{c.state}</strong>.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* ── B. Case Identity & Outcome Strip ───────────────────────────────── */}
       <div className="bg-surface-base border border-white/[0.06] rounded-lg p-5 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
