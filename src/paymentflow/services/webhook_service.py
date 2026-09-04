@@ -178,6 +178,21 @@ class WebhookService:
         error_code = payment_entity.get("error_code")
         error_description = payment_entity.get("error_description")
 
+        notes = payment_entity.get("notes") or {}
+        external_order_id = notes.get("external_order_id") if isinstance(notes, dict) else None
+        merchant_id = notes.get("merchant_id") if isinstance(notes, dict) else None
+
+        from paymentflow.merchant.service import MerchantRegistry
+
+        if not merchant_id and order_id:
+            mctx = MerchantRegistry.get_checkout_context(order_id)
+            if mctx:
+                merchant_id = mctx.get("merchant_id")
+                if not external_order_id:
+                    external_order_id = mctx.get("external_order_id")
+
+        case_source = "MERCHANT_CHECKOUT" if merchant_id else "LIVE_CHECKOUT"
+
         failure_context = {
             "error_code": error_code,
             "error_description": error_description,
@@ -187,7 +202,10 @@ class WebhookService:
             "email": payment_entity.get("email"),
             "contact": payment_entity.get("contact"),
             "description": payment_entity.get("description"),
-            "notes": payment_entity.get("notes", {}),
+            "notes": notes,
+            "merchant_id": merchant_id,
+            "external_order_id": external_order_id,
+            "case_source": case_source,
         }
 
         # Check if recovery case for this payment ID already exists
@@ -224,6 +242,7 @@ class WebhookService:
             failure_description=error_description,
             failure_context=failure_context,
             state=CaseState.FAILED_INGESTED.value,
+            case_source=case_source,
             created_at=utc_now(),
             updated_at=utc_now(),
         )
@@ -243,6 +262,9 @@ class WebhookService:
                 "amount": amount,
                 "currency": currency,
                 "error_code": error_code,
+                "case_source": case_source,
+                "merchant_id": merchant_id,
+                "external_order_id": external_order_id,
             },
         )
         self.session.add(audit_event)

@@ -4,7 +4,7 @@ Maintains the merchant identity boundary for the buildathon prototype.
 Ensures merchant A cannot access or resolve merchant B's Razorpay credentials.
 """
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from paymentflow.config import get_settings
 from paymentflow.merchant.models import (
@@ -24,6 +24,7 @@ class MerchantRegistry:
 
     _merchants_by_id: ClassVar[dict[str, MerchantProfile]] = {}
     _merchants_by_hash: ClassVar[dict[str, MerchantProfile]] = {}
+    _checkout_contexts: ClassVar[dict[str, dict[str, Any]]] = {}
     _initialized: ClassVar[bool] = False
 
     @classmethod
@@ -38,6 +39,7 @@ class MerchantRegistry:
         settings = get_settings()
         cls._merchants_by_id.clear()
         cls._merchants_by_hash.clear()
+        cls._checkout_contexts.clear()
 
         # Default buildathon prototype merchant
         default_key = settings.paymentflow_api_key
@@ -91,3 +93,26 @@ class MerchantRegistry:
         if not merchant or not merchant.is_active:
             return None
         return merchant.razorpay_key_id, merchant.razorpay_key_secret
+
+    @classmethod
+    def get_razorpay_credentials(cls, merchant_id: str) -> tuple[str, str] | None:
+        """Alias for resolve_razorpay_credentials."""
+        return cls.resolve_razorpay_credentials(merchant_id)
+
+    @classmethod
+    def store_checkout_context(cls, context_id: str, data: dict[str, Any]) -> None:
+        """Store checkout context indexed by context_id, external_order_id, and rzp order_id."""
+        cls._ensure_initialized()
+        cls._checkout_contexts[context_id] = data
+        if "external_order_id" in data and data["external_order_id"]:
+            cls._checkout_contexts[str(data["external_order_id"])] = data
+        if "razorpay_order_id" in data and data["razorpay_order_id"]:
+            cls._checkout_contexts[str(data["razorpay_order_id"])] = data
+
+    @classmethod
+    def get_checkout_context(cls, key: str | None) -> dict[str, Any] | None:
+        """Look up checkout context by context_id, external_order_id, or razorpay order_id."""
+        cls._ensure_initialized()
+        if not key:
+            return None
+        return cls._checkout_contexts.get(str(key))

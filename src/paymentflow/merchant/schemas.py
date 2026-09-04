@@ -133,3 +133,41 @@ class MerchantVerifyResponse(BaseModel):
         description="Account operational status",
     )
     message: str = "Merchant API credential authenticated successfully."
+
+
+class MerchantCreateOrderRequest(BaseModel):
+    """Request by merchant to initiate a Razorpay order with attached context."""
+
+    amount: int = Field(gt=0, description="Order amount in paise (e.g. 345000 for ₹3,450.00)")
+    currency: str = Field(default="INR", description="Currency code (INR)")
+    external_order_id: str = Field(
+        min_length=1, max_length=128, description="Merchant external order reference"
+    )
+    customer_name: str | None = Field(default=None, description="Customer full name")
+    customer_email: str | None = Field(default=None, description="Customer email")
+    customer_phone: str | None = Field(default=None, description="Customer phone number")
+    notes: dict[str, Any] = Field(default_factory=dict, description="Custom merchant notes")
+
+    @field_validator("currency")
+    @classmethod
+    def validate_currency(cls, v: str) -> str:
+        normalized = v.strip().upper()
+        if normalized != "INR":
+            raise ValueError(
+                f"Unsupported currency '{v}'. PaymentFlow prototype strictly supports INR."
+            )
+        return normalized
+
+
+class MerchantCreateOrderResponse(BaseModel):
+    """Response returned when an order is successfully created in Razorpay with context."""
+
+    status: Literal["created"] = "created"
+    context_id: str = Field(..., description="Internal checkout context ID")
+    razorpay_order_id: str = Field(..., description="Razorpay Order ID")
+    external_order_id: str = Field(..., description="Merchant external order ID")
+    amount: int = Field(..., description="Amount in paise")
+    currency: str = Field(..., description="Currency")
+    razorpay_key_id: str = Field(..., description="Public Razorpay Key ID for checkout")
+    checkout_url: str = Field(..., description="URL to open the interactive checkout experience")
+    message: str = "Razorpay order created and checkout context registered successfully."

@@ -47,18 +47,22 @@ class RazorpayAdapter:
     def __init__(
         self,
         settings: Settings | None = None,
+        key_id: str | None = None,
+        key_secret: str | None = None,
         base_url: str = "https://api.razorpay.com/v1",
         timeout: float = 10.0,
         http_client: httpx.AsyncClient | None = None,
     ):
         self.settings = settings or get_settings()
+        self.key_id = key_id or self.settings.razorpay_key_id
+        self.key_secret = key_secret or self.settings.razorpay_key_secret
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._external_client = http_client
 
     def _get_auth(self) -> tuple[str, str]:
         """Return HTTP Basic Auth tuple."""
-        return (self.settings.razorpay_key_id, self.settings.razorpay_key_secret)
+        return (self.key_id, self.key_secret)
 
     async def _request(self, method: str, endpoint: str, **kwargs: Any) -> dict[str, Any]:
         """Execute authenticated HTTP request with error handling and normalization."""
@@ -114,6 +118,31 @@ class RazorpayAdapter:
             raise ValueError("order_id must not be empty.")
         logger.info(f"Fetching order details for: {order_id}")
         return await self._request("GET", f"orders/{order_id}")
+
+    async def create_order(
+        self,
+        amount: int,
+        currency: str = "INR",
+        receipt: str | None = None,
+        notes: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create standard Razorpay Order."""
+        if amount <= 0:
+            raise ValueError("amount must be a positive integer in paise.")
+        if currency != "INR":
+            raise ValueError("Only INR currency is supported.")
+
+        payload: dict[str, Any] = {
+            "amount": amount,
+            "currency": currency,
+        }
+        if receipt:
+            payload["receipt"] = receipt
+        if notes:
+            payload["notes"] = notes
+
+        logger.info(f"Creating Razorpay Order: amount={amount}, receipt={receipt}")
+        return await self._request("POST", "orders", json=payload)
 
     async def create_payment_link(
         self,
