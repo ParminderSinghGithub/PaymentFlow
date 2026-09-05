@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     )
 
     # CORS Configuration for Frontend Service
-    cors_origins: list[str] = Field(
+    cors_origins: list[str] | str = Field(
         default=["*"],
         description="Allowed CORS origins for external frontend service",
     )
@@ -105,11 +105,15 @@ class Settings(BaseSettings):
                 import json
 
                 try:
-                    return json.loads(v)
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(origin).strip() for origin in parsed if str(origin).strip()]
                 except Exception:
                     pass
             return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+        if isinstance(v, list):
+            return [str(origin).strip() for origin in v if str(origin).strip()]
+        return ["*"]
 
     @model_validator(mode="after")
     def reconcile_database_urls(self) -> "Settings":
