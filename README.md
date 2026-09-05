@@ -1,490 +1,326 @@
 # PaymentFlow — AI Revenue Recovery
-### Razorpay Buildathon · Track 03: AI Revenue Recovery
 
-[![Tests](https://img.shields.io/badge/tests-328%20passing-brightgreen)](#testing)
-[![Python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green)](src/paymentflow/main.py)
+> **Razorpay Buildathon · Track 03 — AI Revenue Recovery**
+
+[![Tests](https://img.shields.io/badge/backend%20tests-328%20passing-brightgreen)](#engineering-validation)
+[![Frontend](https://img.shields.io/badge/frontend%20tests-15%20passing-brightgreen)](#engineering-validation)
+[![Python](https://img.shields.io/badge/python-3.12-3776ab)](pyproject.toml)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688)](src/paymentflow/main.py)
 [![React](https://img.shields.io/badge/React-18-61dafb)](frontend/package.json)
+[![License](https://img.shields.io/badge/license-MIT-informational)](LICENSE)
 
 > **"AI recommends. Deterministic policy authorizes. Razorpay executes. System verifies."**
 
-PaymentFlow is a policy-first agentic revenue-recovery system for failed one-time Razorpay payments. It uses constrained LLM reasoning (Google Gemini via MCP) behind a deterministic guardrail engine to identify recoverable payment failures, dispatch Razorpay Payment Links, and attribute recovered revenue only after gateway capture is confirmed.
+PaymentFlow is an autonomous, policy-first revenue recovery system for failed Razorpay payments. It combines constrained LLM reasoning (Google Gemini `gemini-3.5-flash-lite` via the Model Context Protocol) with an authoritative deterministic guardrail engine to recover lost revenue from dropouts, network timeouts, and soft card friction. It dispatches official Razorpay Payment Links and attributes recovered revenue if and only if gateway capture is verified.
 
 ---
 
-## Table of Contents
+## 🔴 Live Interactive Deployments
 
-1. [What It Does](#what-it-does)
-2. [Architecture Overview](#architecture-overview)
-3. [Services](#services)
-4. [The AI Safety Model](#the-ai-safety-model)
-5. [Recovery Flow](#recovery-flow)
-6. [Demo: End-to-End Walkthrough](#demo-end-to-end-walkthrough)
-7. [Quickstart (Local Development)](#quickstart-local-development)
-8. [Environment Variables](#environment-variables)
-9. [Testing](#testing)
-10. [Deployment](#deployment)
-11. [API Reference](#api-reference)
-12. [Benchmark & Evaluation](#benchmark--evaluation)
-13. [Design Decisions & Limitations](#design-decisions--limitations)
-14. [Project Structure](#project-structure)
-
----
-
-## What It Does
-
-When a customer's Razorpay checkout fails, merchants typically lose the revenue with no intelligent follow-up. PaymentFlow solves this by:
-
-1. **Ingesting** `payment.failed` webhooks from Razorpay with HMAC-SHA256 signature verification
-2. **Diagnosing** the failure using an empirical C1–C5 taxonomy (soft/transient vs. hard/terminal)
-3. **Advising** via Gemini LLM through a sanitized MCP data contract — the LLM never touches the database or gateway credentials
-4. **Authorizing** only through a deterministic `PolicyGuardrailEngine` that enforces 8 financial invariants
-5. **Executing** a bounded Razorpay Payment Link dispatch (new payment opportunity — never retrying the original failed payment)
-6. **Verifying** revenue attribution only after authoritative gateway capture confirmation
-7. **Surfacing** results in a real-time Operator Console and the customer-facing Merchant Storefront
-
-### What PaymentFlow Does NOT Do
-
-- It does **not** retry, resurrect, or force-capture the original failed payment
-- It does **not** grant the LLM write access to the database or gateway
-- It does **not** claim revenue recovered until `payment.captured` is confirmed by Razorpay
-- It does **not** handle subscriptions, mandates, recurring payments, or fraud scoring
-
----
-
-## Architecture Overview
-
-```
-Customer Checkout (Apex Gear Co. Storefront)
-       |
-       v  (intentional failure in Razorpay Test Mode)
-Razorpay Gateway ---- payment.failed webhook --------------------------+
-       |                                                               v
-       |                                              PaymentFlow Backend (FastAPI)
-       |                                              +--------------------------+
-       |                                              | 1. Webhook Ingestion     |
-       |                                              |    HMAC-SHA256 Verify    |
-       |                                              | 2. C1-C5 Diagnosis       |
-       |                                              | 3. Gemini AI Advisory    |
-       |                                              |    (MCP / read-only)     |
-       |                                              | 4. Guardrail Engine      |
-       |                                              |    (8 invariants)        |
-       |                                              | 5. Payment Link Create   |
-       |                                              +--------------------------+
-       |                                                          |
-       +<--- Recovery Link surfaced in Storefront ----------------+
-       |
-Customer pays recovery link
-       |
-       v  (payment_link.paid webhook -> payment.captured)
-Revenue Attribution (row-level lock, single attribution guarantee)
-       |
-       v
-Operator Console: RECOVERED | Rs.X,XXX.XX | Gateway Verified
-```
-
----
-
-## Services
-
-| Service | Tech | Source | Deployed |
-|---|---|---|---|
-| **PaymentFlow Backend** | Python 3.12, FastAPI, SQLAlchemy 2.0, asyncpg | `src/paymentflow/` | Railway |
-| **Merchant Demo** | Python 3.12, FastAPI (server) + Vanilla JS (UI) | `apps/merchant-demo/` | Railway |
-| **Operator Console** | React 18, Vite, TypeScript, Tailwind CSS | `frontend/` | Vercel |
-| **Database** | PostgreSQL 16 (Neon in production) | Alembic migrations | Neon |
-
-### Service Boundaries
-
-- **Backend → Razorpay**: Razorpay API HTTP calls (test mode keys)
-- **Backend → Gemini**: `httpx` HTTP client via MCP tool protocol
-- **Merchant Demo → Backend**: HTTP REST with `X-PaymentFlow-Key` API key authentication
-- **Operator Console → Backend**: HTTP REST (`VITE_API_BASE_URL`)
-- **Razorpay → Backend**: Webhook `POST /webhooks/razorpay` (HMAC-SHA256 verified)
-
----
-
-## The AI Safety Model
-
-PaymentFlow enforces a hard boundary between LLM advisory and transactional execution:
-
-```
-+----------------------------------+-----------------------------------+
-| LLM Reasoning (Advisory Only)    | PolicyGuardrailEngine (Gate)      |
-+----------------------------------+-----------------------------------+
-| - Consumes sanitized MCP data    | - Sole write-authorization gate   |
-| - Diagnoses failure root cause   | - Amount immutability (paise)     |
-| - Proposes policy and timing     | - Currency allowlist (INR only)   |
-| - Suggests customer message      | - High-value threshold Rs.50,000  |
-| - No gateway credentials         | - Single-link limit per case      |
-| - No database write access       | - 24h customer cooldown           |
-| - No payment authorization       | - Hard C4/C5 escalation block     |
-+----------------------------------+-----------------------------------+
-```
-
-The LLM is **never** granted authority to create payment links, modify amounts, capture payments, or declare revenue recovered.
-
----
-
-## Recovery Flow
-
-### Failure Classification (C1–C5 Taxonomy)
-
-| Class | Description | Recovery Policy |
+| Service | Live URL | Purpose |
 |---|---|---|
-| **C1** | Customer dropoff (soft) | `P_CREATE_LINK_IMMEDIATE` — link within minutes |
-| **C2** | Gateway/bank downtime (transient) | `P_CREATE_LINK_DELAYED` — link after cooling-off |
-| **C3** | Insufficient funds / method limit (soft) | Alternative method recommendation |
-| **C4** | Fraud, risk, AML flags (hard) | `P_ESCALATE_ONLY` — unconditional human escalation |
-| **C5** | Terminal / invalid card / closed account (hard) | `P_NO_ACTION` — no link dispatched |
-
-### Guardrail Invariants (8 Rules)
-
-1. Amount must be positive and match original failure exactly (paise precision)
-2. Currency must be INR
-3. Amount must not exceed Rs.50,000
-4. Case must not already have an active payment link
-5. Customer must not be in 24-hour cooldown
-6. C4 (fraud/risk) cases must always escalate — no exceptions
-7. C5 (terminal) cases receive no link
-8. Recovery opportunity bounded to single link per case
+| **Operator Intelligence Console** | [paymentflow-recovery-agent.vercel.app](https://paymentflow-recovery-agent.vercel.app/) | Operations dashboard — live case monitoring, decision stories & one-click benchmark |
+| **Merchant Storefront Demo** | [merchant-demo-production.up.railway.app](https://merchant-demo-production.up.railway.app/) | Apex Gear Co. merchant storefront — simulate checkouts and live failures |
+| **Merchant Checkout Page** | [merchant-demo-production.up.railway.app/checkout](https://merchant-demo-production.up.railway.app/checkout) | Direct checkout page with failure simulation triggers |
+| **Backend REST API** | [paymentflow-backend-production.up.railway.app](https://paymentflow-backend-production.up.railway.app/) | Asynchronous FastAPI service running on Railway |
+| **Interactive Swagger Docs** | [paymentflow-backend-production.up.railway.app/docs](https://paymentflow-backend-production.up.railway.app/docs) | Interactive OpenAPI documentation — inspect & test all endpoints |
+| **Health Diagnostics Probe** | [paymentflow-backend-production.up.railway.app/health](https://paymentflow-backend-production.up.railway.app/health) | Live health status: backend, database, Gemini AI provider, and migration status |
 
 ---
 
-## Demo: End-to-End Walkthrough
+## The Problem & Opportunity
 
-### Live Test Mode Demo (Two-Tab Flow)
-
-**Prerequisites:** Backend, Merchant Demo, and Operator Console all running (locally or deployed).
-
-**Tab 1 — Merchant Storefront** (`http://localhost:8002` or deployed URL):
-
-1. Browse the Apex Gear Co. product catalog
-2. Add a product to cart and proceed to checkout
-3. Enter your phone number (required for recovery), name and email are optional
-4. In Razorpay Test Mode checkout:
-   - **To trigger failure:** UPI -> VPA: `failure@razorpay`
-   - **Or card path:** Card `4111 1111 1111 1111`, any future expiry, CVV `123` -> click **"Failure"** on OTP screen
-5. Payment fails -> webhook fires -> PaymentFlow creates recovery link
-6. Storefront polls `/api/recovery-status` and surfaces the recovery link
-7. Click the recovery link -> complete payment:
-   - **UPI success:** VPA `success@razorpay`
-   - **Card success:** Same card -> click **"Success"** on OTP screen
-
-**Tab 2 — Operator Console** (`http://localhost:5173` or Vercel URL):
-
-- Watch the case move through: `INGESTED -> DIAGNOSED -> AI_ADVISORY -> GUARDRAIL_APPROVED -> ACTION_EXECUTED -> RECOVERED`
-- Each stage shows: AI reasoning, guardrail invariant checks, gateway payment ID, attributed cash
-
-### Synthetic Benchmark Demo
-
-From the Operator Console:
-
-1. Click **"Run Benchmark"** to execute the 15-case synthetic evaluation harness
-2. View: Diagnosis Accuracy, Action Match Rate, Guardrail Compliance, Eligible Recovery Rate
-3. All metrics are labeled **"Synthetic Evaluation"** — no real money moves
+Approximately 15–20% of Indian e-commerce checkouts fail. A failed transaction is rarely a lost customer—most dropoffs are transient (interrupted network pipes, OTP timeouts, momentary card limit holds). Without an intelligent recovery system, merchants permanently forfeit this revenue and incur high re-acquisition costs.
 
 ---
 
-## Quickstart (Local Development)
+## The PaymentFlow Solution
 
-### Prerequisites
+PaymentFlow ingests `payment.failed` webhooks from Razorpay, enriches diagnostics, classifies the root cause using a normalized **C1–C5 failure taxonomy**, consults a constrained Google Gemini advisory layer via **MCP**, and passes every proposal through the deterministic **PolicyGuardrailEngine**. When safe and compliant, it dispatches an immediate or restart-safe delayed Razorpay Payment Link. Revenue is credited **only after a signed webhook confirms funds are captured**.
 
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL 16 (or Docker)
-- Razorpay Test Mode account (free)
-- Google Gemini API key (free tier available)
+---
 
-### 1. Clone & Configure
+## Why PaymentFlow Is Different
 
+| Dimension | PaymentFlow Architecture | Typical Industry Approach |
+|---|---|---|
+| **AI Role** | Advisory only — zero direct DB or write permissions | Unbounded LLM writes directly to gateway |
+| **Authorization Gate** | Authoritative deterministic `PolicyGuardrailEngine` | Model prompt instructions / trust-based |
+| **Revenue Attribution** | 100% captured-only verification via signed webhooks | Optimistic attribution on link creation |
+| **Financial Guardrail** | Mandatory human escalation for transactions $> ₹50,000$ | Automated retries on high-ticket fraud risk |
+| **Anti-Tampering** | Mathematical immutability on amount and currency | Prompt-vulnerable discounting or mutation |
+| **Anti-Spam / Cooldown** | Max 3 attempts per rolling 24 hours per customer | Repeated customer spamming |
+| **Delayed Execution** | Restart-safe DB persistence (`scheduled_at`) | Fragile in-memory `asyncio.sleep()` loops |
+| **Audit Trail** | Append-only immutable PostgreSQL ledger | Fragmented application logs |
+
+---
+
+## Architecture
+
+```text
+Customer Checkout  (Apex Gear Co. Merchant Demo)
+        │
+        │  Payment fails (UPI failure@razorpay / Card OTP timeout)
+        ▼
+Razorpay Gateway ──── payment.failed webhook ──────────────────────────┐
+        │                                                               │
+        │                                          PaymentFlow Backend (FastAPI)
+        │                                          ┌──────────────────────────────┐
+        │                                          │ 1. Ingestion & Idempotency   │
+        │                                          │    HMAC-SHA256 Signature     │
+        │                                          │    event_id Deduplication    │
+        │                                          │                              │
+        │                                          │ 2. C1–C5 Failure Diagnosis   │
+        │                                          │    Deterministic Taxonomy    │
+        │                                          │                              │
+        │                                          │ 3. Gemini LLM Advisory       │
+        │                                          │    ← MCP Tool Boundary →     │
+        │                                          │    get_payment_context       │
+        │                                          │    request_recovery_action   │
+        │                                          │                              │
+        │                                          │ 4. PolicyGuardrailEngine     │
+        │                                          │    5 Mathematical Invariants │
+        │                                          │    APPROVE / ESCALATE / BLOCK│
+        │                                          │                              │
+        │                                          │ 5. RecoveryExecutor          │
+        │                                          │    SELECT ... FOR UPDATE     │
+        │                                          │    Payment Link Creation     │
+        │                                          └──────────────────────────────┘
+        │                                                      │
+        │◀── Recovery Link surfaced in Merchant Storefront ───┘
+        │
+Customer pays the recovery link
+        │
+        ▼  payment_link.paid → payment.captured (signed webhook)
+PaymentFlow attributes revenue (row-level lock, captured-only guarantee)
+        │
+        ▼
+Operator Console: RECOVERED │ ₹X,XXX.XX │ Gateway Verified
+```
+
+→ Full technical design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+---
+
+## ⭐ Controlled Dashboard Benchmark (Panel Showcase)
+
+PaymentFlow includes an interactive **Controlled Demonstration Benchmark** built directly into the Operator Console dashboard. Evaluators can trigger the authentic production triage, diagnosis, and guardrail layers live with a single click.
+
+### Key Metrics from the Controlled 15-Scenario Batch
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 Controlled Benchmark Panel Scorecard (15 Scenarios)         │
+├─────────────────────────────────────────┬───────────────────────────────────┤
+│ Metric                                  │ Verified Value                    │
+├─────────────────────────────────────────┼───────────────────────────────────┤
+│ Total Scenarios Evaluated               │ 15 Scenarios (CS01–CS15)          │
+│ Total Volume at Risk                    │ ₹1,22,117.00 (12,211,700 paise)   │
+│ Policy-Eligible Opportunities           │ 7 Cases                           │
+│ Eligible Opportunity Revenue            │ ₹31,538.00 (3,153,800 paise)      │
+│ Evaluation Recovered Cases              │ 6 Cases (CS01, CS02, CS03, 11,14,15)│
+│ Evaluation Recovered Revenue            │ ₹28,648.00 (2,864,800 paise)      │
+│ In-Flight / Unrecovered Eligible Cases  │ 1 Case (CS12, ₹2,890.00)          │
+│ High-Value / Compliance Escalated Cases │ 2 Cases (CS04, CS05, ₹69,750.00)  │
+│ Terminal Safe Halts                     │ 6 Cases (CS06,07,08,09,10,13)     │
+│ Total Protected / Safeguarded Volume    │ ₹90,579.00                        │
+├─────────────────────────────────────────┼───────────────────────────────────┤
+│ ★ Primary: Eligible Opportunity Rate    │ 90.84% (₹28,648 / ₹31,538)        │
+│ Eligible Case Recovery Rate             │ 85.71% (6 / 7 eligible cases)     │
+│ Overall Case Recovery Rate              │ 40.00% (6 / 15 total cases)       │
+│ Gross Portfolio Revenue Recovery Rate   │ 23.46% (₹28,648 / ₹1,22,117)      │
+└─────────────────────────────────────────┴───────────────────────────────────┘
+```
+
+### Why Eligible Opportunity vs. Gross Portfolio Matters
+- **90.84% Eligible Opportunity Rate**: Demonstrates that where recovery is safe and compliant, PaymentFlow converts over 90% of lost revenue into cash.
+- **23.46% Gross Portfolio Rate**: Reflects strict financial safety controls. High-value transactions (such as **CS04 for ₹65,000**) and AML risks (**CS05**) are **rightfully halted from automated links**, successfully safeguarding **₹90,579.00** from unmediated risk.
+
+→ Complete scenario breakdown and measurement semantics: [docs/CONTROLLED_BENCHMARK.md](docs/CONTROLLED_BENCHMARK.md)
+
+---
+
+## AI Safety & Deterministic Guardrails
+
+PaymentFlow enforces a hard architectural boundary between AI reasoning and financial execution:
+
+```text
+DecisionContext (sanitized payment facts)
+        │
+        ▼
+Gemini LLM (via MCP)         ← ADVISORY ONLY
+  – Diagnoses failure root cause
+  – Proposes recovery policy + timing
+  – Supplies confidence score + reasoning
+  – Has zero access to DB or gateway credentials
+        │
+        ▼  AgentDecision (structured proposal)
+PolicyGuardrailEngine        ← SOLE AUTHORIZATION GATE
+  – Validates every proposal deterministically
+  – Enforces 5 mathematical invariants
+  – Can APPROVE / DOWNGRADE / ESCALATE / REJECT
+  – Cannot be bypassed by the LLM
+        │
+        ▼  Authorized Policy
+RecoveryExecutor             ← ONLY SYSTEM THAT WRITES
+  – Creates Razorpay Payment Link
+  – Executes pre-write secondary validation
+  – Maintains single-link-per-case guarantee
+```
+
+### Deterministic Safety Invariants
+
+| Invariant | Mathematical Rule | Purpose |
+|---|---|---|
+| **Amount Immutability** | $\text{Proposed Amount} \equiv \text{Original Amount}$ | Rejects adversarial discount tampering (e.g., CS07 10% discount blocked) |
+| **Currency Immutability** | $\text{Proposed Currency} \equiv \text{Original Currency} \equiv \text{"INR"}$ | Rejects unauthorized foreign currency switching (e.g., CS08 USD blocked) |
+| **High-Value Cap** | $\text{Amount} > ₹50,000 \implies \text{P\_ESCALATE\_ONLY}$ | Prevents automated recovery on high-ticket VIP purchases (e.g., CS04 ₹65,000) |
+| **Anti-Spam Cooldown** | $\text{Attempts in 24h} \le 3$ | Prevents customer spamming and brand fatigue (e.g., CS09 4th attempt blocked) |
+| **Single Active Link** | $\text{Active Links per Case} \le 1$ | Eliminates duplicate links and multi-tab overcharges |
+
+→ Full safety architecture & MCP protocol specs: [docs/AI_SAFETY.md](docs/AI_SAFETY.md)
+
+---
+
+## Comprehensive Evaluation Results
+
+All quantitative figures below have been **100% verified against raw evaluation result artifacts** (`baseline_results.json`, `mock_agent_results.json`, and database test records):
+
+### 1. Synthetic Dataset Evaluation (75 Cases $\times$ 50 CRN Draws = 3,750 Simulations)
+
+| Metric | Deterministic Baseline (L5B) | Agentic Recovery (L5C) | Net Uplift |
+|---|---:|---:|---:|
+| Dataset Size | 75 cases | 75 cases | — |
+| Monte Carlo Draws | 3,750 simulations | 3,750 simulations | Identical CRN Seeds |
+| **Overall Recovery Rate** | **31.73%** (1,190 / 3,750) | **61.71%** (2,314 / 3,750) | **+29.98% absolute** |
+| Total Opportunity Value | ₹11,96,623.00 | ₹11,96,623.00 | — |
+| **Expected Recovered Revenue**| **₹1,67,699.16** | **₹8,43,619.04** | **+₹6,75,919.88 (+403%)** |
+| Opportunity Share Recovered | **14.01%** | **70.50%** | **+56.49% absolute** |
+| Guardrail Interventions | 0 (Static Rules) | 4 (Safe Halts Enforced) | Defense-in-Depth |
+
+### 2. Real Google Gemini LLM Validation (Layer 5E — 15 Cases)
+
+| Metric | Result | Verification Standard |
+|---|---|---|
+| **Schema Validity Rate** | **100.0%** (15 / 15) | Validated against Pydantic `AgentDecision` |
+| **Failure Category Accuracy** | **93.3%** (14 / 15) | Ground-truth benchmark alignment |
+| **Guardrail Compliance Rate** | **100.0%** (0 interventions) | Perfect policy adherence |
+| **Average Model Latency** | **1,802.52 ms** | Production-acceptable for async triage |
+| **Total Tokens Consumed** | **18,666 tokens** | Prompt: 15,855 · Completion: 2,811 |
+
+→ Detailed statistical analysis & category tables: [docs/EVALUATION_RESULTS.md](docs/EVALUATION_RESULTS.md)  
+→ Evaluation methodology & CRN variance reduction: [docs/EVALUATION_METHODOLOGY.md](docs/EVALUATION_METHODOLOGY.md)
+
+---
+
+## Engineering Validation & Test Suite
+
+PaymentFlow maintains a rigorous automated testing and static analysis regime:
+
+| Verification Target | Result | Command |
+|---|---|---|
+| **Backend Test Suite** | **328 / 328 passing (100%)** | `pytest` |
+| **Frontend Test Suite** | **15 / 15 passing (100%)** | `npm test -- --run` |
+| **Code Coverage** | **93% across core domain** | `pytest --cov=paymentflow` |
+| **Ruff Linter** | **0 errors / clean** | `ruff check src/ tests/` |
+| **TypeScript Typecheck** | **0 errors / clean** | `npm run typecheck` |
+| **Alembic Database Migrations** | **6 linear migrations (head: 0006)**| `alembic current` |
+| **Docker Build (Backend)** | Multi-stage, non-root `appuser` | `docker build -t backend .` |
+| **Docker Build (Frontend)** | Node 22 + Nginx Alpine SPA | `docker build -t frontend frontend/` |
+
+---
+
+## Quick Start (Local Development)
+
+### 1. Prerequisites
+- Python 3.12+ · Node.js 20+ · PostgreSQL 15+ (or Docker)
+
+### 2. Configure Environment
 ```bash
-git clone <repo-url>
-cd Razorpay
 cp .env.example .env
-# Edit .env with your Razorpay test keys and Gemini API key
+# Fill in DATABASE_URL, GEMINI_API_KEY, and RAZORPAY test credentials
 ```
 
-### 2. Start Database
-
+### 3. Backend Setup & Migrations
 ```bash
-# Option A: Docker
-docker compose up -d db
-
-# Option B: Local PostgreSQL — create DB: paymentflow_db, user: paymentflow_user
-```
-
-### 3. Install Backend & Run Migrations
-
-```bash
-# Using uv (recommended)
-pip install uv
-uv sync
-uv run alembic upgrade head
-uv run uvicorn paymentflow.main:app --host 0.0.0.0 --port 8001 --reload
-
-# Or pip
+# Setup virtual environment
+python -m venv .venv
+.venv\Scripts\activate  # Windows (.venv/bin/activate on Unix)
 pip install -e ".[dev]"
+
+# Run migrations
 alembic upgrade head
-uvicorn paymentflow.main:app --host 0.0.0.0 --port 8001 --reload
+
+# Start backend server
+uvicorn paymentflow.main:app --reload --port 8000
+# → API: http://localhost:8000 · Swagger: http://localhost:8000/docs
 ```
 
-Backend: `http://localhost:8001` · API docs: `http://localhost:8001/docs`
-
-### 4. Start Merchant Demo
-
-```bash
-cd apps/merchant-demo
-pip install fastapi uvicorn pydantic pydantic-settings httpx
-RAZORPAY_KEY_ID=rzp_test_xxx RAZORPAY_KEY_SECRET=xxx \
-  PAYMENTFLOW_API_KEY=pf_live_test_merchant_key_2026 \
-  PAYMENTFLOW_API_URL=http://localhost:8001 \
-  uvicorn server.main:app --host 0.0.0.0 --port 8002
-```
-
-Merchant Storefront: `http://localhost:8002`
-
-### 5. Start Operator Console
-
+### 4. Frontend Console Setup
 ```bash
 cd frontend
 npm install
-# Edit .env: VITE_API_BASE_URL=http://localhost:8001
 npm run dev
+# → Console: http://localhost:3000
 ```
 
-Operator Console: `http://localhost:5173`
-
-### 6. Full Stack via Docker Compose
-
+### 5. Merchant Demo Store Setup
 ```bash
-cp .env.example .env
-# Fill in real keys in .env
-docker compose up --build
+cd apps/merchant-demo/server
+python main.py --port 8001
+# → Store: http://localhost:8001
 ```
 
-Services: Backend `:8001`, Merchant `:8002`
+→ Complete setup & Docker instructions: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 
 ---
 
-## Environment Variables
+## Documentation Index
 
-### Backend (`src/paymentflow/config.py`)
+The repository maintains an authoritative, fully updated, all-caps documentation suite in `docs/`:
 
-| Variable | Required | Description |
+| Document | Focus Area | Contents |
 |---|---|---|
-| `DATABASE_URL` | Yes | `postgresql+asyncpg://...` — async DB connection (asyncpg driver) |
-| `RAZORPAY_KEY_ID` | Yes | Razorpay Test Mode Key ID (`rzp_test_...`) |
-| `RAZORPAY_KEY_SECRET` | Yes | Razorpay API Key Secret |
-| `RAZORPAY_WEBHOOK_SECRET` | Yes | Dedicated webhook signing secret (from Razorpay Dashboard) |
-| `LLM_API_KEY` / `GEMINI_API_KEY` | Yes | Google Gemini API key |
-| `PAYMENTFLOW_API_KEY` | Yes | Server-to-server merchant API key (shared with Merchant Demo) |
-| `CORS_ORIGINS` | Yes (prod) | Comma-separated or JSON array of allowed frontend origins |
-| `ENVIRONMENT` | No | `development` / `production` (default: `development`) |
-| `LLM_MODEL` | No | Gemini model name (default: `gemini-1.5-flash`) |
-| `LLM_PROVIDER_TYPE` | No | `gemini` / `mock` (default: `gemini`) |
-| `PORT` / `APP_PORT` | No | Server port (Railway injects `PORT`, default: `8000`) |
-| `PUBLIC_BASE_URL` | No | Public HTTPS URL (for webhook URL construction) |
-
-### Merchant Demo (`apps/merchant-demo/server/config.py`)
-
-| Variable | Required | Description |
-|---|---|---|
-| `RAZORPAY_KEY_ID` | Yes | Razorpay Test Mode Key ID |
-| `RAZORPAY_KEY_SECRET` | Yes | Razorpay API Key Secret |
-| `PAYMENTFLOW_API_KEY` | Yes | Must match backend `PAYMENTFLOW_API_KEY` |
-| `PAYMENTFLOW_API_URL` | Yes | Backend base URL (e.g. `https://paymentflow-backend-*.railway.app`) |
-| `PORT` | No | Server port (default: `8002`) |
-
-### Operator Console (`frontend/.env`)
-
-| Variable | Required | Description |
-|---|---|---|
-| `VITE_API_BASE_URL` | Yes | Backend URL (e.g. `https://paymentflow-backend-*.railway.app`) |
-| `VITE_MERCHANT_STOREFRONT_URL` | No | Merchant demo URL (auto-derived from backend URL if on Railway) |
-
----
-
-## Testing
-
-### Backend (328 tests)
-
-```bash
-# Run all tests
-uv run pytest tests/ -v
-
-# With coverage
-uv run pytest tests/ --cov=paymentflow --cov-report=term-missing
-
-# Lint + format check
-uv run ruff check src/ tests/
-uv run ruff format --check src/ tests/
-```
-
-**Test coverage includes:**
-
-- Webhook ingestion, HMAC signature verification, idempotency deduplication
-- C1–C5 failure classification accuracy across all error codes
-- PolicyGuardrailEngine — all 8 invariants, including edge cases
-- RecoveryOrchestrator state machine transitions
-- Revenue attribution with row-level lock semantics
-- LLM provider mock harness (gemini/openai/mock protocol)
-- Benchmark evaluation harness (15 canonical synthetic cases)
-- Merchant API boundary: authentication, tenant isolation, cross-tenant rejection
-
-### Frontend (15 tests)
-
-```bash
-cd frontend
-npm test
-```
-
-Frontend tests cover: API client URL resolution, merchant storefront domain derivation, environment variable handling.
-
----
-
-## Deployment
-
-### Deployed Architecture (Production)
-
-| Service | Host | URL |
-|---|---|---|
-| PaymentFlow Backend | Railway | `https://paymentflow-backend-production.up.railway.app` |
-| Merchant Demo | Railway | `https://merchant-demo-production.up.railway.app` |
-| Operator Console | Vercel | Your Vercel deployment URL |
-| Database | Neon (PostgreSQL) | Connection via `DATABASE_URL` env var |
-
-### Razorpay Webhook Configuration
-
-Configure in Razorpay Dashboard -> Settings -> Webhooks:
-
-- **URL:** `https://paymentflow-backend-production.up.railway.app/webhooks/razorpay`
-- **Active Events:** `payment.failed`, `payment.captured`, `payment_link.paid`
-- **Secret:** Set as `RAZORPAY_WEBHOOK_SECRET` in Railway backend environment
-
-### Database Migrations (Neon)
-
-```bash
-railway run --service paymentflow-backend uv run alembic upgrade head
-```
-
----
-
-## API Reference
-
-Full interactive API docs: `https://paymentflow-backend-production.up.railway.app/docs`
-
-### Core Endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Service health + DB connectivity check |
-| `POST` | `/webhooks/razorpay` | Razorpay webhook ingestion (HMAC-SHA256 verified) |
-| `GET` | `/cases` | List recovery cases (filterable by state, source) |
-| `GET` | `/cases/{case_id}` | Case detail with chronological audit trail |
-| `GET` | `/cases/metrics/summary` | Aggregated recovery KPIs |
-| `POST` | `/cases/{case_id}/triage` | Manually trigger AI recovery orchestration |
-| `POST` | `/cases/delayed/process` | Execute due delayed recovery cases |
-| `GET` | `/cases/benchmark/latest` | Latest synthetic benchmark results |
-| `POST` | `/cases/benchmark/run` | Execute 15-case synthetic benchmark |
-
-### Merchant API (authenticated with `X-PaymentFlow-Key`)
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/v1/merchant/checkout/context` | Register checkout context pre-gateway |
-| `GET` | `/api/v1/merchant/orders/{order_id}/recovery` | Poll recovery link availability |
-| `GET` | `/api/v1/merchant/cases/{case_id}/status` | Poll case recovery status |
-
----
-
-## Benchmark & Evaluation
-
-PaymentFlow includes a versioned synthetic evaluation harness that measures AI agent decision quality against a deterministic baseline.
-
-> **Important:** The benchmark uses fully synthetic data. No real money moves during evaluation.
-
-### Metrics (15 canonical cases across C1–C5)
-
-| Metric | Formula |
-|---|---|
-| Eligible Recovery Rate | Recovered soft cases / Total eligible soft cases |
-| Gross Recovery Rate | Total recovered / Total ingested cases |
-| Diagnosis Accuracy | Correct C1–C5 classification / Total cases |
-| Action Match Rate | Agent policy matches ground truth / Total cases |
-| Guardrail Compliance | 1 - (Guardrail overrides / Total AI proposals) |
-| Unnecessary Action Rate | Actions on hard cases (C4/C5) / Total hard cases |
-
-Run the benchmark from the Operator Console UI or via API: `POST /cases/benchmark/run`
-
----
-
-## Design Decisions & Limitations
-
-### Deliberate Design Choices
-
-**LLM via MCP (not direct DB access):** The Gemini LLM receives a sanitized read-only data contract via MCP. This is the core trust architecture — AI advises, policy authorizes.
-
-**Paise-precision amount handling:** All amounts stored and compared in paise (1 INR = 100 paise). No floating-point arithmetic on financial values.
-
-**Row-level locking for attribution:** `SELECT ... FOR UPDATE` in the attribution path prevents double-attribution even under concurrent webhook delivery.
-
-**Webhook idempotency:** `webhook_events` table deduplicates on `gateway_event_id`. Replayed events return HTTP 200 without re-processing.
-
-**Separate sync/async DB URLs:** `asyncpg` (FastAPI/SQLAlchemy) requires `?ssl=require`. Alembic uses `psycopg2` which requires `?sslmode=require`. The `reconcile_database_urls` validator in `config.py` handles conversion automatically at startup.
-
-### Scope & Limitations (Buildathon Context)
-
-- **Test Mode only:** All Razorpay integration uses Test Mode keys. Payment captures are simulated in Razorpay's sandbox.
-- **INR only:** The guardrail engine allowlists only Indian Rupees.
-- **Single tenant demo:** Merchant isolation is implemented but the demo uses one primary merchant (`merchant_apex_gear`).
-- **No SMS/WhatsApp delivery:** Recovery links are surfaced in the storefront UI and Operator Console. SMS delivery is not available in Razorpay Test Mode.
-- **LLM fallback:** If Gemini is unavailable, `LLM_PROVIDER_TYPE=mock` applies deterministic fallback policies without LLM calls.
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture | Complete 6-layer pipeline, frontend & backend design, state machine, data models |
+| [docs/CONTROLLED_BENCHMARK.md](docs/CONTROLLED_BENCHMARK.md) | **Panel Showcase** | Detailed breakdown of the 15-scenario dashboard benchmark, metrics, and demo flow |
+| [docs/AI_SAFETY.md](docs/AI_SAFETY.md) | Safety & Guardrails | Gemini LLM advisory model, MCP protocol boundary, 5 mathematical invariants |
+| [docs/RECOVERY_ENGINE.md](docs/RECOVERY_ENGINE.md) | Core Engine | C1–C5 failure taxonomy, eligibility rules, restart-safe delayed recovery, attribution |
+| [docs/EVALUATION_RESULTS.md](docs/EVALUATION_RESULTS.md) | Results | Verified results for Baseline (31.73%), Mock Agent (61.71%), Real LLM & Benchmark |
+| [docs/EVALUATION_METHODOLOGY.md](docs/EVALUATION_METHODOLOGY.md) | Methodology | 75-case dataset design, CustomerResponseSimulator, SHA-256 CRN seeds, zero-leakage |
+| [docs/MERCHANT_INTEGRATION.md](docs/MERCHANT_INTEGRATION.md) | Merchant Integration | Standalone demo store, webhook HMAC verification, API key binding, checkout simulator |
+| [docs/EXTERNAL_TESTING.md](docs/EXTERNAL_TESTING.md) | Evaluator Guide | Step-by-step testing instructions, live endpoints, and guardrail observation guide |
+| [docs/API.md](docs/API.md) | API Reference | Complete REST API endpoint reference, schemas, query parameters, and responses |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local Development | Local installation, database setup, migrations, tests, and environment variables |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment | Railway and Vercel production topology, containerization, and health probes |
+| [docs/SECURITY.md](docs/SECURITY.md) | Security & Privacy | Threat modeling, PCI-DSS scope exemption, PII masking, append-only audit trail |
+| [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | Constraints | Honest demarcation of demonstrated vs production realities, trade-offs, and roadmap |
 
 ---
 
 ## Project Structure
 
-```
+```text
 Razorpay/
-├── src/paymentflow/           # Backend Python package
-│   ├── adapters/              # Razorpay API adapter (test mode)
-│   ├── api/                   # FastAPI routes: cases, webhooks, health, merchant, interactive
-│   ├── config.py              # Settings (pydantic-settings, DB URL dialect reconciliation)
-│   ├── db/                    # SQLAlchemy async session, models
-│   ├── domain/                # Entities, C1-C5 taxonomy, policy engine, state machine
-│   ├── eval/                  # Synthetic benchmark harness, canonical dataset, LLM evaluator
-│   ├── mcp/                   # MCP protocol data contracts for LLM advisory
-│   ├── merchant/              # Tenant model, API key authentication
-│   ├── services/              # RecoveryOrchestrator, PolicyGuardrailEngine, WebhookService
-│   └── main.py                # FastAPI app factory, lifespan, CORS
-├── apps/merchant-demo/        # Merchant Reference Application
-│   ├── server/                # FastAPI server (Python): orders, recovery polling
-│   └── frontend/              # Merchant storefront UI (Vanilla JS / HTML)
-├── frontend/                  # Operator Console (React + TypeScript + Vite + Tailwind)
-├── migrations/                # Alembic database migrations
-├── tests/                     # pytest test suite (328 tests)
-├── docker-compose.yml         # Local multi-service stack
-├── Dockerfile                 # Backend container (python:3.12-slim, non-root)
-└── pyproject.toml             # Python dependencies + tool config
+├── src/paymentflow/           # Backend Python package (FastAPI)
+│   ├── adapters/              # Razorpay API client adapter
+│   ├── api/                   # REST routes: /cases, /webhooks, /health, /merchant
+│   ├── config.py              # Pydantic Settings & dialect normalization
+│   ├── db/                    # SQLAlchemy 2.0 models & async sessionmaker
+│   ├── domain/                # C1–C5 taxonomy, PolicyGuardrailEngine, eligibility, state machine
+│   ├── eval/                  # Benchmark runner, canonical scenarios, synthetic simulator
+│   ├── mcp/                   # Model Context Protocol server, client & tool registry
+│   ├── merchant/              # Merchant key binding & schemas
+│   └── services/              # RecoveryOrchestrator, RecoveryExecutor, WebhookService
+├── apps/merchant-demo/        # Autonomous Merchant Demo Application (FastAPI + JS)
+├── frontend/                  # Operator Intelligence Console (React 18 + TypeScript + Vite)
+├── migrations/                # Alembic database migrations (6 versions)
+├── tests/                     # Automated test suite (328 backend tests)
+├── docs/                      # Authoritative project documentation (13 ALL-CAPS files)
+├── docker-compose.yml         # Multi-service local container stack
+├── Dockerfile                 # Multi-stage production backend container
+└── pyproject.toml             # Python configuration, dependencies, ruff & pytest settings
 ```
 
 ---
 
-## Built With
-
-**Backend:** Python 3.12 · FastAPI · SQLAlchemy 2.0 (async) · asyncpg · Alembic · pydantic-settings · httpx · MCP SDK
-
-**Frontend:** React 18 · TypeScript · Vite · Tailwind CSS · Vitest
-
-**Merchant Demo:** FastAPI · Vanilla JS
-
-**Database:** PostgreSQL 16 (Neon in production)
-
-**AI:** Google Gemini via MCP tool protocol
-
-**Deployment:** Railway (backend + merchant) · Vercel (frontend) · Neon (database)
-
----
-
-*Razorpay Buildathon · Track 03 — AI Revenue Recovery*
+*Built for Razorpay Buildathon · Track 03 — AI Revenue Recovery*
