@@ -59,11 +59,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   hasEvaluationRun = false,
 }) => {
 
-  // When no evaluation has been run in the current session, exclude past evaluation batch cases
-  // so the overview defaults to the clean initial state until an evaluation or live case occurs.
+  // Overview strictly displays the controlled benchmark evaluation batch.
+  // Live operational merchant cases sustain on the Live Tracker and Cases pages,
+  // ensuring the Overview remains pristine and blank until the user triggers the controlled batch.
   const activeCases = useMemo(() => {
-    if (hasEvaluationRun) return recentCases;
-    return recentCases.filter((c) => c.case_source === 'MERCHANT_CHECKOUT');
+    if (!hasEvaluationRun) return [];
+    return recentCases.filter(
+      (c) => c.case_source === 'CANONICAL_EVALUATION' || Boolean(c.eval_run_id)
+    );
   }, [recentCases, hasEvaluationRun]);
 
   // Derive genuine pipeline totals from active cases
@@ -113,7 +116,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     });
   }, [activeCases]);
 
-  const m = hasEvaluationRun ? metrics : (metrics?.case_source !== 'CANONICAL_EVALUATION' ? metrics : null);
+  const m = hasEvaluationRun ? metrics : null;
   const isBenchmark = m?.case_source === 'CANONICAL_EVALUATION';
 
   return (
@@ -176,8 +179,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </div>
       </div>
 
-      {/* ── Initial Empty State (When no evaluation or cases exist yet) ──── */}
-      {!metricsLoading && !casesLoading && (!hasEvaluationRun && activeCases.length === 0) ? (
+      {/* ── Initial Empty State (When no evaluation run yet) ──── */}
+      {!metricsLoading && !casesLoading && (!hasEvaluationRun || activeCases.length === 0) ? (
         <div className="bg-surface-base border border-white/[0.06] rounded-xl p-12 text-center space-y-4">
           <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mx-auto text-guard-text">
             <Database className="w-6 h-6" />
@@ -187,7 +190,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               No evaluation run yet
             </h3>
             <p className="text-xs text-[#9CA3AF] leading-relaxed">
-              Run the controlled evaluation to populate recovery metrics and observe pipeline state machine decisions, or receive live merchant checkout failures.
+              Run the controlled evaluation to populate recovery metrics and observe pipeline state machine decisions, or monitor live checkouts on the Live Tracker.
             </p>
           </div>
           {onSeedDemoBatch && (

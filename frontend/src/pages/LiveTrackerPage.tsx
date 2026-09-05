@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Radio,
   IndianRupee,
@@ -24,21 +24,12 @@ interface LiveTrackerPageProps {
   onNavigateToMerchantStore?: () => void;
 }
 
-// Retention duration for RECOVERED cases in the active live queue (10 seconds)
-const RECOVERED_RETENTION_MS = 10000;
-
 export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
   onSelectCase,
 }) => {
   const [liveCases, setLiveCases] = useState<CaseSummaryItem[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
-
-  // Track the timestamp when each case was first observed in RECOVERED state
-  // This enables keeping it visible for 10 seconds before removing it from the active queue
-  const [recoveredTimestamps, setRecoveredTimestamps] = useState<Record<string, number>>({});
-  const recoveredTimestampsRef = useRef<Record<string, number>>({});
-  recoveredTimestampsRef.current = recoveredTimestamps;
 
   // Poll active merchant cases every 5 seconds
   const pollActiveCases = async (isManualRefresh = false) => {
@@ -47,23 +38,6 @@ export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
       // Query operational merchant cases (strictly excludes canonical benchmark eval cases)
       const data = await fetchCases({ case_source: 'MERCHANT_CHECKOUT', limit: 50 });
       setLastSyncTime(new Date());
-
-      // Update timestamps for cases reaching RECOVERED
-      const now = Date.now();
-      const updatedTimestamps = { ...recoveredTimestampsRef.current };
-      let timestampsChanged = false;
-
-      for (const c of data) {
-        if (c.state === 'RECOVERED' && !updatedTimestamps[c.case_id]) {
-          updatedTimestamps[c.case_id] = now;
-          timestampsChanged = true;
-        }
-      }
-
-      if (timestampsChanged) {
-        setRecoveredTimestamps(updatedTimestamps);
-      }
-
       setLiveCases(data);
     } catch (err) {
       console.warn('Live tracker sync warning:', err);
@@ -81,31 +55,14 @@ export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Filter active cases for the live operational queue:
-  // - Unresolved cases (not RECOVERED and not TERMINAL_NO_ACTION)
-  // - RECOVERED cases that are still within the 10-second display retention window
-  const activeQueue = useMemo(() => {
-    const now = Date.now();
-    return liveCases.filter((c) => {
-      if (c.state === 'TERMINAL_NO_ACTION' || c.state === 'ESCALATED') {
-        return false;
-      }
-      if (c.state === 'RECOVERED') {
-        const recoveredAt = recoveredTimestamps[c.case_id];
-        // If just observed as RECOVERED or within the 10s retention window, keep visible
-        if (!recoveredAt) return true;
-        return now - recoveredAt <= RECOVERED_RETENTION_MS;
-      }
-      // All other in-flight states are active
-      return true;
-    });
-  }, [liveCases, recoveredTimestamps]);
+  // Live operational queue sustains all merchant checkout cases (in-flight & recovered)
+  const activeQueue = liveCases;
 
   // Derived minimal operational metrics
   const amountAtRisk = useMemo(() => {
     // Sum of unresolved amounts in the active queue
     return activeQueue
-      .filter((c) => c.state !== 'RECOVERED')
+      .filter((c) => c.state !== 'RECOVERED' && c.state !== 'TERMINAL_NO_ACTION')
       .reduce((sum, c) => sum + (c.amount_inr || 0), 0);
   }, [activeQueue]);
 
@@ -129,7 +86,9 @@ export const LiveTrackerPage: React.FC<LiveTrackerPageProps> = ({
 
   const activeRecoveriesCount = useMemo(() => {
     // Active unresolved recoveries
-    return activeQueue.filter((c) => c.state !== 'RECOVERED').length;
+    return activeQueue.filter(
+      (c) => c.state !== 'RECOVERED' && c.state !== 'TERMINAL_NO_ACTION'
+    ).length;
   }, [activeQueue]);
 
   // Relative time helper

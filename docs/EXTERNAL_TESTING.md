@@ -42,14 +42,14 @@ This test exercises the complete loop from an external merchant storefront to pa
 3. In the simulated failure selection, choose **"Simulate OTP Dropoff"** (Scenario C1).
 4. Click **"Pay with Razorpay"**. The transaction will fail as configured.
 5. Switch to the **Operator Console** (`https://paymentflow-recovery-agent.vercel.app`):
-   - Notice the new failure appear in the **Live Cases Stream** on the Overview page.
-   - Click the case to view the **Decision Story**.
+   - Navigate to **"Live Tracker"** in the sidebar.
+   - Observe the live failure appear in the **Active Operational Queue** with its Amount at Risk.
+   - Click **"Investigate"** to inspect the 8-stage **Decision Story**.
    - Review the AI Advisory reasoning (`P_CREATE_LINK_IMMEDIATE`) and deterministic guardrail approval.
-6. In the **Payment Link Card**, click the generated recovery link (or simulate payment).
-7. Upon successful payment, return to the console:
-   - The case state updates to `RECOVERED`.
-   - The recovered amount is credited to the merchant's recovered revenue tally.
-   - Return to the merchant demo tab: the order displays **"Order Confirmed & Paid"**.
+6. In the **Payment Link Card** (or directly from the Live Tracker queue), open the generated Razorpay recovery link.
+7. Upon completing payment, return to the console:
+   - On the **Live Tracker**, the case transitions to `RECOVERED` and sustains in the list with gateway-confirmed revenue credited.
+   - In the merchant demo tab, the order status refreshes to **"Order Confirmed & Paid"**.
 
 ---
 

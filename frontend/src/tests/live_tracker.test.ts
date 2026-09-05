@@ -3,26 +3,11 @@ import type { CaseSummaryItem } from '../types';
 
 describe('PaymentFlow Live Recovery Tracker Metric & Queue Semantics', () => {
   // Helper to compute active queue and metrics matching LiveTrackerPage logic
-  function computeLiveTrackerState(
-    liveCases: CaseSummaryItem[],
-    recoveredTimestamps: Record<string, number>,
-    currentTime: number,
-    retentionMs: number = 10000
-  ) {
-    const activeQueue = liveCases.filter((c) => {
-      if (c.state === 'TERMINAL_NO_ACTION' || c.state === 'ESCALATED') {
-        return false;
-      }
-      if (c.state === 'RECOVERED') {
-        const recoveredAt = recoveredTimestamps[c.case_id];
-        if (!recoveredAt) return true;
-        return currentTime - recoveredAt <= retentionMs;
-      }
-      return true;
-    });
+  function computeLiveTrackerState(liveCases: CaseSummaryItem[]) {
+    const activeQueue = liveCases;
 
     const amountAtRisk = activeQueue
-      .filter((c) => c.state !== 'RECOVERED')
+      .filter((c) => c.state !== 'RECOVERED' && c.state !== 'TERMINAL_NO_ACTION')
       .reduce((sum, c) => sum + (c.amount_inr || 0), 0);
 
     const recoveryLinkSentCount = activeQueue.filter(
@@ -35,9 +20,11 @@ describe('PaymentFlow Live Recovery Tracker Metric & Queue Semantics', () => {
 
     const amountRecovered = activeQueue
       .filter((c) => c.state === 'RECOVERED')
-      .reduce((sum, c) => sum + (c.recovered_amount_inr || 0), 0);
+      .reduce((sum, c) => sum + (c.recovered_amount_inr || c.amount_inr || 0), 0);
 
-    const activeRecoveriesCount = activeQueue.filter((c) => c.state !== 'RECOVERED').length;
+    const activeRecoveriesCount = activeQueue.filter(
+      (c) => c.state !== 'RECOVERED' && c.state !== 'TERMINAL_NO_ACTION'
+    ).length;
 
     return {
       activeQueue,
@@ -50,7 +37,7 @@ describe('PaymentFlow Live Recovery Tracker Metric & Queue Semantics', () => {
 
   it('initial/empty state returns exact ₹0 and 0 counts with empty active queue', () => {
     const liveCases: CaseSummaryItem[] = [];
-    const state = computeLiveTrackerState(liveCases, {}, Date.now());
+    const state = computeLiveTrackerState(liveCases);
 
     expect(state.activeQueue).toHaveLength(0);
     expect(state.amountAtRisk).toBe(0);
@@ -83,7 +70,7 @@ describe('PaymentFlow Live Recovery Tracker Metric & Queue Semantics', () => {
       },
     ];
 
-    const state = computeLiveTrackerState(liveCases, {}, Date.now());
+    const state = computeLiveTrackerState(liveCases);
 
     expect(state.activeQueue).toHaveLength(1);
     expect(state.amountAtRisk).toBe(2500.0);
@@ -116,7 +103,7 @@ describe('PaymentFlow Live Recovery Tracker Metric & Queue Semantics', () => {
       },
     ];
 
-    const state = computeLiveTrackerState(liveCases, {}, Date.now());
+    const state = computeLiveTrackerState(liveCases);
 
     expect(state.activeQueue).toHaveLength(1);
     expect(state.amountAtRisk).toBe(2500.0);
@@ -126,7 +113,7 @@ describe('PaymentFlow Live Recovery Tracker Metric & Queue Semantics', () => {
     expect(state.activeRecoveriesCount).toBe(1);
   });
 
-  it('RECOVERED case displays recovered amount and is removed after 10 seconds retention window', () => {
+  it('RECOVERED case displays recovered amount and sustains indefinitely in the live queue', () => {
     const recoveredCase: CaseSummaryItem = {
       case_id: 'case_live_001',
       failed_payment_id: 'pay_fail_001',
@@ -148,26 +135,16 @@ describe('PaymentFlow Live Recovery Tracker Metric & Queue Semantics', () => {
       scheduled_at: null,
     };
 
-    const t0 = 1000000;
-    const timestamps = { case_live_001: t0 };
-
-    // At t = 5 seconds: still within 10-second retention window
-    const stateAt5s = computeLiveTrackerState([recoveredCase], timestamps, t0 + 5000);
-    expect(stateAt5s.activeQueue).toHaveLength(1);
-    expect(stateAt5s.amountRecovered).toBe(2500.0);
-    expect(stateAt5s.amountAtRisk).toBe(0); // Risk cleared upon recovery
-    expect(stateAt5s.activeRecoveriesCount).toBe(0); // No unresolved cases remaining
-
-    // At t = 11 seconds: 10-second retention window expired -> auto-removed from active queue
-    const stateAt11s = computeLiveTrackerState([recoveredCase], timestamps, t0 + 11000);
-    expect(stateAt11s.activeQueue).toHaveLength(0);
-    expect(stateAt11s.amountAtRisk).toBe(0);
-    expect(stateAt11s.activeRecoveriesCount).toBe(0);
-    expect(stateAt11s.recoveryLinkSentCount).toBe(0);
-    expect(stateAt11s.amountRecovered).toBe(0);
+    // Sustains indefinitely in the live active queue
+    const state = computeLiveTrackerState([recoveredCase]);
+    expect(state.activeQueue).toHaveLength(1);
+    expect(state.amountRecovered).toBe(2500.0);
+    expect(state.amountAtRisk).toBe(0); // Risk cleared upon recovery
+    expect(state.activeRecoveriesCount).toBe(0); // No unresolved cases remaining
+    expect(state.recoveryLinkSentCount).toBe(1); // Link dispatched and captured
   });
 
-  it('aggregates multiple active cases correctly and excludes terminal states', () => {
+  it('aggregates multiple active cases correctly and excludes terminal states from risk', () => {
     const cases: CaseSummaryItem[] = [
       {
         case_id: 'case_live_001',
@@ -231,11 +208,10 @@ describe('PaymentFlow Live Recovery Tracker Metric & Queue Semantics', () => {
       },
     ];
 
-    const state = computeLiveTrackerState(cases, {}, Date.now());
+    const state = computeLiveTrackerState(cases);
 
-    // Only case_live_001 and case_live_002 are active; TERMINAL_NO_ACTION is excluded from active queue
-    expect(state.activeQueue).toHaveLength(2);
-    expect(state.amountAtRisk).toBe(5000.0); // 1500 + 3500
+    expect(state.activeQueue).toHaveLength(3);
+    expect(state.amountAtRisk).toBe(5000.0); // 1500 + 3500 (terminal state excluded from risk)
     expect(state.activeRecoveriesCount).toBe(2);
     expect(state.recoveryLinkSentCount).toBe(1); // Only case_live_001 has payment_link_id
     expect(state.amountRecovered).toBe(0);

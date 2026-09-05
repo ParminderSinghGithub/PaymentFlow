@@ -66,19 +66,18 @@ const AppContent: React.FC = () => {
   // Controlled evaluation run tracking for current session
   const [evaluationRunId, setEvaluationRunId] = useState<string | null>(null);
 
-  // When no evaluation has been run in the current session, filter out past canonical evaluation batch cases
-  // and internal test artifacts so the application strictly defaults to the clean initial state until an
-  // evaluation is run or a real live merchant checkout failure occurs.
+  // Controlled evaluation cases for the Overview page
+  // When no evaluation has been run in the current session, return empty so the Overview
+  // stays blank until the user triggers the controlled evaluation batch.
   const sessionCases = useMemo(() => {
     if (evaluationRunId) {
       return cases.filter(
         (c) =>
           c.eval_run_id === evaluationRunId ||
-          c.case_source === 'MERCHANT_CHECKOUT' ||
           (c.case_source === 'CANONICAL_EVALUATION' && !c.case_id.startsWith('case_l3_'))
       );
     }
-    return cases.filter((c) => c.case_source === 'MERCHANT_CHECKOUT');
+    return [];
   }, [cases, evaluationRunId]);
 
   const [caseDetail, setCaseDetail] = useState<CaseDetailResponse | null>(null);
@@ -146,7 +145,10 @@ const AppContent: React.FC = () => {
           if (evaluationRunId) {
             targetScope = { case_source: 'CANONICAL_EVALUATION', eval_run_id: evaluationRunId };
           } else {
-            targetScope = { case_source: 'OPERATIONAL' };
+            // Overview page remains blank until controlled benchmark batch is triggered
+            setMetrics(null);
+            setMetricsLoading(false);
+            return;
           }
         }
         setMetrics(await fetchMetricsSummary(targetScope));
