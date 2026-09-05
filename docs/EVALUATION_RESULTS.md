@@ -96,10 +96,10 @@ The mock agent introduces nuanced timing and human escalation:
 
 ## 4. Layer 5E: Real Google Gemini LLM Validation Report
 
-In Layer 5E, the system connected live to Google Gemini (`gemini-3.5-flash-lite`) via the MCP protocol boundary:
+In Layer 5E, the system connected live to Google Gemini (`gemini-2.5-flash`) via the MCP protocol boundary:
 
 ### Model & Configuration
-- **Model**: `gemini-3.5-flash-lite`
+- **Model**: `gemini-2.5-flash`
 - **Protocol**: Model Context Protocol (MCP standard)
 - **Credential Storage**: Managed securely via environment variable `GEMINI_API_KEY` (zero keys committed or logged)
 

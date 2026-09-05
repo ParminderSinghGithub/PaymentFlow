@@ -650,7 +650,7 @@ def generate_case_audit_trail(
                 "outcome": "PROPOSAL_GENERATED",
                 "timestamp": t4,
                 "details": {
-                    "model": "gemini-3.5-flash-lite",
+                    "model": "gemini-2.5-flash",
                     "confidence_score": 0.95,
                     "reasoning": scenario["ai_explanation"],
                 },

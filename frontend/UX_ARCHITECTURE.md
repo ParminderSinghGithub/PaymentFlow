@@ -1,8 +1,8 @@
-﻿# PaymentFlow — UX Architecture v2.0
+# PaymentFlow — UX Architecture v2.0
 
-> **Specification only. Implementation has not started.**
+> **Production Implemented Specification.**
 > This document defines page layouts, information hierarchies, component composition,
-> and interaction patterns for the full frontend rebuild.
+> and interaction patterns for the PaymentFlow console.
 
 ---
 

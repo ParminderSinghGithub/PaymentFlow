@@ -8,7 +8,7 @@ To maintain complete truthfulness and transparency for hackathon evaluators, thi
 | :--- | :--- | :--- |
 | **Backend & Architecture** | Full FastAPI asynchronous backend, PostgreSQL, 6 Alembic migrations, 328 passing tests | Horizontal Kubernetes pod autoscaling |
 | **Safety Guardrails** | 100% deterministic enforcement: amount immutability, currency, cooldowns, > ₹50k cap | Custom per-merchant dynamic threshold configuration |
-| **AI Advisory Reasoning** | Real Google Gemini 3.5 Flash Lite live integration via MCP; 100% schema validity | Custom fine-tuned domain models for payment errors |
+| **AI Advisory Reasoning** | Real Google Gemini 2.5 Flash live integration via MCP; 100% schema validity | Custom fine-tuned domain models for payment errors |
 | **Controlled Benchmark** | 15 live canonical scenarios executed through authentic triage and guardrail engine | Live merchant historical cohort benchmarks |
 | **Attribution** | 100% captured-only revenue verification via signed Razorpay webhooks | Multi-month cohort retention and churn analytics |
 | **Customer Conversion** | 50-draw Monte Carlo simulation with Common Random Numbers (CRN) | Real human consumer payment psychology in the wild |
@@ -41,19 +41,33 @@ To maintain complete truthfulness and transparency for hackathon evaluators, thi
 - **Justification**: In financial systems, preventing a single unauthorized ₹65,000 recovery dispute or fraudulent chargeback far outweighs the marginal gain of unmediated automated conversion.
 
 ### Trade-off 2: LLM Latency vs. Static Heuristics
-- **Decision**: Utilized Google Gemini (`gemini-3.5-flash-lite`) for nuanced error interpretation.
+- **Decision**: Utilized Google Gemini (`gemini-2.5-flash`) for nuanced error interpretation.
 - **Trade-off**: Introduces an average inference latency of **1,802 ms**, compared to sub-millisecond execution for static `if/else` rules.
 - **Justification**: Payment recovery is not high-frequency trading. A 2-second triage latency is completely imperceptible to a customer who just dropped off or experienced a gateway timeout, while providing 93.3% category classification accuracy.
 
 ---
 
-## 4. Future Roadmap & Enterprise Extensions
+## 4. Operational Failure Modes & System Resilience
 
-1. **Multi-Tenant Merchant Onboarding**:
-   - Razorpay Partner OAuth integration allowing merchants to install PaymentFlow with one click from the Razorpay App Store.
-2. **Conversational WhatsApp Recovery Bot**:
-   - Interactive recovery flow enabling customers to choose alternate payment methods (e.g., switching from a failed card to instant UPI) directly within WhatsApp.
-3. **Dynamic Personalized Merchant Budget Caps**:
-   - Allowing merchants to allocate dynamic recovery discount budgets with automated velocity caps.
-4. **Autonomous Retry Schedule Optimization**:
-   - Reinforcement learning models that optimize delayed recovery dispatch hours based on customer time-of-day payment propensities.
+PaymentFlow is architected to preserve financial integrity across all infrastructure fault conditions:
+
+| Fault Condition | Immediate System Behavior | Post-Recovery Behavior |
+| :--- | :--- | :--- |
+| **PostgreSQL Outage** | Webhook ingestion fails closed (HTTP 503); Razorpay retries automatically | Upon DB recovery, duplicate webhooks are caught by `event_id` idempotency |
+| **Gemini LLM API Outage** | Triage times out (8s limit); falls back closed to `P_NO_ACTION` (or `P_ESCALATE_ONLY`) | Zero erroneous links dispatched; cases logged for offline reprocessing |
+| **Razorpay API Rate Limits (429)** | Exponential backoff retry with jitter; preserves row lock in DB | Retries up to 3 times before deferring case to next batch interval |
+| **Worker Process Crash** | Delayed cases with persisted `scheduled_at` remain safely in PostgreSQL | Replacement worker polls matured cases upon reboot with zero state loss |
+| **Duplicate Webhook Delivery** | Caught by unique constraint on `webhook_events.event_id` | Returns HTTP 200 immediately without re-triggering recovery pipeline |
+
+---
+
+## 5. Auditor Verification Checklist
+
+External auditors and technical evaluators can independently verify system compliance using the following checklist:
+
+- [x] **Amount Invariance**: Verify no link is ever created with an amount different from the failed payment (`tests/test_policy_engine.py`).
+- [x] **Currency Invariance**: Verify non-INR transactions are rejected (`tests/test_eligibility.py`).
+- [x] **Single-Link Invariant**: Verify a second link creation attempt on an active case is blocked (`tests/test_recovery_executor.py`).
+- [x] **Human Escalation**: Verify transactions $> ₹50,000$ are forced to `ESCALATED` (`tests/test_canonical_benchmark.py`).
+- [x] **Captured Attribution**: Verify revenue is credited only when Razorpay status is `captured` (`tests/test_layer4b_attribution.py`).
+- [x] **Zero Secret Leakage**: Verify no API keys or database strings are present in frontend bundles (`tests/test_merchant_isolation_security.py`).

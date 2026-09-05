@@ -37,7 +37,7 @@ RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
 
 # AI & LLM Provider (Google Gemini)
 LLM_PROVIDER=gemini
-LLM_MODEL=gemini-3.5-flash-lite
+LLM_MODEL=gemini-2.5-flash
 GEMINI_API_KEY=your_gemini_api_key
 
 # Service URLs

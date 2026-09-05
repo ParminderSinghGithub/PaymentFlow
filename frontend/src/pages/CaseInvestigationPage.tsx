@@ -778,7 +778,7 @@ export const CaseInvestigationPage: React.FC<CaseInvestigationPageProps> = ({
                 <div className="space-y-1.5 text-[11px] pt-1">
                   <DataRow label="Diagnosed Category" value={c.failure_category || 'C1'} mono />
                   <DataRow label="Diagnosis Rule" value={c.failure_code || 'BAD_REQUEST_ERROR'} mono />
-                  <DataRow label="Advisory Provider" value="gemini-3.5-flash-lite via MCP" mono />
+                  <DataRow label="Advisory Provider" value="gemini-2.5-flash via MCP" mono />
                 </div>
 
                 {/* Explicit Responsibility Boundary Notice */}

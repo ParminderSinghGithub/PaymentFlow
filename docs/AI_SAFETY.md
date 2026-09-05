@@ -21,7 +21,7 @@ DecisionContext (Sanitized Diagnostics)
           ▼
 ┌───────────────────────────────────────┐
 │     Advisory AI Agent (LLM)           │
-│     - Model: gemini-3.5-flash-lite    │
+│     - Model: gemini-2.5-flash         │
 │     - Interprets error semantics      │
 │     - Proposes AgentDecision          │
 └──────────────────┬────────────────────┘

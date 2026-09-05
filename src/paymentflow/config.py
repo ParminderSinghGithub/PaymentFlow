@@ -64,8 +64,9 @@ class Settings(BaseSettings):
         description="LLM API Key (Google Gemini)",
     )
     llm_model: str = Field(
-        default="gemini-1.5-flash",
-        description="LLM Model Name",
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices("GEMINI_MODEL", "LLM_MODEL"),
+        description="LLM Model identifier",
     )
     llm_base_url: str | None = Field(
         default=None,

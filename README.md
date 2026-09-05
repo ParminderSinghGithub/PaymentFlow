@@ -11,7 +11,7 @@
 
 > **"AI recommends. Deterministic policy authorizes. Razorpay executes. System verifies."**
 
-PaymentFlow is an autonomous, policy-first revenue recovery system for failed Razorpay payments. It combines constrained LLM reasoning (Google Gemini `gemini-3.5-flash-lite` via the Model Context Protocol) with an authoritative deterministic guardrail engine to recover lost revenue from dropouts, network timeouts, and soft card friction. It dispatches official Razorpay Payment Links and attributes recovered revenue if and only if gateway capture is verified.
+PaymentFlow is an autonomous, policy-first revenue recovery system for failed Razorpay payments. It combines constrained LLM reasoning (Google Gemini `gemini-2.5-flash` via the Model Context Protocol) with an authoritative deterministic guardrail engine to recover lost revenue from dropouts, network timeouts, and soft card friction. It dispatches official Razorpay Payment Links and attributes recovered revenue if and only if gateway capture is verified.
 
 ---
 
@@ -20,8 +20,7 @@ PaymentFlow is an autonomous, policy-first revenue recovery system for failed Ra
 | Service | Live URL | Purpose |
 |---|---|---|
 | **Operator Intelligence Console** | [paymentflow-recovery-agent.vercel.app](https://paymentflow-recovery-agent.vercel.app/) | Operations dashboard — live case monitoring, decision stories & one-click benchmark |
-| **Merchant Storefront Demo** | [merchant-demo-production.up.railway.app](https://merchant-demo-production.up.railway.app/) | Apex Gear Co. merchant storefront — simulate checkouts and live failures |
-| **Merchant Checkout Page** | [merchant-demo-production.up.railway.app/checkout](https://merchant-demo-production.up.railway.app/checkout) | Direct checkout page with failure simulation triggers |
+| **Merchant Storefront Demo** | [merchant-demo-production.up.railway.app](https://merchant-demo-production.up.railway.app/) | Apex Gear Co. merchant storefront with embedded checkout & live failure simulation |
 | **Backend REST API** | [paymentflow-backend-production.up.railway.app](https://paymentflow-backend-production.up.railway.app/) | Asynchronous FastAPI service running on Railway |
 | **Interactive Swagger Docs** | [paymentflow-backend-production.up.railway.app/docs](https://paymentflow-backend-production.up.railway.app/docs) | Interactive OpenAPI documentation — inspect & test all endpoints |
 | **Health Diagnostics Probe** | [paymentflow-backend-production.up.railway.app/health](https://paymentflow-backend-production.up.railway.app/health) | Live health status: backend, database, Gemini AI provider, and migration status |
@@ -323,4 +322,36 @@ Razorpay/
 
 ---
 
-*Built for Razorpay Buildathon · Track 03 — AI Revenue Recovery*
+## Core Architectural Invariants
+
+Every financial action in PaymentFlow is bounded by non-negotiable mathematical and operational guarantees:
+
+1. **Amount Immutability**: The recovered amount must exactly equal the failed amount in integer paise. Discounts or pricing markups are rejected.
+2. **Currency Immutability**: All recovery links strictly enforce domestic `INR`. Foreign currency tampering is blocked.
+3. **High-Value Escalation**: Transactions exceeding ₹50,000 (5,000,000 paise) are deterministically escalated to human compliance operators.
+4. **Anti-Spam Ceiling**: Customers cannot receive more than 3 recovery links within any rolling 24-hour window.
+5. **Single-Link Safety**: Exactly one unpaid recovery link can exist for an open failed payment case.
+6. **Captured-Only Attribution**: Revenue is never attributed on link dispatch. Only signed webhooks confirming `captured` status credit merchant revenue.
+
+---
+
+## Security & Trust Posture
+
+- **Zero Client Secrets**: No database connection strings, Razorpay API secrets, or Gemini API keys are bundled into frontend bundles or transmitted to customer browsers.
+- **Cryptographic Authentication**: Inbound webhooks are validated using HMAC-SHA256 signatures against raw request byte bodies.
+- **PCI-DSS Scope Exemption**: PaymentFlow never ingests, transmits, or stores card PANs, CVVs, or banking PINs. All payment flows operate over Razorpay tokenized gateway identifiers.
+- **PII Stripping**: The Gemini advisory layer receives sanitized payment failure diagnostics with customer names, emails, and phone numbers removed.
+- **Immutable Ledger**: Every state transition, AI proposal, and guardrail decision is recorded in an append-only PostgreSQL audit table (`audit_events`).
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE) — see the LICENSE file for details.
+
+---
+
+## Acknowledgements
+
+Built for the **Razorpay Buildathon — Track 03: AI Revenue Recovery**.  
+Special thanks to the Razorpay developer platform, API documentation teams, and the Google Gemini AI developer ecosystem.

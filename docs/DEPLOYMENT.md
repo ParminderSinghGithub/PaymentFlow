@@ -94,7 +94,7 @@ RAZORPAY_WEBHOOK_SECRET=...
 
 # AI Provider Credentials
 LLM_PROVIDER=gemini
-LLM_MODEL=gemini-3.5-flash-lite
+LLM_MODEL=gemini-2.5-flash
 GEMINI_API_KEY=...
 
 # Security & CORS

@@ -121,7 +121,7 @@ def interactive_service(
     settings = test_settings.model_copy(
         update={
             "llm_api_key": "valid_test_gemini_key",
-            "llm_model": "gemini-3.5-flash-lite",
+            "llm_model": "gemini-2.5-flash",
         }
     )
     sessionmaker = get_sessionmaker()

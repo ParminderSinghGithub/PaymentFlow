@@ -147,13 +147,18 @@ async def get_order_recovery_status(order_id: str) -> dict[str, Any]:
         }
 
 
-@app.get("/", response_class=HTMLResponse)
-@app.get("/checkout", response_class=HTMLResponse)
-async def serve_checkout_page() -> HTMLResponse:
-    """Serve the merchant storefront checkout page."""
+@app.get("/", response_class=HTMLResponse, summary="Serve Merchant Storefront & Checkout")
+async def serve_storefront_page() -> HTMLResponse:
+    """Serve the unified merchant storefront and checkout interface."""
     html_file = FRONTEND_DIR / "index.html"
     if not html_file.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Storefront HTML not found."
         )
     return HTMLResponse(content=html_file.read_text(encoding="utf-8"))
+
+
+@app.get("/checkout", response_class=HTMLResponse, summary="Merchant Storefront Checkout Alias")
+async def serve_checkout_page() -> HTMLResponse:
+    """Serve the merchant storefront checkout page (alias for root)."""
+    return await serve_storefront_page()

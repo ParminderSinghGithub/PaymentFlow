@@ -28,7 +28,7 @@ Large Language Models (LLMs) excel at reasoning over unstructured data, interpre
                                       │
                                       ▼
  ┌──────────────────────────────────────────────────────────────────────────┐
- │ Layer 3: Advisory AI & MCP Protocol Boundary (gemini-3.5-flash-lite)     │
+ │ Layer 3: Advisory AI & MCP Protocol Boundary (gemini-2.5-flash)          │
  │          - Receives sanitized DecisionContext (no ground-truth leakage)  │
  │          - Emits structured AgentDecision proposal via MCP tool          │
  └────────────────────────────────────┬─────────────────────────────────────┘
@@ -78,7 +78,7 @@ Large Language Models (LLMs) excel at reasoning over unstructured data, interpre
 - **Eligibility Engine**: Deterministically validates prerequisites (currency == `INR`, age < 72 hours, state freshness, not already paid).
 
 ### Layer 3: Advisory AI & MCP Boundary
-- **Model**: Google Gemini `gemini-3.5-flash-lite` (supports OpenAI protocol fallback).
+- **Model**: Google Gemini `gemini-2.5-flash` (supports OpenAI protocol fallback).
 - **Protocol**: Model Context Protocol (MCP standard).
 - **Context Isolation**: The model receives strictly sanitized `DecisionContext` containing only public payment diagnostics. It has zero visibility into customer intent scores or ground-truth simulation variables.
 - **Advisory Role**: Proposes one of four allowed policies:
