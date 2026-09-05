@@ -5,10 +5,11 @@
 ## 1. Executive Summary
 - **Provider**: `MockAgentDecisionProvider`
 - **Dataset Size**: 75 synthetic failed payment cases
-- **Monte Carlo Draws**: 3,750 total simulations (50 draws/case)
-- **Overall Recovery Rate**: 61.71% (2,314 / 3,750 draws recovered)
-- **Total Opportunity Value**: ₹1,196,623.00
-- **Expected Recovered Revenue**: ₹843,619.04 (70.50% of opportunity)
+- **Monte Carlo Draws**: 3,750 total simulations (50 draws/case via Common Random Numbers)
+- **Overall Recovery Rate**: **61.71%** (2,314 / 3,750 draws recovered; 95% CI: [60.62%, 62.80%])
+- **Total Opportunity Value**: ₹1,196,623.00 (single 75-case portfolio risk)
+- **Expected Recovered Revenue**: **₹843,619.04** (70.50% of opportunity; sample mean across 50 portfolio runs, σ = ₹163,325.20, Median = ₹765,306.00)
+- **Net Uplift vs. Baseline**: **+29.98% absolute** (95% CI: [+28.86%, +31.09%], $p < 0.0001$; +₹675,919.88 expected revenue uplift)
 
 ---
 

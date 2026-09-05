@@ -59,7 +59,7 @@ async def test_llm_adapter_success_proposal():
     transport = httpx.MockTransport(handler)
     async with httpx.AsyncClient(transport=transport) as client:
         llm = LLMClient(
-            settings=Settings(llm_api_key="real_test_key", llm_model="gemini-1.5-flash"),
+            settings=Settings(llm_api_key="real_test_key", llm_model="gemini-2.5-flash"),
             http_client=client,
         )
         proposal, metadata = await llm.generate_proposal(make_test_context())

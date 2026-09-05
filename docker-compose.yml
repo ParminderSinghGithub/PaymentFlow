@@ -37,7 +37,7 @@ services:
       RAZORPAY_KEY_SECRET: placeholder_secret
       RAZORPAY_WEBHOOK_SECRET: placeholder_webhook_secret
       LLM_API_KEY: placeholder_llm_api_key
-      LLM_MODEL: gemini-1.5-flash
+      LLM_MODEL: gemini-2.5-flash
     depends_on:
       db:
         condition: service_healthy

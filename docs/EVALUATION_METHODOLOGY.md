@@ -85,6 +85,16 @@ $$\text{Seed} = \text{SHA-256}(\text{case\_id} : \text{draw\_index}) \quad \text
 - Any observed difference in recovery rate is **100% attributable to policy differences**, not simulation noise.
 - Using cryptographic `SHA-256` hashing rather than Python's built-in `hash()` ensures identical seed generation across distinct operating systems, platforms, and Python processes.
 
+### Estimator Definitions & Denominators
+- **Overall Recovery Rate**: Evaluated over all case-draw events ($N_{\text{total}} = N_{\text{cases}} \times N_{\text{draws}} = 75 \times 50 = 3,750$ draws):
+  $$\text{Recovery Rate} = \frac{\sum_{i=1}^{75} \sum_{d=0}^{49} \mathbb{I}(\text{Recovered}_{i, d})}{3,750}$$
+- **Expected Recovered Revenue**: The sample mean ($\hat{\mathbb{E}}$) across the 50 simulated portfolio realizations:
+  $$\hat{\mathbb{E}}[\text{Revenue}] = \frac{1}{50} \sum_{d=0}^{49} \left( \sum_{i=1}^{75} \text{Recovered Amount}_{i, d} \right)$$
+  (For the Mock Agent, this equals **₹843,619.04**; for the Baseline, **₹167,699.16**). This represents the expected payout per 75-case portfolio, NOT a cumulative sum across 50 runs.
+- **Opportunity Share Recovered**: Scaled against the single-portfolio total face value ($₹1,196,623.00$):
+  $$\text{Opportunity Share} = \frac{\hat{\mathbb{E}}[\text{Revenue}]}{\sum_{i=1}^{75} \text{Amount}_i} = \frac{₹843,619.04}{₹1,196,623.00} = 70.50\%$$
+- **Paired Hypothesis Testing**: Because draws are strictly paired via CRN ($N=50$), the mean recovery rate uplift (+29.98 pp) yields a 95% confidence interval of $[+28.86\%, +31.09\%]$ ($p < 0.0001$). Net revenue uplift (+₹675,919.88) yields a 95% confidence interval of $[+₹624,696.24, +₹727,143.52]$.
+
 ---
 
 ## 5. Offline Evaluation Artifacts

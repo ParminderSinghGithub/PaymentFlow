@@ -248,3 +248,137 @@ Consumes signed Razorpay webhook notifications.
   "event_type": "payment.failed"
 }
 ```
+
+---
+
+## 6. Merchant Integration API Endpoints (`/merchant/v1`)
+
+These endpoints provide a secure server-to-server boundary for external merchant storefronts to register checkout context, initiate Razorpay orders, and poll safe customer recovery status.
+
+**Authentication**:
+All `/merchant/v1/*` endpoints require standard HTTP Bearer token authentication using the merchant's PaymentFlow API Key:
+```http
+Authorization: Bearer <PAYMENTFLOW_API_KEY>
+```
+
+### `GET /merchant/v1/verify`
+Verify that merchant server credentials are authentic and active.
+
+**Headers**:
+- `Authorization: Bearer <PAYMENTFLOW_API_KEY>`
+
+**Response `200 OK`**:
+```json
+{
+  "status": "authenticated",
+  "merchant_id": "merchant_demo_apex",
+  "merchant_name": "Apex Gear Co.",
+  "razorpay_key_id": "rzp_test_...",
+  "is_active": true,
+  "message": "Merchant API credential authenticated successfully."
+}
+```
+
+---
+
+### `POST /merchant/v1/checkout-context`
+Register checkout metadata from the merchant server when a customer begins checkout, enabling enhanced diagnostics upon subsequent failure.
+
+**Headers**:
+- `Authorization: Bearer <PAYMENTFLOW_API_KEY>`
+- `Content-Type: application/json`
+
+**Request Body**:
+```json
+{
+  "external_order_id": "order_M12345",
+  "amount": 299900,
+  "currency": "INR",
+  "customer_email": "alex@example.com",
+  "customer_phone": "+919876543210",
+  "merchant_reference": "CART-9941"
+}
+```
+
+**Response `200 OK`**:
+```json
+{
+  "status": "accepted",
+  "context_id": "mctx_a1b2c3d4e5f67890",
+  "merchant_id": "merchant_demo_apex",
+  "external_order_id": "order_M12345",
+  "amount": 299900,
+  "currency": "INR",
+  "registered_at": "2026-09-05T12:00:00Z",
+  "message": "Merchant checkout context registered successfully for recovery monitoring."
+}
+```
+
+---
+
+### `POST /merchant/v1/orders`
+Initiates an official Razorpay Order using the merchant's server-side credentials and binds the checkout context in PaymentFlow.
+
+**Headers**:
+- `Authorization: Bearer <PAYMENTFLOW_API_KEY>`
+- `Content-Type: application/json`
+
+**Request Body**:
+```json
+{
+  "amount": 249900,
+  "currency": "INR",
+  "external_order_id": "ORD-APEX-001",
+  "customer_name": "Alex Sharma",
+  "customer_email": "alex@example.com",
+  "customer_phone": "+919876543210"
+}
+```
+
+**Response `201 Created`**:
+```json
+{
+  "status": "created",
+  "context_id": "mctx_9876543210abcdef",
+  "razorpay_order_id": "order_RzpOrder12345",
+  "external_order_id": "ORD-APEX-001",
+  "amount": 249900,
+  "currency": "INR",
+  "razorpay_key_id": "rzp_test_...",
+  "checkout_url": "/merchant/checkout?context_id=mctx_9876543210abcdef",
+  "message": "Razorpay order created and checkout context registered successfully."
+}
+```
+
+---
+
+### `GET /merchant/v1/orders/{order_id}/recovery-status`
+Polls safe recovery status for an order. Returns high-level customer status without exposing internal AI reasoning, database IDs, or sensitive gateway tokens.
+
+**Path Parameters**:
+- `order_id` (required, string): Razorpay Order ID or Merchant External Order ID.
+
+**Headers**:
+- `Authorization: Bearer <PAYMENTFLOW_API_KEY>`
+
+**Response `200 OK`**:
+```json
+{
+  "order_id": "order_RzpOrder12345",
+  "case_id": "case_live_001",
+  "case_source": "MERCHANT_CHECKOUT",
+  "state": "RECOVERED",
+  "amount": 249900,
+  "currency": "INR",
+  "payment_link_sent": true,
+  "payment_link_url": "https://rzp.io/rzp/rec001",
+  "payment_link_status": "paid",
+  "recovered_amount": 249900,
+  "recovered_payment_id": "pay_rec12345",
+  "notification_medium": "sms",
+  "notification_status": "SENT",
+  "masked_contact": "+91 98*** **210",
+  "delivery_verified": true,
+  "message": "Payment recovered successfully! Recovered amount: INR 2499.00."
+}
+```

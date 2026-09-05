@@ -65,12 +65,17 @@ The mock agent introduces nuanced timing and human escalation:
 
 ### Key Metrics
 - **Dataset**: 75 synthetic failed payment cases
-- **Simulation Draws**: 50 draws per case (3,750 total simulations)
-- **Overall Recovery Rate**: **61.71%** (2,314 / 3,750 draws recovered)
-- **Total Opportunity Value**: **₹1,196,623.00**
-- **Expected Recovered Revenue**: **₹843,619.04** (84,361,904 paise)
-- **Opportunity Share Recovered**: **70.50%**
-- **Net Uplift vs. Baseline**: $+29.98\%$ absolute recovery rate ($+56.49\%$ opportunity share, $+₹675,919.88$ expected revenue)
+- **Simulation Draws**: 50 draws per case (3,750 total simulations via Common Random Numbers)
+- **Overall Recovery Rate**: **61.71%** (2,314 / 3,750 draws recovered; Mean per draw: 61.71% ± 3.94%, 95% CI: [60.62%, 62.80%])
+- **Total Opportunity Value**: **₹1,196,623.00** (total face value of the 75-case portfolio)
+- **Expected Recovered Revenue**: **₹843,619.04** (84,361,904 paise; sample mean across 50 portfolio runs, σ = ₹163,325.20, Median = ₹765,306.00)
+- **Opportunity Share Recovered**: **70.50%** ($\frac{₹843,619.04}{₹1,196,623.00}$)
+- **Net Uplift vs. Baseline**: $+29.98\%$ absolute recovery rate (95% CI: [+28.86%, +31.09%], $p < 0.0001$; $+56.49\%$ opportunity share, $+₹675,919.88$ expected revenue, 95% CI: [+₹624,696.24, +₹727,143.52])
+
+### Statistical Estimator Definition
+The reported revenue figures are **Expected Values** (sample mean per 75-case portfolio realization across 50 stochastic runs):
+$$\hat{\mathbb{E}}[\text{Revenue}] = \frac{1}{50} \sum_{d=0}^{49} \text{Revenue}_d = \frac{\text{Sum of all 3,750 simulation draws}}{50}$$
+This is deliberately distinct from a cumulative aggregate across all 50 simulations (which sums to ₹42,180,952.00). The denominator for Opportunity Share ($₹1,196,623.00$) represents the single-portfolio face value, ensuring true apples-to-apples economic scaling.
 
 ### Guardrail Interventions & Proposal vs. Authorized Distribution
 | Policy | Proposed by Agent | Authorized by Guardrails | Difference / Fallback |

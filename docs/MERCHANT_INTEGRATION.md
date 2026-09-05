@@ -62,27 +62,80 @@ If the signature header is missing, malformed, or does not match, the request is
 
 ---
 
-## 3. Merchant Configuration & Key Binding
+## 3. Merchant Credentials & Key Separation Architecture
 
-Merchants configure their Razorpay account in PaymentFlow via standard credentials:
+PaymentFlow enforces a strict cryptographic and credential boundary. It distinguishes between gateway execution credentials and service authentication keys:
 
+| Credential Name | Scope & Location | Purpose | Browser Exposed? |
+| :--- | :--- | :--- | :--- |
+| `PAYMENTFLOW_API_KEY` | Merchant Server $\leftrightarrow$ PaymentFlow | Authenticates server-to-server REST calls to `/merchant/v1/*` | ❌ **Strictly No** |
+| `RAZORPAY_KEY_ID` | Merchant Server & Browser Client | Public key for initializing Razorpay Checkout JS modal | ✅ **Safe for Client** |
+| `RAZORPAY_KEY_SECRET` | Merchant Server / Gateway Adapter | Authorizes order creation and payment link creation | ❌ **Strictly No** |
+| `RAZORPAY_WEBHOOK_SECRET` | PaymentFlow Webhook Consumer | Verifies inbound HMAC-SHA256 signatures on events | ❌ **Strictly No** |
+
+### Configuration Example
 ```bash
-# Razorpay Merchant Credentials
+# PaymentFlow Service API Key (for merchant server calls)
+PAYMENTFLOW_API_KEY="pf_live_sec_..."
+PAYMENTFLOW_BACKEND_URL="https://paymentflow-backend-production.up.railway.app"
+
+# Razorpay Gateway Credentials (held server-side only)
 RAZORPAY_KEY_ID="rzp_test_..."
-RAZORPAY_KEY_SECRET="your_rzp_secret"
-RAZORPAY_WEBHOOK_SECRET="your_webhook_secret"
-
-# Merchant App Configuration
-MERCHANT_API_BASE_URL="http://localhost:8001"
-PAYMENTFLOW_BACKEND_URL="http://localhost:8000"
+RAZORPAY_KEY_SECRET="rzp_sec_..."
+RAZORPAY_WEBHOOK_SECRET="whsec_..."
 ```
-
-### Zero Secrets Shipped to Customer Browsers
-Merchant API secrets are used exclusively on the server side by the backend `RazorpayAdapter`. The merchant storefront frontend communicates only with the merchant backend and Razorpay Checkout JS.
 
 ---
 
-## 4. Interactive Failure Simulation in Merchant Demo
+## 4. Merchant Server-to-Server REST APIs (`/merchant/v1`)
+
+Merchants interact with PaymentFlow using standard HTTP Bearer token authentication:
+
+### 1. Verify Credentials (`GET /merchant/v1/verify`)
+Verifies merchant authentication and returns bound Razorpay Key ID:
+```bash
+curl -X GET "https://paymentflow-backend-production.up.railway.app/merchant/v1/verify" \
+  -H "Authorization: Bearer pf_live_sec_..."
+```
+
+### 2. Register Checkout Context (`POST /merchant/v1/checkout-context`)
+Registers customer contact and order intent prior to payment attempt:
+```bash
+curl -X POST "https://paymentflow-backend-production.up.railway.app/merchant/v1/checkout-context" \
+  -H "Authorization: Bearer pf_live_sec_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "external_order_id": "ORD-1001",
+    "amount": 249900,
+    "currency": "INR",
+    "customer_email": "customer@example.com",
+    "customer_phone": "+919876543210"
+  }'
+```
+
+### 3. Create Order with Attached Context (`POST /merchant/v1/orders`)
+Creates a Razorpay order and automatically correlates it with PaymentFlow:
+```bash
+curl -X POST "https://paymentflow-backend-production.up.railway.app/merchant/v1/orders" \
+  -H "Authorization: Bearer pf_live_sec_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "external_order_id": "ORD-1001",
+    "amount": 249900,
+    "currency": "INR"
+  }'
+```
+
+### 4. Poll Recovery Status (`GET /merchant/v1/orders/{order_id}/recovery-status`)
+Enables the merchant storefront to poll safe recovery completion:
+```bash
+curl -X GET "https://paymentflow-backend-production.up.railway.app/merchant/v1/orders/ORD-1001/recovery-status" \
+  -H "Authorization: Bearer pf_live_sec_..."
+```
+
+---
+
+## 5. Interactive Failure Simulation in Merchant Demo
 
 The Merchant Demo storefront provides a built-in **Failure Simulation Toolbar** enabling evaluators to trigger specific failure scenarios with a single click:
 
@@ -97,7 +150,7 @@ The Merchant Demo storefront provides a built-in **Failure Simulation Toolbar** 
 
 ---
 
-## 5. End-to-End Live Demonstration Workflow
+## 6. End-to-End Live Demonstration Workflow
 
 To demonstrate the full merchant loop:
 
