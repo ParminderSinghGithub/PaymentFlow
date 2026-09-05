@@ -186,18 +186,37 @@ export async function processDueDelayedCases(): Promise<DelayedProcessResult> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Returns the configured external merchant storefront checkout URL.
- * Defaults to VITE_MERCHANT_STOREFRONT_URL or derives from host topology.
+ * Returns the configured external merchant storefront URL.
+ * Defaults to VITE_MERCHANT_STOREFRONT_URL / VITE_MERCHANT_URL or derives from host topology.
+ * Always resolves to the clean root domain without trailing '/checkout' or trailing slashes.
  */
 export function getMerchantStorefrontUrl(): string {
-  const configured = import.meta.env.VITE_MERCHANT_STOREFRONT_URL;
+  const configured =
+    import.meta.env.VITE_MERCHANT_STOREFRONT_URL ||
+    import.meta.env.VITE_MERCHANT_URL ||
+    import.meta.env.VITE_MERCHANT_DEMO_URL;
+
   if (configured && configured.trim().length > 0) {
-    return configured.trim();
+    return configured.trim().replace(/\/checkout\/?$/, '').replace(/\/+$/, '');
   }
-  const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+
+  const apiBase = (
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_PAYMENTFLOW_API_URL ||
+    ''
+  ).trim();
+
   if (apiBase) {
-    // If API is on port 8000/8001, external merchant server runs on port 8002
-    return `${apiBase.replace(/:800[01]/, ':8002')}/checkout`;
+    // If backend URL is on Railway (e.g. paymentflow-backend-*.up.railway.app),
+    // derive the sibling merchant-demo service domain
+    if (apiBase.includes('paymentflow-backend')) {
+      return apiBase.replace('paymentflow-backend', 'merchant-demo').replace(/\/+$/, '');
+    }
+    // If API is on port 8000/8001 (local dev), external merchant server runs on port 8002
+    if (apiBase.match(/:800[01]/)) {
+      return apiBase.replace(/:800[01]/, ':8002').replace(/\/+$/, '');
+    }
   }
-  return 'http://localhost:8002/checkout';
+
+  return 'http://localhost:8002';
 }

@@ -165,7 +165,8 @@ describe('PaymentFlow Frontend API Client', () => {
   it('getMerchantStorefrontUrl resolves configured or fallback storefront URL', () => {
     const url = getMerchantStorefrontUrl();
     expect(url).toBeDefined();
-    expect(url).toContain('/checkout');
+    expect(url).not.toContain('/checkout');
+    expect(url).toMatch(/localhost:8002|merchant-demo/);
   });
 
   it('triggerCaseTriage sends POST request and receives triage outcome', async () => {
