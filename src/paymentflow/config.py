@@ -117,7 +117,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reconcile_database_urls(self) -> "Settings":
+        from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
+
         # Ensure async database_url uses postgresql+asyncpg:// dialect
+        # and asyncpg-compatible SSL query parameters
         if self.database_url:
             db_url = self.database_url
             if db_url.startswith("postgres://"):
@@ -126,9 +129,29 @@ class Settings(BaseSettings):
                 "postgresql+asyncpg://"
             ):
                 db_url = "postgresql+asyncpg://" + db_url[len("postgresql://") :]
+
+            parsed = urlsplit(db_url)
+            if parsed.query:
+                qs = parse_qs(parsed.query)
+                # asyncpg expects 'ssl' parameter rather than libpq 'sslmode'
+                if "sslmode" in qs:
+                    ssl_val = qs.pop("sslmode")
+                    if "ssl" not in qs:
+                        qs["ssl"] = ssl_val
+                # asyncpg does not support channel_binding
+                qs.pop("channel_binding", None)
+                db_url = urlunsplit(
+                    (
+                        parsed.scheme,
+                        parsed.netloc,
+                        parsed.path,
+                        urlencode(qs, doseq=True),
+                        parsed.fragment,
+                    )
+                )
             self.database_url = db_url
 
-        # Ensure sync_database_url is derived or has postgresql:// dialect
+        # Ensure sync_database_url is derived or has postgresql:// dialect for psycopg2
         default_sync = (
             "postgresql://paymentflow_user:paymentflow_password@localhost:5432/paymentflow_db"
         )
@@ -138,13 +161,44 @@ class Settings(BaseSettings):
             sync_url = self.database_url
             if sync_url.startswith("postgresql+asyncpg://"):
                 sync_url = "postgresql://" + sync_url[len("postgresql+asyncpg://") :]
+            parsed = urlsplit(sync_url)
+            if parsed.query:
+                qs = parse_qs(parsed.query)
+                if "ssl" in qs and "sslmode" not in qs:
+                    qs["sslmode"] = qs.pop("ssl")
+                qs.pop("channel_binding", None)
+                sync_url = urlunsplit(
+                    (
+                        parsed.scheme,
+                        parsed.netloc,
+                        parsed.path,
+                        urlencode(qs, doseq=True),
+                        parsed.fragment,
+                    )
+                )
             self.sync_database_url = sync_url
-        elif self.sync_database_url and self.sync_database_url.startswith("postgres://"):
-            self.sync_database_url = "postgresql://" + self.sync_database_url[len("postgres://") :]
-        elif self.sync_database_url and self.sync_database_url.startswith("postgresql+asyncpg://"):
-            self.sync_database_url = (
-                "postgresql://" + self.sync_database_url[len("postgresql+asyncpg://") :]
-            )
+        elif self.sync_database_url:
+            sync_url = self.sync_database_url
+            if sync_url.startswith("postgres://"):
+                sync_url = "postgresql://" + sync_url[len("postgres://") :]
+            elif sync_url.startswith("postgresql+asyncpg://"):
+                sync_url = "postgresql://" + sync_url[len("postgresql+asyncpg://") :]
+            parsed = urlsplit(sync_url)
+            if parsed.query:
+                qs = parse_qs(parsed.query)
+                if "ssl" in qs and "sslmode" not in qs:
+                    qs["sslmode"] = qs.pop("ssl")
+                qs.pop("channel_binding", None)
+                sync_url = urlunsplit(
+                    (
+                        parsed.scheme,
+                        parsed.netloc,
+                        parsed.path,
+                        urlencode(qs, doseq=True),
+                        parsed.fragment,
+                    )
+                )
+            self.sync_database_url = sync_url
 
         return self
 
